@@ -1,0 +1,22 @@
+name: Branch Name Checker
+
+on:
+  pull_request:
+    types: [opened, edited]
+
+jobs:
+  check-branch-naming:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Run Branch Naming Check
+        uses: GitOpsLovers/gha-branch-name-checker@v2
+        with:
+          branch_pattern: 'feature|hotfix|chore'
+          ignore_branch_pattern: 'internal'
+          comment_for_invalid_branch_name: 'The name of the branch is invalid'
+          fail_if_invalid_branch_name: 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
