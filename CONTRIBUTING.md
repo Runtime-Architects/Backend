@@ -99,32 +99,32 @@ To enforce Conventional Commits locally before pushing:
 
 	2.	Add this config to commitlint.config.js:
 
-      ```
-module.exports = {
-  extends: ['@commitlint/config-conventional'],
-};
-   ```
+	```
+	module.exports = {
+	  extends: ['@commitlint/config-conventional'],
+	};
+   	```
 
 
 	3.	Enable Git hooks:
 
-   ```
-npx husky install
-   ```
+   	```
+	npx husky install
+   	```
 
 	4.	Add this to package.json scripts:
 
-   ```
-"scripts": {
-  "prepare": "husky install"
-}
-   ```
+   	```
+	"scripts": {
+	  "prepare": "husky install"
+	}
+   	```
 
 	5.	Create a commit-msg hook:
 
-   ```
-npx husky add .husky/commit-msg 'npx --no -- commitlint --edit "$1"'
-   ```
+   	```
+	npx husky add .husky/commit-msg 'npx --no -- commitlint --edit "$1"'
+   	```
 
 
 This prevents invalid commits before they’re even pushed.
