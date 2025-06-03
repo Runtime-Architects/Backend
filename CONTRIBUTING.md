@@ -87,47 +87,99 @@ All commit messages **must follow [Conventional Commits](https://www.conventiona
 
 ---
 
-## 🛠️ Local Setup for Commit Enforcement (Optional but Recommended)
 
-To enforce Conventional Commits locally before pushing:
+## 🛠️ Enforcing Conventional Commits Locally (Python Project)
 
-1. Install dev dependencies:
+To ensure consistent commit messages, we enforce the [Conventional Commits](https://www.conventionalcommits.org/) standard using a Python-native tool.
 
-   ```bash
-   npm install --save-dev @commitlint/{config-conventional,cli} husky
-      ```
+---
 
-	2.	Add this config to commitlint.config.js:
+### ✅ Recommended: Use `pre-commit` + `gitlint`
 
-	```
-	module.exports = {
-	  extends: ['@commitlint/config-conventional'],
-	};
-   	```
+This setup runs checks automatically when you make a commit — no Node.js required.
 
+---
 
-	3.	Enable Git hooks:
+### 🔧 Step-by-Step Setup
 
-   	```
-	npx husky install
-   	```
+#### 1. Install `pre-commit`
 
-	4.	Add this to package.json scripts:
+Install the tool globally or add it to your project:
 
-   	```
-	"scripts": {
-	  "prepare": "husky install"
-	}
-   	```
+```bash
+pip install pre-commit
+```
 
-	5.	Create a commit-msg hook:
+> You can also include it in your `requirements-dev.txt` or `pyproject.toml`.
 
-   	```
-	npx husky add .husky/commit-msg 'npx --no -- commitlint --edit "$1"'
-   	```
+---
 
+#### 2. Create a `.pre-commit-config.yaml` file
 
-This prevents invalid commits before they’re even pushed.
+```yaml
+repos:
+  - repo: https://github.com/jorisroovers/gitlint
+    rev: v0.19.1  # Use the latest version
+    hooks:
+      - id: gitlint
+```
+
+---
+
+#### 3. Install the Git hook
+
+```bash
+pre-commit install
+```
+
+This installs the hook that will run automatically on every commit.
+
+---
+
+#### 4. (Optional) Customize commit rules in `.gitlint`
+
+Create a `.gitlint` file in your project root:
+
+```ini
+[general]
+ignore-merge-commits=true
+
+[title-match-regex]
+regex=^(feat|fix|chore|docs|style|refactor|perf|test)(\([\w\-]+\))?: .{1,}$
+```
+
+This enforces the Conventional Commit format.
+
+---
+
+### 🧪 Example Valid Commit
+
+```
+feat(core): add new API handler
+```
+
+### ❌ Example Invalid Commit
+
+```
+added new feature
+```
+
+---
+
+### ✅ Benefits
+
+- Enforced **before you commit**
+- Fully **Python-native**
+- No need for Node.js or extra tooling
+- Can be used in local dev + CI
+
+---
+
+For more details, see:
+
+- [https://pre-commit.com](https://pre-commit.com)
+- [https://jorisroovers.com/gitlint](https://jorisroovers.com/gitlint/)
+- [https://www.conventionalcommits.org](https://www.conventionalcommits.org)
 
 ⸻
 
