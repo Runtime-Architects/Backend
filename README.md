@@ -1,5 +1,5 @@
 
-# 🧠 Backend Repository
+# Backend Repository
 
 This repository contains the core backend logic for our project. It is structured to ensure clarity, maintainability, and scalability.
 
@@ -39,4 +39,4 @@ pytest
 
 ## 📦 Deployment
 
-Deployment instructions are specific to the environment and are documented in the deployment guide.
+TODO
