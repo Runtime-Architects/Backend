@@ -3,6 +3,10 @@
 
 This repository contains the core backend logic for our project. It is structured to ensure clarity, maintainability, and scalability.
 
+## 🐍 Requirements
+
+- Python 3.10
+
 ## 📁 Structure
 
 - TODO
