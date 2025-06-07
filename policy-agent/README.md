@@ -7,7 +7,7 @@ This project implements a simple agent using the autogen framework in Python 3.1
 ```
 simple-agent
 ├── src
-│   ├── agent.py        # Contains the SimpleAgent class and its methods
+│   ├── agent.py        # Contains the PolicyAgent class and its methods
 │   ├── utils.py        # Utility functions for the agent
 │   └── __init__.py     # Marks the directory as a Python package
 ├── requirements.txt     # Lists project dependencies
