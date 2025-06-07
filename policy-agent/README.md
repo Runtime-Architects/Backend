@@ -37,21 +37,13 @@ simple-agent
 
 ## Usage
 
-To use the SimpleAgent, you can create an instance of the `SimpleAgent` class and call its methods to manage its lifecycle:
+To use the PolicyAgent, you can create an instance of the `PolicyAgent` class and call its methods to manage its lifecycle:
 
 ```python
-from src.agent import SimpleAgent
+from src.agent import PolicyAgent
 
-agent = SimpleAgent()
+agent = PolicyAgent()
 agent.initialize()
 agent.run()
 agent.shutdown()
 ```
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a pull request or open an issue for any suggestions or improvements.
-
-## License
-
-This project is licensed under the MIT License. See the LICENSE file for more details.
