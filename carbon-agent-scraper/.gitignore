@@ -52,3 +52,8 @@ Thumbs.db
 *.tmp
 *.orig
 *.rej
+
+# Downloaded files
+downloads/
+*.csv
+*.crdownload

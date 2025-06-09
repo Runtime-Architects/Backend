@@ -1,4 +1,4 @@
-scrapy==2.13.1
-scrapy-playwright==0.0.43
-pandas==2.2.3
-python-dateutil==2.9.0.post0
+selenium >= 4.33.0
+pandas >=2.2.3
+webdriver-manager >= 4.0.2
+requests >= 2.32.3

@@ -1,0 +1,405 @@
+{
+  "metadata": {
+    "scraped_at": "2025-06-09T17:03:56.538817",
+    "region": "All Island",
+    "source_file": "Co2Intensity_09.Jun.2025.00.00_09.Jun.2025.23.59.csv",
+    "total_points": 79
+  },
+  "time_series": [
+    {
+      "time": "09 June 2025 00:00",
+      "intensity": 214.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 00:15",
+      "intensity": 213.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 00:30",
+      "intensity": 209.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 00:45",
+      "intensity": 212.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 01:00",
+      "intensity": 205.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 01:15",
+      "intensity": 210.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 01:30",
+      "intensity": 210.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 01:45",
+      "intensity": 211.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 02:00",
+      "intensity": 211.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 02:15",
+      "intensity": 217.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 02:30",
+      "intensity": 219.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 02:45",
+      "intensity": 221.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 03:00",
+      "intensity": 221.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 03:15",
+      "intensity": 223.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 03:30",
+      "intensity": 226.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 03:45",
+      "intensity": 237.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 04:00",
+      "intensity": 245.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 04:15",
+      "intensity": 241.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 04:30",
+      "intensity": 242.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 04:45",
+      "intensity": 236.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 05:00",
+      "intensity": 244.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 05:15",
+      "intensity": 245.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 05:30",
+      "intensity": 242.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 05:45",
+      "intensity": 245.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 06:00",
+      "intensity": 251.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 06:15",
+      "intensity": 255.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 06:30",
+      "intensity": 250.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 06:45",
+      "intensity": 239.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 07:00",
+      "intensity": 219.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 07:15",
+      "intensity": 213.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 07:30",
+      "intensity": 216.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 07:45",
+      "intensity": 216.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 08:00",
+      "intensity": 211.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 08:15",
+      "intensity": 207.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 08:30",
+      "intensity": 202.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 08:45",
+      "intensity": 201.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 09:00",
+      "intensity": 183.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 09:15",
+      "intensity": 177.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 09:30",
+      "intensity": 174.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 09:45",
+      "intensity": 171.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 10:00",
+      "intensity": 171.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 10:15",
+      "intensity": 175.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 10:30",
+      "intensity": 177.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 10:45",
+      "intensity": 175.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 11:00",
+      "intensity": 183.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 11:15",
+      "intensity": 190.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 11:30",
+      "intensity": 189.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 11:45",
+      "intensity": 183.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 12:00",
+      "intensity": 184.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 12:15",
+      "intensity": 180.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 12:30",
+      "intensity": 187.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 12:45",
+      "intensity": 179.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 13:00",
+      "intensity": 187.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 13:15",
+      "intensity": 187.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 13:30",
+      "intensity": 198.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 13:45",
+      "intensity": 195.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 14:00",
+      "intensity": 192.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 14:15",
+      "intensity": 194.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 14:30",
+      "intensity": 199.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 14:45",
+      "intensity": 201.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 15:00",
+      "intensity": 200.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 15:15",
+      "intensity": 197.0,
+      "intensity_forecast": null
+    },
+    {
+      "time": "09 June 2025 15:30",
+      "intensity": null,
+      "intensity_forecast": 277.0
+    },
+    {
+      "time": "09 June 2025 16:00",
+      "intensity": null,
+      "intensity_forecast": 243.0
+    },
+    {
+      "time": "09 June 2025 16:30",
+      "intensity": null,
+      "intensity_forecast": 224.0
+    },
+    {
+      "time": "09 June 2025 17:00",
+      "intensity": null,
+      "intensity_forecast": 217.0
+    },
+    {
+      "time": "09 June 2025 17:30",
+      "intensity": null,
+      "intensity_forecast": 212.0
+    },
+    {
+      "time": "09 June 2025 18:00",
+      "intensity": null,
+      "intensity_forecast": 216.0
+    },
+    {
+      "time": "09 June 2025 18:30",
+      "intensity": null,
+      "intensity_forecast": 217.0
+    },
+    {
+      "time": "09 June 2025 19:00",
+      "intensity": null,
+      "intensity_forecast": 216.0
+    },
+    {
+      "time": "09 June 2025 19:30",
+      "intensity": null,
+      "intensity_forecast": 224.0
+    },
+    {
+      "time": "09 June 2025 20:00",
+      "intensity": null,
+      "intensity_forecast": 227.0
+    },
+    {
+      "time": "09 June 2025 20:30",
+      "intensity": null,
+      "intensity_forecast": 229.0
+    },
+    {
+      "time": "09 June 2025 21:00",
+      "intensity": null,
+      "intensity_forecast": 227.0
+    },
+    {
+      "time": "09 June 2025 21:30",
+      "intensity": null,
+      "intensity_forecast": 230.0
+    },
+    {
+      "time": "09 June 2025 22:00",
+      "intensity": null,
+      "intensity_forecast": 238.0
+    },
+    {
+      "time": "09 June 2025 22:30",
+      "intensity": null,
+      "intensity_forecast": 252.0
+    },
+    {
+      "time": "09 June 2025 23:00",
+      "intensity": null,
+      "intensity_forecast": 257.0
+    },
+    {
+      "time": "09 June 2025 23:30",
+      "intensity": null,
+      "intensity_forecast": 247.0
+    }
+  ]
+}
