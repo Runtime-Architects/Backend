@@ -1,5 +1,5 @@
-
 # Backend Repository
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/f58da717b7b94463aa05b2e01fb437ff)](https://app.codacy.com/gh/Runtime-Architects/Backend/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 
 This repository contains the core backend logic for our project. It is structured to ensure clarity, maintainability, and scalability.
 
