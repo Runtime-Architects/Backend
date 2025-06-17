@@ -105,6 +105,6 @@ class ChatAgent:
             str: The final response content
         """
         result = self.chat(message)
-        if result and hasattr(result, 'summary'):
-            return str(result.summary)
-        return "No response generated"
+        # if result and hasattr(result, 'summary'):
+        #     return str(result.summary)
+        # return "No response generated"

@@ -4,5 +4,5 @@ from src.agent import ChatAgent
 agent = ChatAgent()
 
 # Get a response
-response = agent.get_final_response("What is the current policy on X?")
-print(response)
+response = agent.chat("Generate a graph to understand Ireland's carbon emission in 2023")
+# print(response)
