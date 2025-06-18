@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 EirGrid Data Merger Utility
 Intelligently merges data files, replacing forecast values with actual values

@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 Comprehensive EirGrid Data Collection Test Script
 Tests both API and CSV download methods for all supported areas

@@ -1,8 +1,6 @@
-#!/usr/bin/env python
 """
-Unified EirGrid Data Downloader - FIXED VERSION
+Unified EirGrid Data Downloader - Updated with CSV Download Method
 Combines API and CSV download methods with intelligent fallback
-Prioritizes API calls first, falls back to CSV download only when needed
 """
 
 import os
@@ -42,7 +40,7 @@ class UnifiedEirGridDownloader:
         self.csv_downloader = CSVDataDownloader(data_dir=str(self.data_dir), headless=headless) if csv_downloader_available else None
         
         # API rate limiting
-        self.api_delay = 1.5  # Reduced delay between API calls
+        self.api_delay = 2.0  # Delay between API calls
         self.last_api_call = 0
         
         # Data area mappings for API
@@ -59,11 +57,8 @@ class UnifiedEirGridDownloader:
             'interconnection': 'interconnection'
         }
         
-        # Areas that support CSV download (for fallback)
-        self.csv_supported_areas = [
-            'co2_emissions', 'co2_intensity', 'wind_generation', 
-            'solar_generation', 'demand'
-        ]
+        # Areas that work better with CSV download
+        self.csv_preferred_areas = ['co2_emissions', 'co2_intensity', 'wind_generation', 'solar_generation', 'demand']
         
         # Track download statistics
         self.stats = {
@@ -95,9 +90,9 @@ class UnifiedEirGridDownloader:
             Dictionary with data and metadata
         """
         
-        # Default to today if no dates provided (changed from yesterday)
+        # Default to yesterday if no dates provided
         if date_from is None:
-            date_from = datetime.now().strftime('%Y-%m-%d')
+            date_from = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
         if date_to is None:
             date_to = datetime.now().strftime('%Y-%m-%d')
         
@@ -112,52 +107,46 @@ class UnifiedEirGridDownloader:
             'error': None
         }
         
-        # If forecast is specifically requested or scraping is forced, go directly to CSV
-        if include_forecast or force_scraping:
-            if csv_downloader_available and area in self.csv_supported_areas:
-                reason = "forecast requested" if include_forecast else "scraping forced"
-                self.logger.info(f"Using CSV download method for {area} ({reason})")
-                return self._download_via_csv(area, region, date_from, date_to, include_forecast)
-            elif not csv_downloader_available:
-                result['error'] = "CSV download not available but required for forecast/force mode"
-                return result
+        # If forecast is requested or CSV is preferred/forced, use CSV download
+        if include_forecast or force_scraping or area in self.csv_preferred_areas:
+            if csv_downloader_available:
+                self.logger.info(f"Using CSV download method for {area} (forecast={include_forecast}, force={force_scraping})")
+                csv_result = self._download_via_csv(area, region, date_from, date_to, include_forecast)
+                
+                if csv_result['success']:
+                    self.stats['csv_success'] += 1
+                else:
+                    self.stats['csv_fail'] += 1
+                
+                return csv_result
             else:
-                result['error'] = f"Area '{area}' not supported for CSV download"
-                return result
+                self.logger.warning("CSV download not available, falling back to API")
         
-        # PRIMARY METHOD: Try API first for all supported areas
+        # Try API first for areas that support it
         if area in self.api_areas:
             self.logger.info(f"Attempting API download for {area}")
             api_result = self._download_via_api(area, region.upper() if region.lower() != 'all' else 'ALL', date_from, date_to)
             
             if api_result['success']:
                 self.stats['api_success'] += 1
-                self.logger.info(f"API download successful for {area}")
                 return api_result
             else:
                 self.stats['api_fail'] += 1
                 self.logger.warning(f"API failed for {area}: {api_result['error']}")
-        else:
-            self.logger.info(f"Area {area} not supported by API")
         
-        # FALLBACK METHOD: Try CSV download if API failed or isn't supported
-        if csv_downloader_available and area in self.csv_supported_areas:
+        # Fallback to CSV download if API failed
+        if csv_downloader_available:
             self.logger.info(f"Falling back to CSV download for {area}")
             csv_result = self._download_via_csv(area, region, date_from, date_to, include_forecast)
             
             if csv_result['success']:
                 self.stats['csv_success'] += 1
-                self.logger.info(f"CSV download successful for {area}")
             else:
                 self.stats['csv_fail'] += 1
-                self.logger.error(f"CSV download also failed for {area}: {csv_result['error']}")
             
             return csv_result
         else:
-            if not csv_downloader_available:
-                result['error'] = "Both API failed and CSV download not available"
-            else:
-                result['error'] = f"Area '{area}' not supported by either API or CSV download"
+            result['error'] = "Both API and CSV download methods failed/unavailable"
             return result
     
     def _download_via_api(self, area: str, region: str, date_from: str, date_to: str) -> Dict[str, Any]:
@@ -195,7 +184,6 @@ class UnifiedEirGridDownloader:
         max_retries = 3
         for attempt in range(max_retries):
             try:
-                self.logger.debug(f"API request (attempt {attempt + 1}): {url}")
                 response = requests.get(url, timeout=30)
                 self.last_api_call = time.time()
                 
@@ -209,7 +197,6 @@ class UnifiedEirGridDownloader:
                             parsed_data = self._parse_api_data(rows, area)
                             result['data'] = parsed_data
                             result['success'] = True
-                            self.logger.info(f"API returned {len(rows)} data points for {area}")
                             return result
                         else:
                             result['error'] = "No data returned from API"
@@ -222,17 +209,14 @@ class UnifiedEirGridDownloader:
                     continue
                 else:
                     result['error'] = f"HTTP {response.status_code}: {response.reason}"
-                    break
                     
             except requests.exceptions.Timeout:
                 result['error'] = "Request timeout"
                 if attempt < max_retries - 1:
-                    self.logger.warning(f"Timeout on attempt {attempt + 1}, retrying...")
                     time.sleep(2 ** attempt)
                     continue
             except Exception as e:
                 result['error'] = str(e)
-                self.logger.error(f"API request failed: {e}")
                 break
         
         return result
@@ -325,26 +309,17 @@ class UnifiedEirGridDownloader:
                 data_point = {
                     'time': row.get('EffectiveTime', ''),
                     'value': self._parse_number(row.get('Value')),
-                    'is_forecast': False,  # API data is always actual
+                    'is_forecast': False,
                     'field_name': row.get('FieldName', area)
                 }
-                
-                # Only add valid data points
-                if data_point['value'] is not None:
-                    time_series.append(data_point)
-                    
+                time_series.append(data_point)
             except Exception as e:
-                self.logger.warning(f"Error parsing API row: {e}")
+                self.logger.warning(f"Error parsing row: {e}")
                 continue
         
         return {
             'time_series': time_series,
-            'extracted_at': datetime.now().isoformat(),
-            'metadata': {
-                'area': area,
-                'total_points': len(time_series),
-                'source': 'api'
-            }
+            'extracted_at': datetime.now().isoformat()
         }
     
     def _parse_number(self, value) -> Optional[float]:
@@ -377,39 +352,25 @@ class UnifiedEirGridDownloader:
         
         if update_existing and file_path.exists():
             # Load existing data
-            try:
-                with open(file_path, 'r') as f:
-                    existing_data = json.load(f)
+            with open(file_path, 'r') as f:
+                existing_data = json.load(f)
+            
+            # Merge data intelligently
+            merged_data = self._merge_data(existing_data, data)
+            
+            # Save merged data
+            with open(file_path, 'w') as f:
+                json.dump(merged_data, f, indent=2)
                 
-                # Merge data intelligently
-                merged_data = self._merge_data(existing_data, data)
-                
-                # Save merged data
-                with open(file_path, 'w') as f:
-                    json.dump(merged_data, f, indent=2)
-                    
-                self.logger.info(f"Updated existing file: {file_path}")
-                
-                # Log merge summary
-                old_count = len(existing_data.get('data', {}).get('time_series', []))
-                new_count = len(merged_data.get('data', {}).get('time_series', []))
-                if new_count > old_count:
-                    self.logger.info(f"Added {new_count - old_count} new data points")
-                
-            except Exception as e:
-                self.logger.error(f"Error merging data: {e}, creating new file instead")
-                # Fall back to creating new file
-                update_existing = False
-        
-        if not update_existing or not file_path.exists():
+            self.logger.info(f"Updated existing file: {file_path}")
+        else:
             # Save new file
             save_data = {
                 'metadata': {
                     'area': area,
                     'region': region,
                     'created_at': datetime.now().isoformat(),
-                    'last_updated': datetime.now().isoformat(),
-                    'source_method': data.get('metadata', {}).get('source', 'unknown')
+                    'last_updated': datetime.now().isoformat()
                 },
                 'data': data
             }
@@ -438,9 +399,6 @@ class UnifiedEirGridDownloader:
         # Create lookup for existing data by time
         existing_by_time = {point['time']: point for point in existing_ts}
         
-        updates_made = 0
-        new_points_added = 0
-        
         # Update with new data
         for new_point in new_ts:
             time_key = new_point['time']
@@ -448,38 +406,18 @@ class UnifiedEirGridDownloader:
             if time_key in existing_by_time:
                 old_point = existing_by_time[time_key]
                 
-                # Priority 1: Replace forecast with actual data
+                # If old point was forecast and new is actual, replace
                 if old_point.get('is_forecast', False) and not new_point.get('is_forecast', False):
                     existing_by_time[time_key] = new_point
-                    updates_made += 1
                     self.logger.debug(f"Replaced forecast with actual for {time_key}")
                 
-                # Priority 2: Update if values differ (prefer actual over forecast)
+                # Update if new value is different
                 elif old_point.get('value') != new_point.get('value'):
-                    # Prefer non-forecast values
-                    if not new_point.get('is_forecast', False):
-                        existing_by_time[time_key] = new_point
-                        updates_made += 1
-                        self.logger.debug(f"Updated actual value for {time_key}")
-                    elif old_point.get('is_forecast', False):
-                        # Both are forecasts, take the newer one
-                        existing_by_time[time_key] = new_point
-                        updates_made += 1
-                        self.logger.debug(f"Updated forecast value for {time_key}")
-                
-                # Merge forecast values if present
-                if 'forecast_value' in new_point and 'forecast_value' not in old_point:
-                    existing_by_time[time_key]['forecast_value'] = new_point['forecast_value']
-                    
+                    existing_by_time[time_key] = new_point
+                    self.logger.debug(f"Updated value for {time_key}")
             else:
                 # Add new time point
                 existing_by_time[time_key] = new_point
-                new_points_added += 1
-        
-        if updates_made > 0:
-            self.logger.info(f"Updated {updates_made} existing data points")
-        if new_points_added > 0:
-            self.logger.info(f"Added {new_points_added} new data points")
         
         # Convert back to list and sort by time
         merged_ts = list(existing_by_time.values())
@@ -487,12 +425,6 @@ class UnifiedEirGridDownloader:
         
         existing['data']['time_series'] = merged_ts
         existing['data']['extracted_at'] = new.get('extracted_at', datetime.now().isoformat())
-        
-        # Update metadata with merge info
-        if 'metadata' in new:
-            new_metadata = new.get('metadata', {})
-            if 'source' in new_metadata:
-                existing['metadata']['last_source_method'] = new_metadata['source']
         
         return existing
     
@@ -527,18 +459,3 @@ class UnifiedEirGridDownloader:
         """Clean up temporary files"""
         if self.csv_downloader:
             self.csv_downloader.cleanup_temp_files()
-    
-    def test_api_connection(self, area: str, region: str = "ALL") -> bool:
-        """Test if API is working for a specific area"""
-        
-        if area not in self.api_areas:
-            return False
-        
-        # Test with a small date range
-        yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
-        
-        try:
-            result = self._download_via_api(area, region, yesterday, yesterday)
-            return result['success']
-        except Exception:
-            return False

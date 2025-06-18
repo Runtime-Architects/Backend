@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 Quick Test Script - Validates Unified Download Logic
 For comprehensive testing, use comprehensive_test.py instead

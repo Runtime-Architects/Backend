@@ -1,6 +1,5 @@
-#!/usr/bin/env python
 """
-Enhanced CSV Download Method for EirGrid Data
+CSV Download Method for EirGrid Data
 Integrates CSV download approach with the unified downloader architecture
 """
 
