@@ -1,0 +1,293 @@
+{
+  "metadata": {
+    "area": "demand",
+    "region": "all",
+    "created_at": "2025-06-19T03:43:44.714471",
+    "last_updated": "2025-06-19T03:43:44.714471"
+  },
+  "data": {
+    "time_series": [
+      {
+        "time": "19 June 2025 00:00",
+        "value": 4142.0,
+        "is_forecast": false
+      },
+      {
+        "time": "19 June 2025 00:15",
+        "value": 4111.0,
+        "is_forecast": false
+      },
+      {
+        "time": "19 June 2025 00:30",
+        "value": 4042.0,
+        "is_forecast": false
+      },
+      {
+        "time": "19 June 2025 00:45",
+        "value": 3969.0,
+        "is_forecast": false
+      },
+      {
+        "time": "19 June 2025 01:00",
+        "value": 3920.0,
+        "is_forecast": false
+      },
+      {
+        "time": "19 June 2025 01:15",
+        "value": 3887.0,
+        "is_forecast": false
+      },
+      {
+        "time": "19 June 2025 01:30",
+        "value": 3839.0,
+        "is_forecast": false
+      },
+      {
+        "time": "19 June 2025 01:45",
+        "value": 3801.0,
+        "is_forecast": false
+      },
+      {
+        "time": "19 June 2025 02:00",
+        "value": 3773.0,
+        "is_forecast": false
+      },
+      {
+        "time": "19 June 2025 02:15",
+        "value": 3863.0,
+        "is_forecast": false
+      },
+      {
+        "time": "19 June 2025 02:30",
+        "value": 3825.0,
+        "is_forecast": false
+      },
+      {
+        "time": "19 June 2025 02:45",
+        "value": 3799.0,
+        "is_forecast": false
+      },
+      {
+        "time": "19 June 2025 03:00",
+        "value": 3766.0,
+        "is_forecast": false
+      },
+      {
+        "time": "19 June 2025 03:15",
+        "value": 3753.0,
+        "is_forecast": false
+      },
+      {
+        "time": "19 June 2025 03:30",
+        "value": 3727.0,
+        "is_forecast": false
+      },
+      {
+        "time": "19 June 2025 04:00",
+        "value": 3676.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 04:30",
+        "value": 3641.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 05:00",
+        "value": 3627.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 05:30",
+        "value": 3653.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 06:00",
+        "value": 3797.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 06:30",
+        "value": 4062.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 07:00",
+        "value": 4351.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 07:30",
+        "value": 4725.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 08:00",
+        "value": 4955.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 08:30",
+        "value": 5091.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 09:00",
+        "value": 5087.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 09:30",
+        "value": 5079.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 10:00",
+        "value": 4994.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 10:30",
+        "value": 4925.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 11:00",
+        "value": 4924.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 11:30",
+        "value": 4863.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 12:00",
+        "value": 4823.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 12:30",
+        "value": 4840.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 13:00",
+        "value": 4824.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 13:30",
+        "value": 4753.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 14:00",
+        "value": 4722.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 14:30",
+        "value": 4799.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 15:00",
+        "value": 4714.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 15:30",
+        "value": 4782.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 16:00",
+        "value": 4865.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 16:30",
+        "value": 4987.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 17:00",
+        "value": 5091.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 17:30",
+        "value": 5158.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 18:00",
+        "value": 5169.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 18:30",
+        "value": 5101.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 19:00",
+        "value": 5059.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 19:30",
+        "value": 5014.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 20:00",
+        "value": 4994.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 20:30",
+        "value": 4970.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 21:00",
+        "value": 4906.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 21:30",
+        "value": 4766.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 22:00",
+        "value": 4699.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 22:30",
+        "value": 4558.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 23:00",
+        "value": 4356.0,
+        "is_forecast": true
+      },
+      {
+        "time": "19 June 2025 23:30",
+        "value": 4228.0,
+        "is_forecast": true
+      }
+    ],
+    "extracted_at": "2025-06-19T03:43:42.610058",
+    "metadata": {
+      "region": "All Island",
+      "area": "demand",
+      "total_points": 55
+    }
+  }
+}

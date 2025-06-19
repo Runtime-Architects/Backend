@@ -1,6 +1,7 @@
 """
-Unified EirGrid Data Downloader - Updated with CSV Download Method
+Unified EirGrid Data Downloader
 Combines API and CSV download methods with intelligent fallback
+Includes fixes for demand data and enhanced method selection
 """
 
 import os
@@ -13,7 +14,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 import logging
 
-# Import the CSV downloader
+# Import the updated CSV downloader
 try:
     from csv_downloader import CSVDataDownloader
     csv_downloader_available = True
@@ -23,7 +24,7 @@ except ImportError:
 
 
 class UnifiedEirGridDownloader:
-    """Unified downloader that combines API and CSV download methods"""
+    """Unified downloader that combines API and CSV download methods with enhanced intelligence"""
     
     def __init__(self, data_dir: Optional[str] = None, headless: bool = True):
         self.logger = logging.getLogger(__name__)
@@ -36,7 +37,7 @@ class UnifiedEirGridDownloader:
         
         self.data_dir.mkdir(exist_ok=True)
         
-        # CSV downloader
+        # CSV downloader with fixes
         self.csv_downloader = CSVDataDownloader(data_dir=str(self.data_dir), headless=headless) if csv_downloader_available else None
         
         # API rate limiting
@@ -57,8 +58,11 @@ class UnifiedEirGridDownloader:
             'interconnection': 'interconnection'
         }
         
-        # Areas that work better with CSV download
-        self.csv_preferred_areas = ['co2_emissions', 'co2_intensity', 'wind_generation', 'solar_generation', 'demand']
+        # UPDATED: Enhanced area preferences based on comprehensive test results
+        self.csv_preferred_areas = ['solar_generation']  # Areas where API fails but CSV works
+        self.csv_required_areas = ['solar_generation']   # Areas that ONLY work with CSV
+        self.problematic_csv_areas = ['co2_emissions']   # Areas where CSV often fails but API works
+        self.api_preferred_areas = ['co2_intensity', 'wind_generation', 'demand', 'snsp', 'frequency', 'interconnection']
         
         # Track download statistics
         self.stats = {
@@ -76,7 +80,7 @@ class UnifiedEirGridDownloader:
                      include_forecast: bool = False,
                      force_scraping: bool = False) -> Dict[str, Any]:
         """
-        Download data for a specific area using the best available method
+        Download data for a specific area using intelligent method selection
         
         Args:
             area: Data area name
@@ -104,28 +108,46 @@ class UnifiedEirGridDownloader:
             'method': None,
             'success': False,
             'data': None,
-            'error': None
+            'error': None,
+            'method_attempted': []
         }
         
-        # If forecast is requested or CSV is preferred/forced, use CSV download
-        if include_forecast or force_scraping or area in self.csv_preferred_areas:
+        # UPDATED: Intelligent method selection based on comprehensive test results
+        self.logger.info(f"Starting download for {area} (region: {region}, dates: {date_from} to {date_to})")
+        
+        # Force CSV for areas that require it or when explicitly requested
+        if (include_forecast or 
+            force_scraping or 
+            area in self.csv_required_areas or
+            (area in self.csv_preferred_areas and not force_scraping)):
+            
             if csv_downloader_available:
-                self.logger.info(f"Using CSV download method for {area} (forecast={include_forecast}, force={force_scraping})")
+                method_reason = "forecast requested" if include_forecast else "force scraping" if force_scraping else "CSV preferred"
+                self.logger.info(f"Using CSV download method for {area} ({method_reason})")
                 csv_result = self._download_via_csv(area, region, date_from, date_to, include_forecast)
+                result['method_attempted'].append('csv_download')
                 
                 if csv_result['success']:
                     self.stats['csv_success'] += 1
+                    return csv_result
                 else:
                     self.stats['csv_fail'] += 1
-                
-                return csv_result
+                    self.logger.warning(f"CSV download failed for {area}: {csv_result['error']}")
+                    
+                    # For CSV-required areas, don't fall back to API
+                    if area in self.csv_required_areas:
+                        return csv_result
             else:
                 self.logger.warning("CSV download not available, falling back to API")
         
-        # Try API first for areas that support it
-        if area in self.api_areas:
+        # Try API for areas where it works well (and we haven't already tried CSV)
+        if (area in self.api_areas and 
+            area not in self.csv_required_areas and
+            'csv_download' not in result['method_attempted']):
+            
             self.logger.info(f"Attempting API download for {area}")
             api_result = self._download_via_api(area, region.upper() if region.lower() != 'all' else 'ALL', date_from, date_to)
+            result['method_attempted'].append('api')
             
             if api_result['success']:
                 self.stats['api_success'] += 1
@@ -134,23 +156,29 @@ class UnifiedEirGridDownloader:
                 self.stats['api_fail'] += 1
                 self.logger.warning(f"API failed for {area}: {api_result['error']}")
         
-        # Fallback to CSV download if API failed
-        if csv_downloader_available:
+        # Fallback to CSV download if API failed and CSV is available and we haven't tried it yet
+        if (csv_downloader_available and 
+            'csv_download' not in result['method_attempted'] and
+            area not in self.problematic_csv_areas):
+            
             self.logger.info(f"Falling back to CSV download for {area}")
             csv_result = self._download_via_csv(area, region, date_from, date_to, include_forecast)
+            result['method_attempted'].append('csv_download_fallback')
             
             if csv_result['success']:
                 self.stats['csv_success'] += 1
+                return csv_result
             else:
                 self.stats['csv_fail'] += 1
-            
-            return csv_result
-        else:
-            result['error'] = "Both API and CSV download methods failed/unavailable"
-            return result
+                self.logger.warning(f"CSV fallback failed for {area}: {csv_result['error']}")
+        
+        # If we get here, all available methods failed
+        result['error'] = f"All available methods failed. Attempted: {', '.join(result['method_attempted'])}"
+        self.logger.error(f"All methods failed for {area}: {result['error']}")
+        return result
     
     def _download_via_api(self, area: str, region: str, date_from: str, date_to: str) -> Dict[str, Any]:
-        """Download data using the API method"""
+        """Download data using the API method with enhanced error handling"""
         
         result = {
             'area': area,
@@ -180,6 +208,7 @@ class UnifiedEirGridDownloader:
             time.sleep(self.api_delay - time_since_last)
         
         url = f"https://www.smartgriddashboard.com/DashboardService.svc/data?area={api_area}&region={region}&datefrom={start_time}&dateto={end_time}"
+        self.logger.debug(f"API URL: {url}")
         
         max_retries = 3
         for attempt in range(max_retries):
@@ -197,11 +226,19 @@ class UnifiedEirGridDownloader:
                             parsed_data = self._parse_api_data(rows, area)
                             result['data'] = parsed_data
                             result['success'] = True
+                            
+                            # Log success summary
+                            point_count = len(parsed_data['time_series'])
+                            self.logger.info(f"API download successful: {point_count} data points")
                             return result
                         else:
                             result['error'] = "No data returned from API"
                     else:
-                        result['error'] = data.get('ErrorMessage', 'Unknown API error')
+                        error_msg = data.get('ErrorMessage', 'Unknown API error')
+                        if 'Invalid Area' in error_msg:
+                            result['error'] = f"Invalid Area: '{api_area}'"
+                        else:
+                            result['error'] = error_msg
                 
                 elif response.status_code == 503 and attempt < max_retries - 1:
                     self.logger.warning(f"Service unavailable, retrying in {2 ** attempt} seconds...")
@@ -213,6 +250,7 @@ class UnifiedEirGridDownloader:
             except requests.exceptions.Timeout:
                 result['error'] = "Request timeout"
                 if attempt < max_retries - 1:
+                    self.logger.warning(f"API timeout, retrying in {2 ** attempt} seconds...")
                     time.sleep(2 ** attempt)
                     continue
             except Exception as e:
@@ -222,7 +260,7 @@ class UnifiedEirGridDownloader:
         return result
     
     def _download_via_csv(self, area: str, region: str, date_from: str, date_to: str, include_forecast: bool) -> Dict[str, Any]:
-        """Download data using CSV download method"""
+        """Download data using the enhanced CSV download method"""
         
         result = {
             'area': area,
@@ -232,7 +270,8 @@ class UnifiedEirGridDownloader:
             'method': 'csv_download',
             'success': False,
             'data': None,
-            'error': None
+            'error': None,
+            'debug_info': {}
         }
         
         if not csv_downloader_available:
@@ -253,7 +292,9 @@ class UnifiedEirGridDownloader:
             else:
                 duration = 'month'
             
-            # Download CSV
+            self.logger.debug(f"CSV download: {area}, duration={duration}, dates={date_from_fmt} to {date_to_fmt}")
+            
+            # Use the enhanced CSV downloader
             csv_result = self.csv_downloader.download_area_csv(
                 area=area,
                 region=region,
@@ -265,6 +306,7 @@ class UnifiedEirGridDownloader:
             if csv_result['success']:
                 result['data'] = csv_result['data']
                 result['success'] = True
+                result['debug_info'] = csv_result.get('debug_info', {})
                 
                 # Log summary
                 ts = result['data'].get('time_series', [])
@@ -273,6 +315,11 @@ class UnifiedEirGridDownloader:
                 self.logger.info(f"CSV download successful: {len(ts)} total points ({actual_count} actual, {forecast_count} forecast)")
             else:
                 result['error'] = csv_result['error']
+                result['debug_info'] = csv_result.get('debug_info', {})
+                
+                # Enhanced error logging for better debugging
+                if result['debug_info']:
+                    self.logger.debug(f"CSV download debug info: {result['debug_info']}")
             
         except Exception as e:
             result['error'] = str(e)
@@ -312,14 +359,21 @@ class UnifiedEirGridDownloader:
                     'is_forecast': False,
                     'field_name': row.get('FieldName', area)
                 }
-                time_series.append(data_point)
+                
+                # Only add if we have a valid value
+                if data_point['value'] is not None:
+                    time_series.append(data_point)
             except Exception as e:
-                self.logger.warning(f"Error parsing row: {e}")
+                self.logger.warning(f"Error parsing API row: {e}")
                 continue
         
         return {
             'time_series': time_series,
-            'extracted_at': datetime.now().isoformat()
+            'extracted_at': datetime.now().isoformat(),
+            'metadata': {
+                'area': area,
+                'total_points': len(time_series)
+            }
         }
     
     def _parse_number(self, value) -> Optional[float]:
@@ -455,7 +509,67 @@ class UnifiedEirGridDownloader:
         """Get download statistics"""
         return self.stats
     
+    def get_method_recommendation(self, area: str) -> str:
+        """Get recommended download method for an area"""
+        if area in self.csv_required_areas:
+            return "csv_only"
+        elif area in self.csv_preferred_areas:
+            return "csv_preferred"
+        elif area in self.api_preferred_areas:
+            return "api_preferred"
+        elif area in self.problematic_csv_areas:
+            return "api_only"
+        else:
+            return "api_first_with_csv_fallback"
+    
     def cleanup(self):
         """Clean up temporary files"""
         if self.csv_downloader:
             self.csv_downloader.cleanup_temp_files()
+
+
+def test_unified_downloader():
+    """Test function to verify the unified downloader works correctly"""
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s [%(levelname)s] %(message)s'
+    )
+    
+    downloader = UnifiedEirGridDownloader(headless=False)
+    
+    # Test areas with different methods
+    test_areas = ['demand', 'co2_intensity', 'solar_generation']
+    
+    print("🔬 Testing Unified EirGrid Downloader")
+    print("=" * 50)
+    
+    for area in test_areas:
+        print(f"\n📊 Testing {area}...")
+        
+        result = downloader.download_area(
+            area=area,
+            region='all',
+            date_from='2025-06-18',
+            date_to='2025-06-18'
+        )
+        
+        if result['success']:
+            point_count = len(result['data']['time_series'])
+            print(f"   ✅ SUCCESS: {area} - {point_count} points via {result['method']}")
+        else:
+            print(f"   ❌ FAILED: {area} - {result['error']}")
+            print(f"   Attempted methods: {result['method_attempted']}")
+    
+    # Print statistics
+    stats = downloader.get_statistics()
+    print(f"\n📈 Download Statistics:")
+    print(f"   API Success: {stats['api_success']}")
+    print(f"   API Failures: {stats['api_fail']}")
+    print(f"   CSV Success: {stats['csv_success']}")
+    print(f"   CSV Failures: {stats['csv_fail']}")
+    
+    downloader.cleanup()
+
+
+if __name__ == "__main__":
+    test_unified_downloader()

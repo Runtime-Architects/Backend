@@ -1,5 +1,5 @@
 """
-EirGrid Data Downloader CLI - FIXED VERSION
+EirGrid Data Downloader CLI
 Professional command-line interface for downloading energy metrics data
 """
 
@@ -16,7 +16,7 @@ from unified_downloader import UnifiedEirGridDownloader
 
 
 def setup_logging(debug: bool = False, log_file: Optional[str] = None):
-    """Set up professional logging configuration - FIXED VERSION"""
+    """Set up professional logging configuration"""
     
     # Clear any existing handlers to prevent duplicates
     logger = logging.getLogger()
