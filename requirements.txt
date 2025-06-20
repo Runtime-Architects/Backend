@@ -1,5 +1,6 @@
+asyncio
 autogen-core
-autogen-ext
+autogen-ext[docker]
 autogen-agentchat
 tiktoken
 openai
