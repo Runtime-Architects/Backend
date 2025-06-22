@@ -25,12 +25,28 @@ from autogen_core.models import (
 )
 from autogen_core.tools import FunctionTool
 from autogen_ext.models.openai import OpenAIChatCompletionClient
-#from IPython.display import display  # type: ignore
 from pydantic import BaseModel
 from rich.console import Console
 from rich.markdown import Markdown
 
 from sysmsgs import USER_AGENT_SYSTEM_MESSAGE, CODEGENERATION_AGENT_SYSTEM_MESSAGE, CODEREVIEWER_AGENT_SYSTEM_MESSAGE
+
+# === FastAPI imports ===
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
+
+
+app = FastAPI()
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class GroupChatMessage(BaseModel):
     body: UserMessage
@@ -65,7 +81,6 @@ class BaseGroupChatAgent(RoutedAgent):
 
     @message_handler
     async def handle_request_to_speak(self, message: RequestToSpeak, ctx: MessageContext) -> None:
-        # print(f"\n{'-'*80}\n{self.id.type}:", flush=True)
         Console().print(Markdown(f"### {self.id.type}: "))
         self._chat_history.append(
             UserMessage(content=f"Transferred to {self.id.type}, adopt the persona immediately.", source="system")
@@ -74,7 +89,6 @@ class BaseGroupChatAgent(RoutedAgent):
         assert isinstance(completion.content, str)
         self._chat_history.append(AssistantMessage(content=completion.content, source=self.id.type))
         Console().print(Markdown(completion.content))
-        # print(completion.content, flush=True)
         await self.publish_message(
             GroupChatMessage(body=UserMessage(content=completion.content, source=self.id.type)),
             topic_id=DefaultTopicId(type=self._group_chat_topic_type),
@@ -88,7 +102,6 @@ class WriterAgent(BaseGroupChatAgent):
             model_client=model_client,
             system_message=CODEGENERATION_AGENT_SYSTEM_MESSAGE
         )
-
 
 class EditorAgent(BaseGroupChatAgent):
     def __init__(self, description: str, group_chat_topic_type: str, model_client: ChatCompletionClient) -> None:
@@ -106,17 +119,12 @@ class UserAgent(RoutedAgent):
 
     @message_handler
     async def handle_message(self, message: GroupChatMessage, ctx: MessageContext) -> None:
-        # When integrating with a frontend, this is where group chat message would be sent to the frontend.
         pass
 
     @message_handler
     async def handle_request_to_speak(self, message: RequestToSpeak, ctx: MessageContext) -> None:
-        user_input = input("Enter your message, type 'APPROVE' to conclude the task: ")
-        Console().print(Markdown(f"### User: \n{user_input}"))
-        await self.publish_message(
-            GroupChatMessage(body=UserMessage(content=user_input, source=self.id.type)),
-            DefaultTopicId(type=self._group_chat_topic_type),
-        )
+        # Deprecated for frontend use
+        pass
 
 class GroupChatManager(RoutedAgent):
     def __init__(
@@ -136,12 +144,11 @@ class GroupChatManager(RoutedAgent):
     async def handle_message(self, message: GroupChatMessage, ctx: MessageContext) -> None:
         assert isinstance(message.body, UserMessage)
         self._chat_history.append(message.body)
-        # If the message is an approval message from the user, stop the chat.
         if message.body.source == "User":
             assert isinstance(message.body.content, str)
             if message.body.content.lower().strip(string.punctuation).endswith("approve"):
                 return
-        # Format message history.
+
         messages: List[str] = []
         for msg in self._chat_history:
             if isinstance(msg.content, str):
@@ -149,13 +156,10 @@ class GroupChatManager(RoutedAgent):
             elif isinstance(msg.content, list):
                 line: List[str] = []
                 for item in msg.content:
-                    if isinstance(item, str):
-                        line.append(item)
-                    else:
-                        line.append("[Image]")
+                    line.append(item if isinstance(item, str) else "[Image]")
                 messages.append(f"{msg.source}: {', '.join(line)}")
         history = "\n".join(messages)
-        # Format roles.
+
         roles = "\n".join(
             [
                 f"{topic_type}: {description}".strip()
@@ -196,141 +200,56 @@ Read the above conversation. Then select the next role from {participants} to pl
                 await self.publish_message(RequestToSpeak(), DefaultTopicId(type=selected_topic_type))
                 return
         raise ValueError(f"Invalid role selected: {completion.content}")
-    
 
-async def main():
-    runtime = SingleThreadedAgentRuntime()
+# ========== FastAPI Backend Integration ==========
 
-    editor_topic_type = "Editor"
-    writer_topic_type = "Writer"
-    user_topic_type = "User"
-    group_chat_topic_type = "group_chat"
+runtime = SingleThreadedAgentRuntime()
+session_id = str(uuid.uuid4())
+group_chat_topic_type = "group_chat"
+model_client = OpenAIChatCompletionClient(model="gpt-4o-mini", api_key="KEY")
 
-    editor_description = "Editor for planning and reviewing the content."
+@app.on_event("startup")
+async def startup_event():
     writer_description = "Writer for creating any text content."
+    editor_description = "Editor for planning and reviewing the content."
     user_description = "User for providing final approval."
 
-    model_client = OpenAIChatCompletionClient(
-        model="gpt-4o-mini",
-        api_key="KEY",
-    )
+    editor_type = await EditorAgent.register(runtime, "Editor", lambda: EditorAgent(editor_description, group_chat_topic_type, model_client))
+    await runtime.add_subscription(TypeSubscription(topic_type="Editor", agent_type=editor_type.type))
+    await runtime.add_subscription(TypeSubscription(topic_type=group_chat_topic_type, agent_type=editor_type.type))
 
-    editor_agent_type = await EditorAgent.register(
-        runtime,
-        editor_topic_type,  # Using topic type as the agent type.
-        lambda: EditorAgent(
-            description=editor_description,
-            group_chat_topic_type=group_chat_topic_type,
-            model_client=model_client,
-        ),
-    )
-    await runtime.add_subscription(TypeSubscription(topic_type=editor_topic_type, agent_type=editor_agent_type.type))
-    await runtime.add_subscription(TypeSubscription(topic_type=group_chat_topic_type, agent_type=editor_agent_type.type))
+    writer_type = await WriterAgent.register(runtime, "Writer", lambda: WriterAgent(writer_description, group_chat_topic_type, model_client))
+    await runtime.add_subscription(TypeSubscription(topic_type="Writer", agent_type=writer_type.type))
+    await runtime.add_subscription(TypeSubscription(topic_type=group_chat_topic_type, agent_type=writer_type.type))
 
-    writer_agent_type = await WriterAgent.register(
-        runtime,
-        writer_topic_type,  # Using topic type as the agent type.
-        lambda: WriterAgent(
-            description=writer_description,
-            group_chat_topic_type=group_chat_topic_type,
-            model_client=model_client,
-        ),
-    )
-    await runtime.add_subscription(TypeSubscription(topic_type=writer_topic_type, agent_type=writer_agent_type.type))
-    await runtime.add_subscription(TypeSubscription(topic_type=group_chat_topic_type, agent_type=writer_agent_type.type))
+    user_type = await UserAgent.register(runtime, "User", lambda: UserAgent(user_description, group_chat_topic_type))
+    await runtime.add_subscription(TypeSubscription(topic_type="User", agent_type=user_type.type))
+    await runtime.add_subscription(TypeSubscription(topic_type=group_chat_topic_type, agent_type=user_type.type))
 
-    user_agent_type = await UserAgent.register(
-        runtime,
-        user_topic_type,
-        lambda: UserAgent(description=user_description, group_chat_topic_type=group_chat_topic_type),
-    )
-    await runtime.add_subscription(TypeSubscription(topic_type=user_topic_type, agent_type=user_agent_type.type))
-    await runtime.add_subscription(TypeSubscription(topic_type=group_chat_topic_type, agent_type=user_agent_type.type))
-
-    group_chat_manager_type = await GroupChatManager.register(
+    manager_type = await GroupChatManager.register(
         runtime,
         "group_chat_manager",
         lambda: GroupChatManager(
-            participant_topic_types=[writer_topic_type, editor_topic_type, user_topic_type],
+            participant_topic_types=["Writer", "Editor", "User"],
             model_client=model_client,
             participant_descriptions=[writer_description, editor_description, user_description],
-        ),
+        )
     )
-    await runtime.add_subscription(
-        TypeSubscription(topic_type=group_chat_topic_type, agent_type=group_chat_manager_type.type)
-    )
-    CONTENT = """
-I have the following system electricity demand data for June 6, 2025:
+    await runtime.add_subscription(TypeSubscription(topic_type=group_chat_topic_type, agent_type=manager_type.type))
 
-Based on the Actual System Demand column, can you:
-1. Tell me the 3 lowest-demand time slots?
-2. Identify the best time range to use high-power appliances?
-3. Generate Python code to visualize demand and highlight low-demand periods?
-
-"DateTime","Actual System Demand","Forecast System Demand"
-"2025-06-06 00:00:00",4052,
-"2025-06-06 00:15:00",4038,
-"2025-06-06 00:30:00",3967,
-"2025-06-06 00:45:00",3915,
-"2025-06-06 01:00:00",3867,
-"2025-06-06 01:15:00",3851,
-"2025-06-06 01:30:00",3814,
-"2025-06-06 01:45:00",3758,
-"2025-06-06 02:00:00",3719,
-"2025-06-06 02:15:00",3799,
-"2025-06-06 02:30:00",3780,
-"2025-06-06 02:45:00",3755,
-"2025-06-06 03:00:00",3727,
-"2025-06-06 03:15:00",3723,
-"2025-06-06 03:30:00",3690,
-"2025-06-06 03:45:00",3680,
-"2025-06-06 04:00:00",3646,
-"2025-06-06 04:15:00",3655,
-"2025-06-06 04:30:00",3615,
-"2025-06-06 04:45:00",3610,
-"2025-06-06 05:00:00",3603,
-"2025-06-06 05:15:00",3630,
-"2025-06-06 05:30:00",3639,
-"2025-06-06 05:45:00",3701,
-"2025-06-06 06:00:00",3800,
-"2025-06-06 06:15:00",3959,
-"2025-06-06 06:30:00",4045,
-"2025-06-06 06:45:00",4175,
-"2025-06-06 07:00:00",4319,
-"2025-06-06 07:15:00",4529,
-"2025-06-06 07:30:00",4660,
-"2025-06-06 07:45:00",4787,
-"2025-06-06 08:00:00",4872,
-"2025-06-06 08:15:00",4957,
-"2025-06-06 08:30:00",4972,
-"2025-06-06 08:45:00",4948,
-"2025-06-06 09:00:00",4965,
-"2025-06-06 09:15:00",4966,
-"2025-06-06 09:30:00",4973,
-"2025-06-06 09:45:00",5033,
-"2025-06-06 10:00:00",4941,
-"2025-06-06 10:15:00",4890,
-"2025-06-06 10:30:00",4873,
-"2025-06-06 10:45:00",4868,
-"2025-06-06 11:00:00",4873,
-"2025-06-06 11:15:00",4847,
-"2025-06-06 11:30:00",4797,
-
-"""
     runtime.start()
-    session_id = str(uuid.uuid4())
+
+class UserInput(BaseModel):
+    message: str
+
+@app.post("/ask")
+async def ask(payload: UserInput):
     await runtime.publish_message(
-        GroupChatMessage(
-            body=UserMessage(
-                content=CONTENT,
-                source="User",
-            )
-        ),
+        GroupChatMessage(body=UserMessage(content=payload.message, source="User")),
         TopicId(type=group_chat_topic_type, source=session_id),
     )
-    await runtime.stop_when_idle()
-    await model_client.close()
-
+    await runtime.publish_message(RequestToSpeak(), TopicId(type="group_chat_manager", source=session_id))
+    return {"status": "Message sent", "content": payload.message}
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
