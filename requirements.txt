@@ -1,4 +1,7 @@
+rich
 asyncio
+uvicorn
+fastapi
 autogen-core
 autogen-ext[docker]
 autogen-agentchat
