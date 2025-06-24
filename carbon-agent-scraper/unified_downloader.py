@@ -78,11 +78,12 @@ class UnifiedEirGridDownloader:
         return metric_dir
     
     def _generate_filename(self, area: str, date_from: str, date_to: str, region: str = None) -> str:
-        """Generate filename in new format: {area}_{start-date}_{end-date}.json"""
-        if region and region.lower() != 'all':
+        """Generate filename in new format: {area}_{region}_{start-date}_{end-date}.json"""
+        if region:
             return f"{area}_{region}_{date_from}_{date_to}.json"
         else:
-            return f"{area}_{date_from}_{date_to}.json"
+            # Fallback if no region specified
+            return f"{area}_all_{date_from}_{date_to}.json"
     
     def _find_overlapping_files(self, metric_dir: Path, area: str, date_from: str, date_to: str, region: str = None) -> List[Path]:
         """Find files that might contain overlapping data for the given date range"""
@@ -91,8 +92,9 @@ class UnifiedEirGridDownloader:
         target_start = datetime.strptime(date_from, '%Y-%m-%d')
         target_end = datetime.strptime(date_to, '%Y-%m-%d')
         
-        # Look for files in the metric directory
-        pattern = f"{area}_*.json" if not region or region.lower() == 'all' else f"{area}_{region}_*.json"
+        # Look for files in the metric directory with consistent naming pattern
+        # New format always includes region: area_region_start_end.json
+        pattern = f"{area}_*.json"
         
         for file_path in metric_dir.glob(pattern):
             try:
@@ -100,24 +102,23 @@ class UnifiedEirGridDownloader:
                 filename = file_path.stem
                 parts = filename.split('_')
                 
-                if region and region.lower() != 'all':
-                    # Format: area_region_start_end
-                    if len(parts) >= 4:
-                        file_start_str = parts[-2]
-                        file_end_str = parts[-1]
-                else:
-                    # Format: area_start_end
-                    if len(parts) >= 3:
-                        file_start_str = parts[-2]
-                        file_end_str = parts[-1]
-                
-                file_start = datetime.strptime(file_start_str, '%Y-%m-%d')
-                file_end = datetime.strptime(file_end_str, '%Y-%m-%d')
-                
-                # Check for overlap
-                if (target_start <= file_end and target_end >= file_start):
-                    overlapping_files.append(file_path)
+                # Expected format: area_region_start_end (4 parts)
+                if len(parts) >= 4:
+                    file_region = parts[1]
+                    file_start_str = parts[2]
+                    file_end_str = parts[3]
                     
+                    # Apply region filter if specified
+                    if region and file_region != region:
+                        continue
+                        
+                    file_start = datetime.strptime(file_start_str, '%Y-%m-%d')
+                    file_end = datetime.strptime(file_end_str, '%Y-%m-%d')
+                    
+                    # Check for overlap
+                    if (target_start <= file_end and target_end >= file_start):
+                        overlapping_files.append(file_path)
+                        
             except (ValueError, IndexError) as e:
                 self.logger.debug(f"Could not parse filename {file_path.name}: {e}")
                 continue
@@ -494,16 +495,15 @@ class UnifiedEirGridDownloader:
                     try:
                         # Check if this file covers the exact same date range
                         filename_parts = file_path.stem.split('_')
-                        if region and region.lower() != 'all':
-                            file_start = filename_parts[-2]
-                            file_end = filename_parts[-1]
-                        else:
-                            file_start = filename_parts[-2]
-                            file_end = filename_parts[-1]
-                        
-                        if file_start == date_from and file_end == date_to:
-                            exact_match = file_path
-                            break
+                        # Format: area_region_start_end
+                        if len(filename_parts) >= 4:
+                            file_region = filename_parts[1]
+                            file_start = filename_parts[2]
+                            file_end = filename_parts[3]
+                            
+                            if file_region == region and file_start == date_from and file_end == date_to:
+                                exact_match = file_path
+                                break
                     except (IndexError, ValueError):
                         continue
                 
@@ -792,13 +792,16 @@ class UnifiedEirGridDownloader:
                 try:
                     filename = file_path.stem
                     parts = filename.split('_')
-                    if len(parts) >= 3:
-                        # Format could be: area_start_end or area_region_start_end
-                        if len(parts) == 3:  # area_start_end
-                            date_range = f"{parts[1]} to {parts[2]}"
-                        else:  # area_region_start_end
-                            date_range = f"{parts[-2]} to {parts[-1]} ({parts[-3]})"
+                    # New format: area_region_start_end (4 parts)
+                    if len(parts) >= 4:
+                        region = parts[1]
+                        start_date = parts[2]
+                        end_date = parts[3]
+                        date_range = f"{start_date} to {end_date} ({region})"
                         files.append(date_range)
+                    else:
+                        # Fallback for any old format files
+                        files.append(file_path.name)
                 except:
                     files.append(file_path.name)
             

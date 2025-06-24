@@ -333,7 +333,7 @@ class ComprehensiveEirGridTester:
                 
                 # Verify structure
                 expected_dir = Path(self.data_dir) / area
-                expected_filename = f"{area}_{date_from}_{date_to}.json" if region.lower() == 'all' else f"{area}_{region}_{date_from}_{date_to}.json"
+                expected_filename = f"{area}_{region}_{date_from}_{date_to}.json"
                 expected_path = expected_dir / expected_filename
                 
                 structure_correct = Path(file_path) == expected_path and expected_path.exists()

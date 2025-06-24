@@ -199,20 +199,18 @@ class OrganizedDataMerger:
         # Parse existing filename to extract area and region
         parts = filename.split('_')
         
-        if len(parts) >= 3:
+        # New consistent format: area_region_start_end (4 parts)
+        if len(parts) >= 4:
             area = parts[0]
-            
-            # Check if there's a region part
-            if len(parts) == 4:  # area_region_start_end
-                region = parts[1]
-                new_filename = f"{area}_{region}_{date_range[0]}_{date_range[1]}.json"
-            else:  # area_start_end
-                new_filename = f"{area}_{date_range[0]}_{date_range[1]}.json"
-            
-            return str(path_obj.parent / new_filename)
+            region = parts[1]
+            new_filename = f"{area}_{region}_{date_range[0]}_{date_range[1]}.json"
+        else:
+            # Fallback for old format files
+            area = parts[0]
+            # Default to 'all' region if not specified
+            new_filename = f"{area}_all_{date_range[0]}_{date_range[1]}.json"
         
-        # Fallback: append date range to original name
-        return str(path_obj.parent / f"{filename}_{date_range[0]}_{date_range[1]}.json")
+        return str(path_obj.parent / new_filename)
     
     def analyze_file(self, file_path: str) -> Dict:
         """Analyze a data file and return statistics"""
@@ -321,20 +319,16 @@ class OrganizedDataMerger:
                 filename = file_path.stem
                 parts = filename.split('_')
                 
-                if len(parts) >= 3:
-                    if len(parts) == 4:  # area_region_start_end
-                        file_region = parts[1]
-                        file_start_str = parts[2]
-                        file_end_str = parts[3]
-                        
-                        # Apply region filter if specified
-                        if region and region.lower() != 'all' and file_region != region:
-                            continue
-                            
-                    else:  # area_start_end
-                        file_start_str = parts[1]
-                        file_end_str = parts[2]
+                # New consistent format: area_region_start_end (4 parts)
+                if len(parts) >= 4:
+                    file_region = parts[1]
+                    file_start_str = parts[2]
+                    file_end_str = parts[3]
                     
+                    # Apply region filter if specified
+                    if region and file_region != region:
+                        continue
+                        
                     file_start = datetime.strptime(file_start_str, '%Y-%m-%d')
                     file_end = datetime.strptime(file_end_str, '%Y-%m-%d')
                     
@@ -434,18 +428,19 @@ class OrganizedDataMerger:
         parts = filename.split('_')
         
         try:
-            if len(parts) >= 3:
-                if len(parts) == 4:  # area_region_start_end
-                    start_str = parts[2]
-                    end_str = parts[3]
-                else:  # area_start_end
-                    start_str = parts[1]
-                    end_str = parts[2]
-                
-                start_date = datetime.strptime(start_str, '%Y-%m-%d')
-                end_date = datetime.strptime(end_str, '%Y-%m-%d')
-                
-                return start_date, end_date
+            # New consistent format: area_region_start_end (4 parts)
+            if len(parts) >= 4:
+                start_str = parts[2]
+                end_str = parts[3]
+            else:
+                # Fallback for old format files (should not occur with new system)
+                start_str = parts[1]
+                end_str = parts[2]
+            
+            start_date = datetime.strptime(start_str, '%Y-%m-%d')
+            end_date = datetime.strptime(end_str, '%Y-%m-%d')
+            
+            return start_date, end_date
         except (ValueError, IndexError):
             pass
         
