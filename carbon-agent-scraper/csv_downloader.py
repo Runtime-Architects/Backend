@@ -1,5 +1,5 @@
 """
-CSV Download Method for EirGrid Data
+CSV Download Method for EirGrid Data - Updated for Organized File Structure
 Integrates CSV download approach with the unified downloader architecture
 Includes fixes for demand data and enhanced error handling
 """
@@ -31,7 +31,7 @@ class CSVDataDownloader:
     def __init__(self, data_dir: Optional[str] = None, headless: bool = True):
         self.logger = logging.getLogger(__name__)
         
-        # Set up directories
+        # Set up directories - now consistent with organized structure
         if data_dir is None:
             self.data_dir = Path("data")
         else:
@@ -39,7 +39,7 @@ class CSVDataDownloader:
         
         self.data_dir.mkdir(exist_ok=True)
         
-        # Temporary download directory
+        # Temporary download directory (separate from organized data structure)
         self.download_dir = Path("temp_downloads")
         self.download_dir.mkdir(exist_ok=True)
         
@@ -473,6 +473,7 @@ class CSVDataDownloader:
         try:
             for file in self.download_dir.glob("*.csv"):
                 file.unlink()
+            self.logger.debug("Cleared temporary download directory")
         except Exception as e:
             self.logger.warning(f"Error clearing download directory: {e}")
     
@@ -568,6 +569,69 @@ class CSVDataDownloader:
         return None
     
     def _parse_csv_file(self, csv_file_path: str, area: str) -> Dict[str, Any]:
+        """Parse downloaded CSV file and convert to standard format with normalized time"""
+        try:
+            # Read CSV file
+            df = pd.read_csv(csv_file_path)
+            
+            # Clean up column names
+            df.columns = df.columns.str.strip()
+            
+            self.logger.info(f"CSV columns: {list(df.columns)}")
+            self.logger.info(f"Total rows: {len(df)}")
+            
+            # Parse based on area type
+            if area in ['co2_intensity', 'co2_emissions']:
+                return self._parse_co2_csv(df, area)
+            elif area == 'demand':
+                return self._parse_demand_csv(df, area)
+            else:
+                return self._parse_standard_csv(df, area)
+                
+        except Exception as e:
+            self.logger.error(f"Error parsing CSV file: {e}")
+            raise
+
+    def _normalize_time_format(self, time_str: str) -> str:
+        """
+        Normalize time string to consistent format: 'YYYY-MM-DD HH:MM:SS'
+        Handles various input formats from CSV sources
+        """
+        try:
+            # Parse the time using existing _parse_time method
+            dt = self._parse_time(time_str)
+            # Return in standardized format
+            return dt.strftime('%Y-%m-%d %H:%M:%S')
+        except:
+            # If parsing fails, return original
+            self.logger.warning(f"Could not normalize time format: {time_str}")
+            return time_str
+
+    def _parse_time(self, time_str: str) -> datetime:
+        """Parse time string to datetime for normalization"""
+        formats = [
+            '%Y-%m-%d %H:%M:%S',        # Normalized format
+            '%d-%b-%Y %H:%M:%S',        # API format: "24-Jun-2025 00:00:00"
+            '%d %B %Y %H:%M',           # CSV format: "24 June 2025 00:00"
+            '%d %b %Y %H:%M',           # CSV format abbreviated: "24 Jun 2025 00:00"
+            '%Y-%m-%dT%H:%M:%S',        # ISO format
+            '%d %B %Y, %H:%M',          # CSV format with comma: "24 June 2025, 00:00"
+            '%d %b %Y, %H:%M',          # CSV format abbreviated with comma: "24 Jun 2025, 00:00"
+            '%d-%m-%Y %H:%M:%S',        # Alternative format
+            '%d/%m/%Y %H:%M:%S',        # Alternative format
+        ]
+        
+        # Clean up the time string
+        time_str = time_str.strip()
+        
+        for fmt in formats:
+            try:
+                return datetime.strptime(time_str.split('.')[0], fmt)  # Remove milliseconds if present
+            except ValueError:
+                continue
+        
+        self.logger.warning(f"Could not parse time format: '{time_str}' - using current time as fallback")
+        return datetime.now()  # Fallback
         """Parse downloaded CSV file and convert to standard format"""
         try:
             # Read CSV file
@@ -592,7 +656,7 @@ class CSVDataDownloader:
             raise
     
     def _parse_co2_csv(self, df: pd.DataFrame, area: str) -> Dict[str, Any]:
-        """Parse CO2-specific CSV format"""
+        """Parse CO2-specific CSV format with normalized time"""
         time_series = []
         
         # Expected columns for CO2 data:
@@ -609,7 +673,9 @@ class CSVDataDownloader:
         
         for _, row in df.iterrows():
             try:
-                time_str = str(row[time_col]).strip()
+                original_time_str = str(row[time_col]).strip()
+                # Normalize time format for consistency
+                normalized_time = self._normalize_time_format(original_time_str)
                 
                 # Parse actual value
                 actual_val = self._parse_number(row[actual_col])
@@ -627,7 +693,7 @@ class CSVDataDownloader:
                 if actual_val is not None:
                     # Has actual data
                     data_point = {
-                        'time': time_str,
+                        'time': normalized_time,
                         'value': actual_val,
                         'is_forecast': False
                     }
@@ -636,7 +702,7 @@ class CSVDataDownloader:
                 elif forecast_val is not None:
                     # Only forecast data
                     data_point = {
-                        'time': time_str,
+                        'time': normalized_time,
                         'value': forecast_val,
                         'is_forecast': True
                     }
@@ -661,7 +727,7 @@ class CSVDataDownloader:
         }
     
     def _parse_demand_csv(self, df: pd.DataFrame, area: str) -> Dict[str, Any]:
-        """Parse demand-specific CSV format"""
+        """Parse demand-specific CSV format with normalized time"""
         time_series = []
         
         # Expected columns for Demand data:
@@ -676,7 +742,9 @@ class CSVDataDownloader:
         
         for _, row in df.iterrows():
             try:
-                time_str = str(row[time_col]).strip()
+                original_time_str = str(row[time_col]).strip()
+                # Normalize time format for consistency
+                normalized_time = self._normalize_time_format(original_time_str)
                 
                 # Parse actual value
                 actual_val = self._parse_number(row[actual_col]) if actual_col else None
@@ -694,7 +762,7 @@ class CSVDataDownloader:
                 if actual_val is not None:
                     # Has actual data
                     data_point = {
-                        'time': time_str,
+                        'time': normalized_time,
                         'value': actual_val,
                         'is_forecast': False
                     }
@@ -703,7 +771,7 @@ class CSVDataDownloader:
                 elif forecast_val is not None:
                     # Only forecast data
                     data_point = {
-                        'time': time_str,
+                        'time': normalized_time,
                         'value': forecast_val,
                         'is_forecast': True
                     }
@@ -728,7 +796,7 @@ class CSVDataDownloader:
         }
     
     def _parse_standard_csv(self, df: pd.DataFrame, area: str) -> Dict[str, Any]:
-        """Parse standard CSV format for other data types"""
+        """Parse standard CSV format for other data types with normalized time"""
         time_series = []
         
         # Assume first column is time, second is value
@@ -737,12 +805,15 @@ class CSVDataDownloader:
         
         for _, row in df.iterrows():
             try:
-                time_str = str(row[time_col]).strip()
+                original_time_str = str(row[time_col]).strip()
+                # Normalize time format for consistency
+                normalized_time = self._normalize_time_format(original_time_str)
+                
                 value = self._parse_number(row[value_col])
                 
                 if value is not None:
                     time_series.append({
-                        'time': time_str,
+                        'time': normalized_time,
                         'value': value,
                         'is_forecast': False
                     })
@@ -785,7 +856,7 @@ class CSVDataDownloader:
             for file in self.download_dir.glob("*"):
                 if file.is_file():
                     file.unlink()
-            self.logger.info("Cleaned up temporary files")
+            self.logger.debug("Cleaned up temporary download files")
         except Exception as e:
             self.logger.warning(f"Error cleaning up temp files: {e}")
 

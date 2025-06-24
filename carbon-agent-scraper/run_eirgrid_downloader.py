@@ -1,5 +1,5 @@
 """
-EirGrid Data Downloader CLI
+EirGrid Data Downloader CLI - Updated for Organized File Structure
 Professional command-line interface for downloading energy metrics data
 """
 
@@ -96,8 +96,8 @@ def calculate_date_range(duration: str) -> Tuple[str, str]:
         raise ValueError(f"Invalid duration: {duration}")
 
 
-def print_summary(results: Dict[str, Any], total_time: float, stats: Dict[str, int]):
-    """Print professional summary of download results"""
+def print_summary(results: Dict[str, Any], total_time: float, stats: Dict[str, int], file_structure: Dict[str, str]):
+    """Print professional summary of download results with new file structure info"""
     
     logger = logging.getLogger(__name__)
     
@@ -132,24 +132,59 @@ def print_summary(results: Dict[str, Any], total_time: float, stats: Dict[str, i
             if not result['success']:
                 logger.error(f"  {area}: {result['error']} (method: {result['method']})")
     
-    # Files saved
+    # Files saved with new organized structure
     logger.info("")
-    logger.info("FILES SAVED:")
-    for area, result in results.items():
-        if result['success'] and 'file_path' in result:
-            file_size = Path(result['file_path']).stat().st_size / 1024
-            logger.info(f"  {area}: {result['file_path']} ({file_size:.1f} KB)")
+    logger.info("FILES SAVED (ORGANIZED STRUCTURE):")
+    for area, file_path in file_structure.items():
+        if file_path:
+            try:
+                file_size = Path(file_path).stat().st_size / 1024
+                # Show relative path from data directory for clarity
+                relative_path = Path(file_path).relative_to(Path("data"))
+                logger.info(f"  {area}: data/{relative_path} ({file_size:.1f} KB)")
+            except:
+                logger.info(f"  {area}: {file_path}")
+    
+    # Show directory structure overview
+    logger.info("")
+    logger.info("DIRECTORY STRUCTURE:")
+    data_dir = Path("data")
+    if data_dir.exists():
+        for metric_dir in sorted(data_dir.iterdir()):
+            if metric_dir.is_dir():
+                file_count = len(list(metric_dir.glob("*.json")))
+                logger.info(f"  data/{metric_dir.name}/ ({file_count} files)")
+
+
+def list_available_data_command(data_dir: str = None):
+    """Command to list all available data files"""
+    downloader = UnifiedEirGridDownloader(data_dir=data_dir)
+    available = downloader.list_available_data()
+    
+    if not available:
+        print("No data files found.")
+        return
+    
+    print("\n📁 AVAILABLE DATA FILES:")
+    print("=" * 50)
+    
+    for area, files in available.items():
+        print(f"\n🔹 {area.upper()}:")
+        for file_info in files:
+            print(f"   📄 {file_info}")
+    
+    print(f"\n💡 Files are organized in: data/{{metric}}/{{metric}}_{{start-date}}_{{end-date}}.json")
 
 
 def main():
-    """Main CLI function - FIXED VERSION"""
+    """Main CLI function with updated file structure support"""
     
     parser = argparse.ArgumentParser(
-        description="Download EirGrid energy metrics data",
+        description="Download EirGrid energy metrics data with organized file structure",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Download all areas for today
+  # Download all areas for today (organized structure)
   python run_eirgrid_downloader.py
   
   # Download specific areas with forecast data
@@ -161,8 +196,18 @@ Examples:
   # Download specific date range
   python run_eirgrid_downloader.py --start 2025-06-01 --end 2025-06-15
   
+  # List all available data files
+  python run_eirgrid_downloader.py --list-data
+  
   # Force CSV download method (more reliable for some areas)
   python run_eirgrid_downloader.py --areas co2_emissions --force-scraping
+
+File Organization:
+  Data is now organized as: data/{metric}/{metric}_{start-date}_{end-date}.json
+  Examples:
+    data/co2_intensity/co2_intensity_2025-06-23_2025-06-23.json
+    data/wind_generation/wind_generation_all_2025-06-20_2025-06-26.json
+    data/demand/demand_roi_2025-06-01_2025-06-30.json
 
 Available areas:
   co2_emissions       - CO2 Emissions (tCO2/hr)
@@ -229,6 +274,11 @@ Regions: all, roi (Republic of Ireland), ni (Northern Ireland)
                        action='store_true',
                        help='Show browser window (disables headless mode)')
     
+    # List data command
+    parser.add_argument('--list-data', '-l',
+                       action='store_true',
+                       help='List all available data files and exit')
+    
     # Logging options
     parser.add_argument('--debug',
                        action='store_true',
@@ -244,6 +294,11 @@ Regions: all, roi (Republic of Ireland), ni (Northern Ireland)
     logger = logging.getLogger(__name__)
     
     try:
+        # Handle list data command
+        if args.list_data:
+            list_available_data_command(args.output_dir)
+            return 0
+        
         # Parse areas
         if args.areas.lower() == 'all':
             areas = get_available_areas()
@@ -264,7 +319,7 @@ Regions: all, roi (Republic of Ireland), ni (Northern Ireland)
             date_from = args.start
             date_to = args.end if args.end else args.start
         else:
-            # Default to today (changed from yesterday)
+            # Default to today
             date_from = date_to = datetime.now().strftime('%Y-%m-%d')
         
         # Validate date range
@@ -274,7 +329,7 @@ Regions: all, roi (Republic of Ireland), ni (Northern Ireland)
         
         # Log configuration
         logger.info("=" * 60)
-        logger.info("EIRGRID DATA DOWNLOADER")
+        logger.info("EIRGRID DATA DOWNLOADER - ORGANIZED STRUCTURE")
         logger.info("=" * 60)
         logger.info(f"Areas: {', '.join(areas)}")
         logger.info(f"Date range: {date_from} to {date_to}")
@@ -286,6 +341,7 @@ Regions: all, roi (Republic of Ireland), ni (Northern Ireland)
         if args.output_dir:
             logger.info(f"Output directory: {args.output_dir}")
         
+        logger.info(f"File structure: data/{{metric}}/{{metric}}_{date_from}_{date_to}.json")
         logger.info("=" * 60)
         
         # Create downloader
@@ -295,6 +351,7 @@ Regions: all, roi (Republic of Ireland), ni (Northern Ireland)
         # Process each area
         start_time = time.time()
         results = {}
+        file_structure = {}
         
         for i, area in enumerate(areas, 1):
             logger.info(f"Processing {area} ({i}/{len(areas)})...")
@@ -309,17 +366,24 @@ Regions: all, roi (Republic of Ireland), ni (Northern Ireland)
             )
             
             if result['success']:
-                # Save data
+                # Save data with new organized structure
                 file_path = downloader.save_data(
                     result['data'],
                     area,
                     args.region,
+                    date_from,
+                    date_to,
                     update_existing=not args.no_update
                 )
                 result['file_path'] = file_path
-                logger.info(f"  SUCCESS: {area} downloaded via {result['method']}")
+                file_structure[area] = file_path
+                
+                # Log success with file location
+                relative_path = Path(file_path).relative_to(Path("data")) if "data" in file_path else Path(file_path).name
+                logger.info(f"  ✅ SUCCESS: {area} downloaded via {result['method']} → data/{relative_path}")
             else:
-                logger.error(f"  FAILED: {area} - {result['error']}")
+                logger.error(f"  ❌ FAILED: {area} - {result['error']}")
+                file_structure[area] = None
             
             results[area] = result
             
@@ -329,8 +393,16 @@ Regions: all, roi (Republic of Ireland), ni (Northern Ireland)
         
         total_time = time.time() - start_time
         
-        # Print summary
-        print_summary(results, total_time, downloader.get_statistics())
+        # Print summary with file structure info
+        print_summary(results, total_time, downloader.get_statistics(), file_structure)
+        
+        # Show available data after download
+        logger.info("")
+        logger.info("📊 DATA ORGANIZATION SUMMARY:")
+        available_data = downloader.list_available_data()
+        for area, files in available_data.items():
+            if area in areas:  # Only show areas we just processed
+                logger.info(f"  {area}: {len(files)} file(s) available")
         
         # Clean up temporary files
         downloader.cleanup()
@@ -338,20 +410,21 @@ Regions: all, roi (Republic of Ireland), ni (Northern Ireland)
         # Return appropriate exit code
         successful = sum(1 for r in results.values() if r['success'])
         if successful == len(areas):
-            logger.info("All downloads completed successfully!")
+            logger.info("🎉 All downloads completed successfully!")
+            logger.info(f"💾 Data organized in: data/{{metric}}/{{metric}}_{date_from}_{date_to}.json format")
             return 0
         elif successful > 0:
-            logger.warning("Some downloads failed. Check the summary above.")
+            logger.warning("⚠️  Some downloads failed. Check the summary above.")
             return 2
         else:
-            logger.error("All downloads failed!")
+            logger.error("💥 All downloads failed!")
             return 1
             
     except KeyboardInterrupt:
-        logger.info("Operation interrupted by user")
+        logger.info("⏹️  Operation interrupted by user")
         return 130
     except Exception as e:
-        logger.error(f"Unexpected error: {e}")
+        logger.error(f"💥 Unexpected error: {e}")
         if args.debug:
             import traceback
             traceback.print_exc()

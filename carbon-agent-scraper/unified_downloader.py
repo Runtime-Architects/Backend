@@ -1,7 +1,6 @@
 """
 Unified EirGrid Data Downloader
-Combines API and CSV download methods with intelligent fallback
-Includes fixes for demand data and enhanced method selection
+Updated with new organized file structure: data/{metric}/{metric}_{start-date}_{end-date}.json
 """
 
 import os
@@ -24,7 +23,7 @@ except ImportError:
 
 
 class UnifiedEirGridDownloader:
-    """Unified downloader that combines API and CSV download methods with enhanced intelligence"""
+    """Unified downloader with organized file structure by metric and date range"""
     
     def __init__(self, data_dir: Optional[str] = None, headless: bool = True):
         self.logger = logging.getLogger(__name__)
@@ -58,10 +57,10 @@ class UnifiedEirGridDownloader:
             'interconnection': 'interconnection'
         }
         
-        # UPDATED: Enhanced area preferences based on comprehensive test results
-        self.csv_preferred_areas = ['solar_generation']  # Areas where API fails but CSV works
-        self.csv_required_areas = ['solar_generation']   # Areas that ONLY work with CSV
-        self.problematic_csv_areas = ['co2_emissions']   # Areas where CSV often fails but API works
+        # Enhanced area preferences based on comprehensive test results
+        self.csv_preferred_areas = ['solar_generation']
+        self.csv_required_areas = ['solar_generation']
+        self.problematic_csv_areas = ['co2_emissions']
         self.api_preferred_areas = ['co2_intensity', 'wind_generation', 'demand', 'snsp', 'frequency', 'interconnection']
         
         # Track download statistics
@@ -72,6 +71,59 @@ class UnifiedEirGridDownloader:
             'csv_fail': 0
         }
     
+    def _create_metric_directory(self, area: str) -> Path:
+        """Create and return metric-specific directory"""
+        metric_dir = self.data_dir / area
+        metric_dir.mkdir(exist_ok=True)
+        return metric_dir
+    
+    def _generate_filename(self, area: str, date_from: str, date_to: str, region: str = None) -> str:
+        """Generate filename in new format: {area}_{start-date}_{end-date}.json"""
+        if region and region.lower() != 'all':
+            return f"{area}_{region}_{date_from}_{date_to}.json"
+        else:
+            return f"{area}_{date_from}_{date_to}.json"
+    
+    def _find_overlapping_files(self, metric_dir: Path, area: str, date_from: str, date_to: str, region: str = None) -> List[Path]:
+        """Find files that might contain overlapping data for the given date range"""
+        overlapping_files = []
+        
+        target_start = datetime.strptime(date_from, '%Y-%m-%d')
+        target_end = datetime.strptime(date_to, '%Y-%m-%d')
+        
+        # Look for files in the metric directory
+        pattern = f"{area}_*.json" if not region or region.lower() == 'all' else f"{area}_{region}_*.json"
+        
+        for file_path in metric_dir.glob(pattern):
+            try:
+                # Extract dates from filename
+                filename = file_path.stem
+                parts = filename.split('_')
+                
+                if region and region.lower() != 'all':
+                    # Format: area_region_start_end
+                    if len(parts) >= 4:
+                        file_start_str = parts[-2]
+                        file_end_str = parts[-1]
+                else:
+                    # Format: area_start_end
+                    if len(parts) >= 3:
+                        file_start_str = parts[-2]
+                        file_end_str = parts[-1]
+                
+                file_start = datetime.strptime(file_start_str, '%Y-%m-%d')
+                file_end = datetime.strptime(file_end_str, '%Y-%m-%d')
+                
+                # Check for overlap
+                if (target_start <= file_end and target_end >= file_start):
+                    overlapping_files.append(file_path)
+                    
+            except (ValueError, IndexError) as e:
+                self.logger.debug(f"Could not parse filename {file_path.name}: {e}")
+                continue
+        
+        return overlapping_files
+    
     def download_area(self, 
                      area: str,
                      region: str = "all",
@@ -81,17 +133,6 @@ class UnifiedEirGridDownloader:
                      force_scraping: bool = False) -> Dict[str, Any]:
         """
         Download data for a specific area using intelligent method selection
-        
-        Args:
-            area: Data area name
-            region: 'all', 'roi', or 'ni'
-            date_from: Start date in YYYY-MM-DD format
-            date_to: End date in YYYY-MM-DD format
-            include_forecast: Whether to include forecast data (requires CSV download)
-            force_scraping: Force use of CSV download method
-            
-        Returns:
-            Dictionary with data and metadata
         """
         
         # Default to yesterday if no dates provided
@@ -112,7 +153,7 @@ class UnifiedEirGridDownloader:
             'method_attempted': []
         }
         
-        # UPDATED: Intelligent method selection based on comprehensive test results
+        # Intelligent method selection based on comprehensive test results
         self.logger.info(f"Starting download for {area} (region: {region}, dates: {date_from} to {date_to})")
         
         # Force CSV for areas that require it or when explicitly requested
@@ -140,7 +181,7 @@ class UnifiedEirGridDownloader:
             else:
                 self.logger.warning("CSV download not available, falling back to API")
         
-        # Try API for areas where it works well (and we haven't already tried CSV)
+        # Try API for areas where it works well
         if (area in self.api_areas and 
             area not in self.csv_required_areas and
             'csv_download' not in result['method_attempted']):
@@ -156,7 +197,7 @@ class UnifiedEirGridDownloader:
                 self.stats['api_fail'] += 1
                 self.logger.warning(f"API failed for {area}: {api_result['error']}")
         
-        # Fallback to CSV download if API failed and CSV is available and we haven't tried it yet
+        # Fallback to CSV download if API failed
         if (csv_downloader_available and 
             'csv_download' not in result['method_attempted'] and
             area not in self.problematic_csv_areas):
@@ -347,17 +388,21 @@ class UnifiedEirGridDownloader:
             raise ValueError(f"Invalid date format '{date_str}'. Expected YYYY-MM-DD. Error: {e}")
     
     def _parse_api_data(self, rows: List[Dict], area: str) -> Dict[str, Any]:
-        """Parse API response data to standard format"""
+        """Parse API response data to standard format with normalized time"""
         
         time_series = []
         
         for row in rows:
             try:
+                original_time = row.get('EffectiveTime', '')
+                # Normalize time format for consistency
+                normalized_time = self._normalize_time_format(original_time)
+                
                 data_point = {
-                    'time': row.get('EffectiveTime', ''),
+                    'time': normalized_time,
                     'value': self._parse_number(row.get('Value')),
                     'is_forecast': False,
-                    'field_name': row.get('FieldName', area)
+                    # 'field_name': row.get('FieldName', area) Don't need this for now
                 }
                 
                 # Only add if we have a valid value
@@ -386,99 +431,295 @@ class UnifiedEirGridDownloader:
         except ValueError:
             return None
     
-    def save_data(self, data: Dict[str, Any], area: str, region: str, update_existing: bool = True) -> str:
+    def save_data(self, 
+                  data: Dict[str, Any], 
+                  area: str, 
+                  region: str, 
+                  date_from: str = None,
+                  date_to: str = None,
+                  update_existing: bool = True) -> str:
         """
-        Save data to JSON file with smart updating
+        Save data to organized file structure: data/{metric}/{metric}_{start-date}_{end-date}.json
         
         Args:
             data: Data dictionary from download
-            area: Area name
-            region: Region name
-            update_existing: Whether to update existing files
+            area: Area name (metric)
+            region: Region name  
+            date_from: Start date in YYYY-MM-DD format
+            date_to: End date in YYYY-MM-DD format
+            update_existing: Whether to update existing overlapping files
             
         Returns:
             Path to saved file
         """
         
-        timestamp = datetime.now().strftime('%Y%m%d')
-        filename = f"{area}_{region}_{timestamp}.json"
-        file_path = self.data_dir / filename
+        # Extract date range from data if not provided
+        if not date_from or not date_to:
+            date_from, date_to = self._extract_date_range_from_data(data)
         
-        if update_existing and file_path.exists():
+        # Create metric-specific directory
+        metric_dir = self._create_metric_directory(area)
+        
+        # Generate filename
+        filename = self._generate_filename(area, date_from, date_to, region)
+        target_file_path = metric_dir / filename
+        
+        # Check for exact file match first
+        if target_file_path.exists() and update_existing:
+            self.logger.info(f"Updating existing file: {target_file_path}")
             # Load existing data
-            with open(file_path, 'r') as f:
+            with open(target_file_path, 'r') as f:
                 existing_data = json.load(f)
             
-            # Merge data intelligently
-            merged_data = self._merge_data(existing_data, data)
+            # Merge data intelligently (prioritize actual over forecast)
+            merged_data = self._merge_data(existing_data, data, area, region, date_from, date_to)
             
             # Save merged data
-            with open(file_path, 'w') as f:
+            with open(target_file_path, 'w') as f:
                 json.dump(merged_data, f, indent=2)
                 
-            self.logger.info(f"Updated existing file: {file_path}")
-        else:
-            # Save new file
+            self.logger.info(f"Updated file: {target_file_path}")
+            
+        elif update_existing:
+            # Check for overlapping files that might need to be consolidated
+            overlapping_files = self._find_overlapping_files(metric_dir, area, date_from, date_to, region)
+            
+            if overlapping_files:
+                self.logger.info(f"Found {len(overlapping_files)} overlapping files for date range {date_from} to {date_to}")
+                
+                # For exact date matches, merge into existing file
+                # For partial overlaps, create new file and optionally consolidate later
+                exact_match = None
+                for file_path in overlapping_files:
+                    try:
+                        # Check if this file covers the exact same date range
+                        filename_parts = file_path.stem.split('_')
+                        if region and region.lower() != 'all':
+                            file_start = filename_parts[-2]
+                            file_end = filename_parts[-1]
+                        else:
+                            file_start = filename_parts[-2]
+                            file_end = filename_parts[-1]
+                        
+                        if file_start == date_from and file_end == date_to:
+                            exact_match = file_path
+                            break
+                    except (IndexError, ValueError):
+                        continue
+                
+                if exact_match:
+                    # Merge with exact match
+                    with open(exact_match, 'r') as f:
+                        existing_data = json.load(f)
+                    
+                    merged_data = self._merge_data(existing_data, data, area, region, date_from, date_to)
+                    
+                    with open(exact_match, 'w') as f:
+                        json.dump(merged_data, f, indent=2)
+                    
+                    self.logger.info(f"Merged data into existing file: {exact_match}")
+                    return str(exact_match)
+                else:
+                    # Create new file (partial overlap case)
+                    self.logger.info(f"Creating new file for date range {date_from} to {date_to}")
+            
+            # Create new file
             save_data = {
                 'metadata': {
                     'area': area,
                     'region': region,
+                    'date_from': date_from,
+                    'date_to': date_to,
                     'created_at': datetime.now().isoformat(),
                     'last_updated': datetime.now().isoformat()
                 },
                 'data': data
             }
             
-            with open(file_path, 'w') as f:
+            with open(target_file_path, 'w') as f:
                 json.dump(save_data, f, indent=2)
                 
-            self.logger.info(f"Created new file: {file_path}")
+            self.logger.info(f"Created new file: {target_file_path}")
         
-        return str(file_path)
+        else:
+            # Force create new file
+            save_data = {
+                'metadata': {
+                    'area': area,
+                    'region': region,
+                    'date_from': date_from,
+                    'date_to': date_to,
+                    'created_at': datetime.now().isoformat(),
+                    'last_updated': datetime.now().isoformat()
+                },
+                'data': data
+            }
+            
+            with open(target_file_path, 'w') as f:
+                json.dump(save_data, f, indent=2)
+                
+            self.logger.info(f"Created new file: {target_file_path}")
+        
+        return str(target_file_path)
     
-    def _merge_data(self, existing: Dict, new: Dict) -> Dict:
+    def _extract_date_range_from_data(self, data: Dict[str, Any]) -> Tuple[str, str]:
+        """Extract date range from data time series"""
+        time_series = data.get('time_series', [])
+        
+        if not time_series:
+            # Default to today if no data
+            today = datetime.now().strftime('%Y-%m-%d')
+            return today, today
+        
+        # Parse all times to find min and max dates
+        dates = []
+        for point in time_series:
+            try:
+                parsed_time = self._parse_time(point['time'])
+                dates.append(parsed_time.date())
+            except:
+                continue
+        
+        if dates:
+            min_date = min(dates).strftime('%Y-%m-%d')
+            max_date = max(dates).strftime('%Y-%m-%d')
+            return min_date, max_date
+        else:
+            today = datetime.now().strftime('%Y-%m-%d')
+            return today, today
+    
+    def _normalize_time_format(self, time_str: str) -> str:
+        """
+        Normalize time string to consistent format: 'YYYY-MM-DD HH:MM:SS'
+        Handles various input formats from API and CSV sources
+        """
+        try:
+            # Parse the time using existing _parse_time method
+            dt = self._parse_time(time_str)
+            # Return in standardized format
+            return dt.strftime('%Y-%m-%d %H:%M:%S')
+        except:
+            # If parsing fails, return original
+            self.logger.warning(f"Could not normalize time format: {time_str}")
+            return time_str
+    
+    def _merge_data(self, existing: Dict, new_data: Dict, area: str, region: str, date_from: str, date_to: str) -> Dict:
         """
         Merge new data with existing, replacing forecast with actual values
+        FIXED: Handles time format inconsistencies between API and CSV sources
+        
+        Args:
+            existing: Existing file data (with metadata wrapper)
+            new_data: New data (time_series format)
+            area: Area name
+            region: Region name
+            date_from: Date from
+            date_to: Date to
         """
         
         # Update metadata
         if 'metadata' not in existing:
             existing['metadata'] = {}
-        existing['metadata']['last_updated'] = datetime.now().isoformat()
         
-        # Get time series from both
-        existing_ts = existing.get('data', {}).get('time_series', [])
-        new_ts = new.get('time_series', [])
+        existing['metadata'].update({
+            'area': area,
+            'region': region,
+            'date_from': date_from,
+            'date_to': date_to,
+            'last_updated': datetime.now().isoformat()
+        })
         
-        # Create lookup for existing data by time
-        existing_by_time = {point['time']: point for point in existing_ts}
+        # Get time series from both (handle different data structures)
+        if 'data' in existing and 'time_series' in existing['data']:
+            existing_ts = existing['data']['time_series']
+        elif 'time_series' in existing:
+            existing_ts = existing['time_series']
+        else:
+            existing_ts = []
         
-        # Update with new data
+        # New data should always be in time_series format
+        new_ts = new_data.get('time_series', [])
+        
+        # FIXED: Create lookup with normalized time keys to handle format differences
+        existing_by_normalized_time = {}
+        original_time_mapping = {}  # Map normalized time back to original format
+        
+        for point in existing_ts:
+            original_time = point['time']
+            normalized_time = self._normalize_time_format(original_time)
+            existing_by_normalized_time[normalized_time] = point
+            original_time_mapping[normalized_time] = original_time
+        
+        # Process new data points
+        merge_count = 0
+        update_count = 0
+        add_count = 0
+        
         for new_point in new_ts:
-            time_key = new_point['time']
+            original_new_time = new_point['time']
+            normalized_new_time = self._normalize_time_format(original_new_time)
             
-            if time_key in existing_by_time:
-                old_point = existing_by_time[time_key]
+            if normalized_new_time in existing_by_normalized_time:
+                old_point = existing_by_normalized_time[normalized_new_time]
+                merged = False
                 
-                # If old point was forecast and new is actual, replace
+                # If old point was forecast and new is actual, replace with actual
                 if old_point.get('is_forecast', False) and not new_point.get('is_forecast', False):
-                    existing_by_time[time_key] = new_point
-                    self.logger.debug(f"Replaced forecast with actual for {time_key}")
+                    # Keep the original time format from existing data for consistency
+                    new_point_copy = new_point.copy()
+                    new_point_copy['time'] = original_time_mapping[normalized_new_time]
+                    existing_by_normalized_time[normalized_new_time] = new_point_copy
+                    merge_count += 1
+                    merged = True
+                    self.logger.debug(f"Replaced forecast with actual for {normalized_new_time}")
                 
-                # Update if new value is different
-                elif old_point.get('value') != new_point.get('value'):
-                    existing_by_time[time_key] = new_point
-                    self.logger.debug(f"Updated value for {time_key}")
+                # If old point was actual and new is forecast, add forecast_value but keep actual
+                elif (not old_point.get('is_forecast', False) and new_point.get('is_forecast', False) and
+                      'forecast_value' not in old_point):
+                    old_point['forecast_value'] = new_point.get('value')
+                    merge_count += 1
+                    merged = True
+                    self.logger.debug(f"Added forecast value to actual data for {normalized_new_time}")
+                
+                # Update if values are different and not downgrading from actual to forecast
+                elif (old_point.get('value') != new_point.get('value') and 
+                      not (not old_point.get('is_forecast', False) and new_point.get('is_forecast', False))):
+                    # Keep the original time format from existing data for consistency
+                    new_point_copy = new_point.copy()
+                    new_point_copy['time'] = original_time_mapping[normalized_new_time]
+                    existing_by_normalized_time[normalized_new_time] = new_point_copy
+                    update_count += 1
+                    merged = True
+                    self.logger.debug(f"Updated value for {normalized_new_time}")
+                
+                if not merged:
+                    self.logger.debug(f"No merge needed for {normalized_new_time} (same value or downgrade)")
             else:
-                # Add new time point
-                existing_by_time[time_key] = new_point
+                # Add new time point (use consistent format)
+                normalized_point = new_point.copy()
+                normalized_point['time'] = self._normalize_time_format(original_new_time)
+                existing_by_normalized_time[normalized_new_time] = normalized_point
+                add_count += 1
         
         # Convert back to list and sort by time
-        merged_ts = list(existing_by_time.values())
+        merged_ts = list(existing_by_normalized_time.values())
         merged_ts.sort(key=lambda x: self._parse_time(x['time']))
         
+        # Log merge statistics
+        self.logger.info(f"Data merge complete: {merge_count} merged, {update_count} updated, {add_count} added")
+        
+        # Ensure proper data structure
+        if 'data' not in existing:
+            existing['data'] = {}
+        
         existing['data']['time_series'] = merged_ts
-        existing['data']['extracted_at'] = new.get('extracted_at', datetime.now().isoformat())
+        existing['data']['extracted_at'] = new_data.get('extracted_at', datetime.now().isoformat())
+        
+        # Update metadata in data section if it exists
+        if 'metadata' in new_data:
+            if 'metadata' not in existing['data']:
+                existing['data']['metadata'] = {}
+            existing['data']['metadata'].update(new_data['metadata'])
         
         return existing
     
@@ -522,14 +763,58 @@ class UnifiedEirGridDownloader:
         else:
             return "api_first_with_csv_fallback"
     
+    def list_available_data(self, area: str = None) -> Dict[str, List[str]]:
+        """
+        List all available data files in the organized structure
+        
+        Args:
+            area: Optional specific area to list (if None, lists all)
+            
+        Returns:
+            Dictionary mapping areas to list of available date ranges
+        """
+        available_data = {}
+        
+        if area:
+            areas_to_check = [area]
+        else:
+            # Get all metric directories
+            areas_to_check = [d.name for d in self.data_dir.iterdir() if d.is_dir()]
+        
+        for metric_area in areas_to_check:
+            metric_dir = self.data_dir / metric_area
+            if not metric_dir.exists():
+                continue
+            
+            files = []
+            for file_path in metric_dir.glob(f"{metric_area}_*.json"):
+                # Extract date range from filename
+                try:
+                    filename = file_path.stem
+                    parts = filename.split('_')
+                    if len(parts) >= 3:
+                        # Format could be: area_start_end or area_region_start_end
+                        if len(parts) == 3:  # area_start_end
+                            date_range = f"{parts[1]} to {parts[2]}"
+                        else:  # area_region_start_end
+                            date_range = f"{parts[-2]} to {parts[-1]} ({parts[-3]})"
+                        files.append(date_range)
+                except:
+                    files.append(file_path.name)
+            
+            if files:
+                available_data[metric_area] = sorted(files)
+        
+        return available_data
+    
     def cleanup(self):
         """Clean up temporary files"""
         if self.csv_downloader:
             self.csv_downloader.cleanup_temp_files()
 
 
-def test_unified_downloader():
-    """Test function to verify the unified downloader works correctly"""
+def test_new_file_structure():
+    """Test the new file structure"""
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s [%(levelname)s] %(message)s'
@@ -537,39 +822,40 @@ def test_unified_downloader():
     
     downloader = UnifiedEirGridDownloader(headless=False)
     
-    # Test areas with different methods
-    test_areas = ['demand', 'co2_intensity', 'solar_generation']
-    
-    print("🔬 Testing Unified EirGrid Downloader")
+    print("🔬 Testing New Organized File Structure")
     print("=" * 50)
     
-    for area in test_areas:
-        print(f"\n📊 Testing {area}...")
-        
-        result = downloader.download_area(
-            area=area,
-            region='all',
-            date_from='2025-06-18',
-            date_to='2025-06-18'
-        )
-        
-        if result['success']:
-            point_count = len(result['data']['time_series'])
-            print(f"   ✅ SUCCESS: {area} - {point_count} points via {result['method']}")
-        else:
-            print(f"   ❌ FAILED: {area} - {result['error']}")
-            print(f"   Attempted methods: {result['method_attempted']}")
+    # Test single day download
+    result = downloader.download_area(
+        area='co2_intensity',
+        region='all',
+        date_from='2025-06-23',
+        date_to='2025-06-23'
+    )
     
-    # Print statistics
-    stats = downloader.get_statistics()
-    print(f"\n📈 Download Statistics:")
-    print(f"   API Success: {stats['api_success']}")
-    print(f"   API Failures: {stats['api_fail']}")
-    print(f"   CSV Success: {stats['csv_success']}")
-    print(f"   CSV Failures: {stats['csv_fail']}")
+    if result['success']:
+        # Save with new structure
+        file_path = downloader.save_data(
+            result['data'],
+            'co2_intensity',
+            'all',
+            '2025-06-23',
+            '2025-06-23'
+        )
+        print(f"✅ Data saved to: {file_path}")
+        
+        # List available data
+        available = downloader.list_available_data()
+        print(f"\n📁 Available data files:")
+        for area, files in available.items():
+            print(f"  {area}:")
+            for file_info in files:
+                print(f"    - {file_info}")
+    else:
+        print(f"❌ Download failed: {result['error']}")
     
     downloader.cleanup()
 
 
 if __name__ == "__main__":
-    test_unified_downloader()
+    test_new_file_structure()

@@ -1,6 +1,6 @@
 """
 Comprehensive EirGrid Data Collection Test Script
-Tests both API and CSV download methods for all supported areas
+Tests both API and CSV download methods
 """
 
 import sys
@@ -21,14 +21,15 @@ except ImportError:
 
 
 class ComprehensiveEirGridTester:
-    """Comprehensive tester for both API and CSV download methods"""
+    """Comprehensive tester for both API and CSV download methods with organized file structure"""
     
-    def __init__(self, headless: bool = True, debug: bool = False):
+    def __init__(self, headless: bool = True, debug: bool = False, data_dir: str = None):
         self.debug = debug
         self.headless = headless
+        self.data_dir = data_dir or "test_data"
         
         # Initialize downloader if available
-        self.downloader = UnifiedEirGridDownloader(headless=headless) if downloader_available else None
+        self.downloader = UnifiedEirGridDownloader(data_dir=self.data_dir, headless=headless) if downloader_available else None
         
         # All supported areas with their API mappings
         self.api_areas = {
@@ -63,7 +64,8 @@ class ComprehensiveEirGridTester:
         self.results = {
             'api_tests': {},
             'csv_tests': {},
-            'unified_tests': {}
+            'unified_tests': {},
+            'file_structure_tests': {}
         }
     
     def setup_logging(self):
@@ -215,7 +217,7 @@ class ComprehensiveEirGridTester:
         return result
     
     def test_unified_method(self, area: str, region: str = 'all', date_str: str = None, include_forecast: bool = False) -> Dict:
-        """Test the unified download method"""
+        """Test the unified download method with file structure testing"""
         
         if not self.downloader:
             return {
@@ -237,7 +239,9 @@ class ComprehensiveEirGridTester:
             'actual_method_used': None,
             'data_points': 0,
             'error': None,
-            'response_time': None
+            'response_time': None,
+            'file_path': None,
+            'file_structure_correct': False
         }
         
         try:
@@ -259,6 +263,28 @@ class ComprehensiveEirGridTester:
             if unified_result['success']:
                 time_series = unified_result['data'].get('time_series', [])
                 result['data_points'] = len(time_series)
+                
+                # Test file saving with new structure
+                try:
+                    file_path = self.downloader.save_data(
+                        unified_result['data'],
+                        area,
+                        region,
+                        date_str,
+                        date_str,
+                        update_existing=True
+                    )
+                    result['file_path'] = file_path
+                    
+                    # Verify file structure
+                    expected_dir = Path(self.data_dir) / area
+                    expected_filename = f"{area}_{date_str}_{date_str}.json" if region.lower() == 'all' else f"{area}_{region}_{date_str}_{date_str}.json"
+                    expected_path = expected_dir / expected_filename
+                    
+                    result['file_structure_correct'] = Path(file_path) == expected_path and expected_path.exists()
+                    
+                except Exception as e:
+                    result['error'] = f"File save error: {e}"
             else:
                 result['error'] = unified_result.get('error', 'Unknown unified error')
                 
@@ -268,12 +294,80 @@ class ComprehensiveEirGridTester:
         
         return result
     
-    def run_comprehensive_test(self):
-        """Run comprehensive test of all methods and areas"""
+    def test_file_structure(self):
+        """Test the organized file structure"""
         
-        print("🔬 COMPREHENSIVE EIRGRID DATA COLLECTION TEST")
+        print(f"\n📁 PHASE 4: FILE STRUCTURE TEST")
+        print("-" * 50)
+        
+        if not self.downloader:
+            print("   ❌ Downloader not available for file structure testing")
+            return
+        
+        # Test creating directories and files for different scenarios
+        test_scenarios = [
+            ('co2_intensity', 'all', '2025-06-23', '2025-06-23'),
+            ('wind_generation', 'roi', '2025-06-20', '2025-06-25'),
+            ('demand', 'ni', '2025-06-01', '2025-06-30')
+        ]
+        
+        structure_results = {}
+        
+        for i, (area, region, date_from, date_to) in enumerate(test_scenarios, 1):
+            print(f"[{i}/{len(test_scenarios)}] Testing file structure: {area} ({region}) {date_from} to {date_to}")
+            
+            try:
+                # Create mock data
+                mock_data = {
+                    'time_series': [
+                        {'time': f'{date_from} 12:00:00', 'value': 100.0, 'is_forecast': False}
+                    ],
+                    'extracted_at': datetime.now().isoformat(),
+                    'metadata': {'area': area, 'total_points': 1}
+                }
+                
+                # Save using the new structure
+                file_path = self.downloader.save_data(
+                    mock_data, area, region, date_from, date_to, update_existing=False
+                )
+                
+                # Verify structure
+                expected_dir = Path(self.data_dir) / area
+                expected_filename = f"{area}_{date_from}_{date_to}.json" if region.lower() == 'all' else f"{area}_{region}_{date_from}_{date_to}.json"
+                expected_path = expected_dir / expected_filename
+                
+                structure_correct = Path(file_path) == expected_path and expected_path.exists()
+                
+                structure_results[f"{area}_{region}_{date_from}_{date_to}"] = {
+                    'success': True,
+                    'file_path': file_path,
+                    'expected_path': str(expected_path),
+                    'structure_correct': structure_correct,
+                    'directory_exists': expected_dir.exists(),
+                    'file_exists': expected_path.exists()
+                }
+                
+                if structure_correct:
+                    print(f"   ✅ SUCCESS - Correct structure: {expected_path.relative_to(Path(self.data_dir).parent)}")
+                else:
+                    print(f"   ❌ FAILED - Expected: {expected_path}, Got: {file_path}")
+                    
+            except Exception as e:
+                structure_results[f"{area}_{region}_{date_from}_{date_to}"] = {
+                    'success': False,
+                    'error': str(e)
+                }
+                print(f"   ❌ FAILED - {e}")
+        
+        self.results['file_structure_tests'] = structure_results
+    
+    def run_comprehensive_test(self):
+        """Run comprehensive test of all methods and areas with file structure testing"""
+        
+        print("🔬 COMPREHENSIVE EIRGRID DATA COLLECTION TEST - ORGANIZED STRUCTURE")
         print("=" * 80)
         print(f"📅 Testing with yesterday's date: {(datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')}")
+        print(f"📁 Test data directory: {self.data_dir}")
         print(f"⏱️  API delay: {self.api_delay}s, CSV delay: {self.csv_delay}s")
         print(f"🔄 Retry attempts: {self.retry_attempts}")
         print("=" * 80)
@@ -318,8 +412,8 @@ class ComprehensiveEirGridTester:
             else:
                 print(f"   ❌ FAILED - {result['error']} ({result['response_time']}s)")
         
-        # Phase 3: Test unified method for key areas
-        print(f"\n🎯 PHASE 3: UNIFIED METHOD TEST")
+        # Phase 3: Test unified method for key areas with file structure
+        print(f"\n🎯 PHASE 3: UNIFIED METHOD TEST WITH FILE STRUCTURE")
         print("-" * 50)
         
         key_test_areas = ['co2_intensity', 'wind_generation', 'demand', 'snsp']
@@ -339,18 +433,24 @@ class ComprehensiveEirGridTester:
             self.results['unified_tests'][area] = result
             
             if result['success']:
+                file_status = "✅ correct structure" if result['file_structure_correct'] else "⚠️ incorrect structure"
+                relative_path = Path(result['file_path']).relative_to(Path(self.data_dir).parent) if result['file_path'] else "unknown"
                 print(f"   ✅ SUCCESS - Used {result['actual_method_used']} method, {result['data_points']} points ({result['response_time']}s)")
+                print(f"      📁 File: {relative_path} ({file_status})")
             else:
                 print(f"   ❌ FAILED - {result['error']} ({result['response_time']}s)")
+        
+        # Phase 4: Test file structure specifically
+        self.test_file_structure()
         
         # Generate comprehensive summary
         self.print_comprehensive_summary()
     
     def print_comprehensive_summary(self):
-        """Print detailed summary of all test results"""
+        """Print detailed summary of all test results including file structure"""
         
         print("\n" + "=" * 80)
-        print("📋 COMPREHENSIVE TEST SUMMARY")
+        print("📋 COMPREHENSIVE TEST SUMMARY - ORGANIZED STRUCTURE")
         print("=" * 80)
         
         # API Results Summary
@@ -402,33 +502,62 @@ class ComprehensiveEirGridTester:
             for area, result in self.results['unified_tests'].items():
                 status = "✅" if result['success'] else "❌"
                 method = result.get('actual_method_used', 'unknown')
-                print(f"      {status} {area:<20} - Used {method} method")
+                file_status = ""
+                if result['success'] and 'file_structure_correct' in result:
+                    file_status = " 📁✅" if result['file_structure_correct'] else " 📁⚠️"
+                print(f"      {status} {area:<20} - Used {method} method{file_status}")
+        
+        # File Structure Test Results
+        if self.results['file_structure_tests']:
+            structure_success = sum(1 for r in self.results['file_structure_tests'].values() if r.get('success', False) and r.get('structure_correct', False))
+            structure_total = len(self.results['file_structure_tests'])
+            
+            print(f"\n📁 FILE STRUCTURE TEST RESULTS:")
+            print(f"   Success Rate: {(structure_success/structure_total*100):.1f}% ({structure_success}/{structure_total} tests)")
+            
+            for test_name, result in self.results['file_structure_tests'].items():
+                if result.get('success', False):
+                    status = "✅" if result.get('structure_correct', False) else "⚠️"
+                    relative_path = Path(result['file_path']).relative_to(Path(self.data_dir).parent) if result.get('file_path') else "unknown"
+                    print(f"      {status} {test_name:<30} - {relative_path}")
+                else:
+                    print(f"      ❌ {test_name:<30} - {result.get('error', 'Unknown error')}")
+        
+        # Directory Structure Overview
+        print(f"\n📂 GENERATED DIRECTORY STRUCTURE:")
+        data_path = Path(self.data_dir)
+        if data_path.exists():
+            print(f"   {self.data_dir}/")
+            for metric_dir in sorted(data_path.iterdir()):
+                if metric_dir.is_dir():
+                    file_count = len(list(metric_dir.glob("*.json")))
+                    print(f"   ├── {metric_dir.name}/ ({file_count} files)")
+                    for json_file in sorted(metric_dir.glob("*.json"))[:3]:  # Show first 3 files
+                        print(f"   │   ├── {json_file.name}")
+                    if file_count > 3:
+                        print(f"   │   └── ... ({file_count - 3} more files)")
         
         # Method Comparison for overlapping areas
         print(f"\n🔍 METHOD COMPARISON:")
-        print("   Area                 API    CSV    Best Method")
-        print("   " + "-" * 50)
+        print("   Area                 API    CSV    Unified  File Structure")
+        print("   " + "-" * 65)
         
         for area in self.csv_areas:
             api_status = "✅" if self.results['api_tests'].get(area, {}).get('success', False) else "❌"
             csv_status = "✅" if self.results['csv_tests'].get(area, {}).get('success', False) else "❌"
+            unified_status = "✅" if self.results['unified_tests'].get(area, {}).get('success', False) else "❌"
             
-            # Determine best method
-            api_ok = self.results['api_tests'].get(area, {}).get('success', False)
-            csv_ok = self.results['csv_tests'].get(area, {}).get('success', False)
+            # File structure status
+            file_status = "➖"
+            if area in self.results['unified_tests']:
+                if self.results['unified_tests'][area].get('file_structure_correct', False):
+                    file_status = "✅"
+                elif self.results['unified_tests'][area].get('success', False):
+                    file_status = "⚠️"
+                else:
+                    file_status = "❌"
             
-            if api_ok and csv_ok:
-                api_time = self.results['api_tests'][area].get('response_time', 999)
-                csv_time = self.results['csv_tests'][area].get('response_time', 999)
-                best = "API (faster)" if api_time < csv_time else "CSV"
-            elif api_ok:
-                best = "API only"
-            elif csv_ok:
-                best = "CSV only"
-            else:
-                best = "Neither"
-            
-            print(f"   {area:<20} {api_status}    {csv_status}    {best}")
+            print(f"   {area:<20} {api_status}    {csv_status}    {unified_status}      {file_status}")
         
         # Recommendations
         print(f"\n💡 RECOMMENDATIONS:")
@@ -441,34 +570,33 @@ class ComprehensiveEirGridTester:
         else:
             print("   🚨 Poor API connectivity. Focus on CSV method.")
         
-        # Areas that need CSV fallback
-        needs_csv = [area for area in self.csv_areas 
-                    if not self.results['api_tests'].get(area, {}).get('success', False)
-                    and self.results['csv_tests'].get(area, {}).get('success', False)]
+        # File structure recommendations
+        structure_success_rate = 0
+        if self.results['file_structure_tests']:
+            structure_success = sum(1 for r in self.results['file_structure_tests'].values() if r.get('structure_correct', False))
+            structure_total = len(self.results['file_structure_tests'])
+            structure_success_rate = (structure_success / structure_total * 100) if structure_total > 0 else 0
         
-        if needs_csv:
-            print(f"   📊 These areas need CSV fallback: {', '.join(needs_csv)}")
-        
-        # Areas with no working method
-        no_method = [area for area in self.api_areas.keys()
-                    if not self.results['api_tests'].get(area, {}).get('success', False)
-                    and not self.results['csv_tests'].get(area, {}).get('success', False)]
-        
-        if no_method:
-            print(f"   🚨 These areas have no working method: {', '.join(no_method)}")
+        if structure_success_rate == 100:
+            print("   📁 Perfect file organization! New structure working correctly.")
+        elif structure_success_rate >= 80:
+            print("   📁 Good file organization with minor issues.")
+        else:
+            print("   📁 File organization needs attention - check directory structure.")
         
         print(f"\n🔄 To retest specific area: python comprehensive_test.py [area_name]")
         print(f"🐛 For debugging: python comprehensive_test.py --debug")
+        print(f"📁 Test data saved in: {self.data_dir}/")
     
     def test_specific_area(self, area: str):
-        """Run detailed test for a specific area"""
+        """Run detailed test for a specific area including file structure"""
         
         if area not in self.api_areas:
             print(f"❌ Unknown area: {area}")
             print(f"Available areas: {', '.join(self.api_areas.keys())}")
             return
         
-        print(f"🔬 DETAILED TEST: {area}")
+        print(f"🔬 DETAILED TEST: {area} (with file structure)")
         print("=" * 50)
         
         # Test different dates
@@ -496,12 +624,19 @@ class ComprehensiveEirGridTester:
             else:
                 print(f"   CSV: ➖ Not supported")
             
-            # Test unified
+            # Test unified with file structure
             unified_result = self.test_unified_method(area, date_str=date_str)
             unified_status = "✅" if unified_result['success'] else "❌"
             method_used = unified_result.get('actual_method_used', 'unknown')
             unified_info = unified_result.get('error', f"{unified_result.get('data_points', 0)} points")
-            print(f"   Unified: {unified_status} Used {method_used} ({unified_info})")
+            
+            file_info = ""
+            if unified_result['success'] and unified_result.get('file_path'):
+                file_status = "✅" if unified_result.get('file_structure_correct', False) else "⚠️"
+                relative_path = Path(unified_result['file_path']).relative_to(Path(self.data_dir).parent)
+                file_info = f" → {relative_path} {file_status}"
+            
+            print(f"   Unified: {unified_status} Used {method_used} ({unified_info}){file_info}")
             
             time.sleep(2.0)  # Delay between date tests
     
@@ -517,7 +652,7 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(
-        description="Comprehensive test of EirGrid data collection methods",
+        description="Comprehensive test of EirGrid data collection methods with organized file structure",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -529,6 +664,9 @@ Examples:
   
   # Run with debug logging and visible browser
   python comprehensive_test.py --debug --show-browser
+  
+  # Use custom test data directory
+  python comprehensive_test.py --data-dir ./test_organized_data
         """
     )
     
@@ -541,12 +679,16 @@ Examples:
     parser.add_argument('--show-browser', action='store_true',
                        help='Show browser during CSV tests')
     
+    parser.add_argument('--data-dir', 
+                       help='Test data directory (default: test_data)')
+    
     args = parser.parse_args()
     
     # Initialize tester
     tester = ComprehensiveEirGridTester(
         headless=not args.show_browser,
-        debug=args.debug
+        debug=args.debug,
+        data_dir=args.data_dir
     )
     
     tester.setup_logging()
