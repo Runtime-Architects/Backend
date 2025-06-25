@@ -1,0 +1,15 @@
+rich
+requests>=2.32.4
+pandas>=2.2.3
+selenium>=4.33.0
+webdriver-manager>=4.0.2
+python-dateutil>=2.9.0.post0
+asyncio
+python-multipart
+uvicorn[standard]
+fastapi
+autogen-core
+autogen-ext[openai]
+autogen-agentchat
+tiktoken
+openai
