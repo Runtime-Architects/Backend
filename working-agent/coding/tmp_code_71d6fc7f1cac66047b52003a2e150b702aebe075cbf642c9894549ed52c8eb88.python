@@ -1,0 +1,17 @@
+# Install the required packages
+import sys
+!{sys.executable} -m pip install duckduckgo-search requests
+
+from duckduckgo_search import DDGS
+
+def find_emissions_data():
+    query = "Ireland CO2 emissions daily or monthly 2023-2024 CSV"
+    results = []
+    with DDGS() as ddgs:
+        for r in ddgs.text(query, max_results=10):
+            results.append({'title': r['title'], 'href': r['href']})
+    print("Search results for Ireland CO2 emissions data 2023-2024:")
+    for idx, result in enumerate(results):
+        print(f"{idx+1}. {result['title']} - {result['href']}")
+
+find_emissions_data()

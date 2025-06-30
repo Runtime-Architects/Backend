@@ -1,5 +1,5 @@
 from autogen_agentchat.agents import AssistantAgent
-from autogen_ext.models.openai import OpenAIChatCompletionClient
+from autogen_ext.models.openai import AzureOpenAIChatCompletionClient
 from autogen_ext.code_executors.docker import DockerCommandLineCodeExecutor
 from autogen_ext.tools.code_execution import PythonCodeExecutionTool
 from autogen_core.tools import FunctionTool
@@ -105,21 +105,17 @@ async def main() -> None:
     async with DockerCommandLineCodeExecutor(work_dir="coding") as executor:
         tool = PythonCodeExecutionTool(executor)
 
-        custom_model_client = OpenAIChatCompletionClient(
-            model="openai/gpt-4.1",
-            base_url="https://models.github.ai/inference",
-            api_key=os.getenv("GITHUB_TOKEN"),
-            model_info={
-                "vision": True,
-                "function_calling": True,
-                "json_output": True,
-                "family": "unknown",
-                "structured_output": True,
-            },
-        )
+        client = AzureOpenAIChatCompletionClient(
+                    azure_deployment=os.getenv("AZURE_DEPLOYMENT"),
+                    model=os.getenv("MODEL"),
+                    api_version=os.getenv("API_VERSION"),
+                    azure_endpoint=os.getenv("AZURE_ENDPOINT"),
+                    api_key= os.getenv("API_KEY"), # For key-based authentication.
+                )
+
 
         agent = AssistantAgent(
-            name="assistant", model_client=custom_model_client, tools=[tool, emission_tool], reflect_on_tool_use=True,
+            name="assistant", model_client=client, tools=[tool, emission_tool], reflect_on_tool_use=True,
             system_message= system_message
         )
 
