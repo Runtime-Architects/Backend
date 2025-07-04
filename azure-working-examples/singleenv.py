@@ -2,47 +2,21 @@ import asyncio
 from pathlib import Path
 import shutil
 import venv
+from autogen_core import CancellationToken
 from autogen_core.code_executor import CodeBlock
 from autogen_agentchat.agents import AssistantAgent
 from autogen_ext.code_executors.local import LocalCommandLineCodeExecutor
 from autogen_ext.models.openai import AzureOpenAIChatCompletionClient
 from autogen_ext.tools.code_execution import PythonCodeExecutionTool
 from autogen_agentchat.ui import Console
+import sys
 import asyncio
 import os
 from dotenv import load_dotenv
 load_dotenv()
 
 import time
-import subprocess
 
-async def setup_base_venv(venv_dir: Path):
-    """Create and install common packages in the base virtual environment."""
-    venv_builder = venv.EnvBuilder(with_pip=True)
-
-    if not venv_dir.exists():
-        venv_builder.create(venv_dir)
-
-    venv_context = venv_builder.ensure_directories(venv_dir)
-    
-    # Path to the python executable inside the venv
-    python_exe = venv_dir / ("Scripts" if os.name == "nt" else "bin") / "python"
-
-    # Install common packages using subprocess to ensure they go into the right venv
-    subprocess.check_call([str(python_exe), "-m", "pip", "install", "matplotlib", "numpy", "pandas"])
-    
-    return venv_context
-
-async def setup_working_venv(src: Path, dst: Path):
-    """Copy a virtual environment to a new location."""
-
-    if dst.exists():
-        shutil.rmtree(dst)
-
-    shutil.copytree(src, dst, symlinks=True)
-
-    venv_builder = venv.EnvBuilder(with_pip=True, symlinks=True) 
-    return venv_builder.ensure_directories(dst)
 
 async def main():
     # Setup working directory
@@ -53,12 +27,24 @@ async def main():
     base_venv_dir = work_dir / ".venv_base"
     if not base_venv_dir.exists():
         print("Creating base virtual environment...")
-        await setup_base_venv(base_venv_dir)
+        
+        venv_builder = venv.EnvBuilder(with_pip=True)
+        venv_builder.create(base_venv_dir)
+        venv_context = venv_builder.ensure_directories(base_venv_dir)
+
+
+        temp_executor = LocalCommandLineCodeExecutor(
+        work_dir=base_venv_dir.parent,
+        virtual_env_context=venv_context)
     
-    # Create working virtual environment as a copy of the base one
-    working_venv_dir = work_dir / ".venv_working"
-    print("Creating working virtual environment...")
-    venv_context = await setup_working_venv(base_venv_dir, working_venv_dir)
+    # Install common packages
+    await temp_executor.execute_code_blocks(
+        code_blocks=[
+            CodeBlock(language="powershell", code="pip install matplotlib numpy pandas"),
+        ],
+        cancellation_token=CancellationToken(),
+    )
+            
     
     # Create executor with working virtual environment context
     executor = LocalCommandLineCodeExecutor(
@@ -92,8 +78,8 @@ async def main():
         )
     )
 
-    if working_venv_dir.exists():
-        shutil.rmtree(working_venv_dir)
+    # if base_venv_dir.exists():
+    #     shutil.rmtree(base_venv_dir)
 
 
 if __name__ == '__main__':
