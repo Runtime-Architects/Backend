@@ -1,10 +1,18 @@
 import asyncio
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import logging
 from contextlib import asynccontextmanager
 import uvicorn
+import queue
+import threading
+import time
+from datetime import datetime
+from typing import AsyncGenerator, Dict, Any
+from enum import Enum
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 from autogen_agentchat.agents import AssistantAgent
 from autogen_ext.agents.openai import OpenAIAssistantAgent
@@ -23,11 +31,21 @@ import os
 
 
 # Set up logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
+# Create a separate logger for streaming events
+stream_logger = logging.getLogger("stream_events")
+stream_handler = logging.StreamHandler()
+stream_handler.setFormatter(logging.Formatter('%(asctime)s - STREAM - %(levelname)s - %(message)s'))
+stream_logger.addHandler(stream_handler)
+stream_logger.setLevel(logging.INFO)
+
 # --- Configuration Variables ---
-openai_api_key = "KEY"
+openai_api_key = "key"
 openai_model = "gpt-4o-mini"
 openai_carbon_assistant_id = ""
 openai_analysis_assistant_id = ""
@@ -45,6 +63,28 @@ class MessageResponse(BaseModel):
 
 class APIResponse(BaseModel):
     status: str
+    message: MessageResponse
+
+
+class StreamEventType(str, Enum):
+    STARTED = "started"
+    AGENT_THINKING = "agent_thinking"
+    AGENT_RESPONSE = "agent_response"
+    TOOL_EXECUTION = "tool_execution"
+    ERROR = "error"
+    COMPLETED = "completed"
+
+
+class StreamEvent(BaseModel):
+    event_type: StreamEventType
+    timestamp: str
+    agent_name: str = ""
+    message: str = ""
+    data: Dict[str, Any] = {}
+
+
+class StreamResponse(BaseModel):
+    event: StreamEvent
     message: MessageResponse
 
 
@@ -300,6 +340,41 @@ openai_client = None
 team = None
 
 
+class StreamEventManager:
+    """Manages streaming events and logging for AutoGen conversations"""
+    
+    def __init__(self):
+        self.events = []
+        self.current_step = 0
+        self.total_steps = 4  # Adjust based on your workflow
+        
+    async def emit_event(self, event_type: StreamEventType, agent_name: str = "", 
+                        message: str = "", data: Dict[str, Any] = None) -> StreamEvent:
+        """Emit a streaming event and log it"""
+        event = StreamEvent(
+            event_type=event_type,
+            timestamp=datetime.now().isoformat(),
+            agent_name=agent_name,
+            message=message,
+            data=data or {}
+        )
+        
+        self.events.append(event)
+        
+        # Log the event
+        stream_logger.info(f"Event: {event_type} | Agent: {agent_name} | Message: {message}")
+        
+        return event
+    
+    def get_progress_percentage(self) -> int:
+        """Calculate progress percentage"""
+        return min(int((self.current_step / self.total_steps) * 100), 100)
+    
+    def increment_step(self):
+        """Increment current step"""
+        self.current_step += 1
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize agents on startup"""
@@ -461,6 +536,154 @@ async def run_autogen_task(question: str) -> str:
         raise HTTPException(status_code=500, detail=f"AutoGen task failed: {str(e)}")
 
 
+async def run_autogen_task_streaming(question: str, event_manager: StreamEventManager) -> AsyncGenerator[str, None]:
+    """Run the AutoGen task with streaming events"""
+    try:
+        logger.info(f"Starting streaming AutoGen task with question: {question[:100]}...")
+        
+        # Emit starting event
+        event = await event_manager.emit_event(
+            StreamEventType.STARTED,
+            message=f"Starting analysis for: {question[:100]}...",
+            data={"question": question, "progress": 0}
+        )
+        yield f"data: {{\"event\": {event.model_dump_json()}}}\n\n"
+        await asyncio.sleep(0.5)
+        
+        # Emit planner thinking event
+        event_manager.increment_step()
+        event = await event_manager.emit_event(
+            StreamEventType.AGENT_THINKING,
+            agent_name="PlanningAgent",
+            message="Planning task breakdown and agent coordination...",
+            data={"progress": event_manager.get_progress_percentage()}
+        )
+        yield f"data: {{\"event\": {event.model_dump_json()}}}\n\n"
+        await asyncio.sleep(1)
+
+        # Create the task
+        task = f"Generate a comprehensive business insights report based on this request: {question}"
+        
+        # Emit carbon agent event
+        event_manager.increment_step()
+        event = await event_manager.emit_event(
+            StreamEventType.AGENT_THINKING,
+            agent_name="CarbonAgent",
+            message="Generating synthetic data tables...",
+            data={"progress": event_manager.get_progress_percentage()}
+        )
+        yield f"data: {{\"event\": {event.model_dump_json()}}}\n\n"
+        await asyncio.sleep(1)
+
+        # Start the AutoGen team task in background
+        result_task = asyncio.create_task(team.run(task=task))
+        
+        # Simulate progress while waiting for actual result
+        simulation_steps = [
+            ("CarbonAgent", "Data tables generated successfully"),
+            ("DataAnalysisAgent", "Analyzing data and generating insights..."),
+            ("DataAnalysisAgent", "Analysis completed, insights generated"),
+            ("ReportAgent", "Creating ASCII dashboard report..."),
+            ("ReportAgent", "ASCII dashboard generated"),
+            ("PlanningAgent", "Finalizing comprehensive report...")
+        ]
+        
+        step_delay = 2.0  # 2 seconds per step
+        for i, (agent, message) in enumerate(simulation_steps):
+            if not result_task.done():
+                event_manager.increment_step()
+                event = await event_manager.emit_event(
+                    StreamEventType.AGENT_RESPONSE,
+                    agent_name=agent,
+                    message=message,
+                    data={"progress": min(event_manager.get_progress_percentage(), 95)}
+                )
+                yield f"data: {{\"event\": {event.model_dump_json()}}}\n\n"
+                await asyncio.sleep(step_delay)
+            else:
+                break
+
+        # Wait for the actual result
+        result = await result_task
+        
+        # Process the final response
+        final_response = ""
+        agent_responses = {}
+        
+        # Track agent responses for logging
+        for message in result.messages:
+            agent_name = message.source
+            if agent_name not in agent_responses:
+                agent_responses[agent_name] = []
+            agent_responses[agent_name].append(message.content)
+            
+            # Log each agent's contribution
+            stream_logger.info(f"Agent {agent_name} contributed {len(message.content)} characters")
+
+        # Extract final response (same logic as before)
+        for message in result.messages:
+            if message.source == "PlanningAgent":
+                if any(
+                    keyword in message.content
+                    for keyword in [
+                        "Executive Summary",
+                        "Final Aggregated Response",
+                        "COMPREHENSIVE FINAL RESPONSE",
+                    ]
+                ):
+                    final_response = message.content
+                    break
+
+        if not final_response:
+            planner_messages = [
+                msg for msg in result.messages if msg.source == "PlanningAgent"
+            ]
+            if planner_messages:
+                for msg in reversed(planner_messages):
+                    if "TERMINATE" not in msg.content and len(msg.content) > 100:
+                        final_response = msg.content
+                        break
+
+        if not final_response:
+            all_responses = []
+            for message in result.messages:
+                if len(message.content) > 50 and "TERMINATE" not in message.content:
+                    all_responses.append(f"**{message.source}**: {message.content}")
+            final_response = (
+                "\n\n".join(all_responses)
+                if all_responses
+                else "No meaningful response generated."
+            )
+
+        # Emit completion event with final response
+        event = await event_manager.emit_event(
+            StreamEventType.COMPLETED,
+            agent_name="PlanningAgent",
+            message="Task completed successfully",
+            data={
+                "progress": 100,
+                "final_response": final_response,
+                "total_messages": len(result.messages),
+                "agent_count": len(agent_responses),
+                "response_length": len(final_response)
+            }
+        )
+        yield f"data: {{\"event\": {event.model_dump_json()}}}\n\n"
+
+        logger.info(f"Streaming AutoGen task completed. Response length: {len(final_response)}")
+        
+    except Exception as e:
+        logger.error(f"Error in streaming AutoGen task: {str(e)}")
+        stream_logger.error(f"Streaming task failed: {str(e)}")
+        
+        error_event = await event_manager.emit_event(
+            StreamEventType.ERROR,
+            message=f"Task failed: {str(e)}",
+            data={"error": str(e), "progress": event_manager.get_progress_percentage()}
+        )
+        yield f"data: {{\"event\": {error_event.model_dump_json()}}}\n\n"
+
+
 @app.post("/ask", response_model=APIResponse)
 async def ask_endpoint(request: QuestionRequest):
     """
@@ -487,16 +710,180 @@ async def ask_endpoint(request: QuestionRequest):
         )
 
 
+@app.post("/ask-stream")
+async def ask_stream_endpoint(request: QuestionRequest):
+    """
+    Streaming endpoint that provides real-time updates during agent processing
+    """
+    async def generate_stream():
+        event_manager = StreamEventManager()
+        
+        try:
+            stream_logger.info(f"Starting streaming request for: {request.question[:100]}...")
+            
+            # Create the streaming generator
+            async for event_data in run_autogen_task_streaming(request.question, event_manager):
+                yield event_data
+                
+        except Exception as e:
+            logger.error(f"Error in streaming endpoint: {str(e)}")
+            stream_logger.error(f"Streaming failed: {str(e)}")
+            
+            # Send error event
+            error_event = await event_manager.emit_event(
+                StreamEventType.ERROR,
+                message=f"Stream failed: {str(e)}",
+                data={"error": str(e)}
+            )
+            yield f"data: {{\"event\": {error_event.model_dump_json()}}}\n\n"
+
+    return StreamingResponse(
+        generate_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
+
+
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
-    return {"status": "healthy", "message": "AutoGen Business Insights API is running"}
+    """Enhanced health check endpoint with system status. Possible status: Healthy, Warning, Error, Unhealthy"""
+    try:
+        # Check if agents are initialized
+        agents_status = "initialized" if team is not None else "not_initialized"
+        
+        # Get current timestamp
+        current_time = datetime.now().isoformat()
+        
+        # Check OpenAI client status
+        openai_client_status = "connected" if openai_client is not None else "not_connected"
+        
+        # Test actual OpenAI API connectivity and quota
+        openai_api_status = "unknown"
+        api_error_message = None
+        
+        if openai_client is not None:
+            try:
+                # Make a minimal API call to test connectivity and quota
+                response = await openai_client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{"role": "user", "content": "test"}],
+                    max_tokens=1
+                )
+                openai_api_status = "healthy"
+            except Exception as api_error:
+                error_str = str(api_error)
+                if "429" in error_str or "quota" in error_str.lower():
+                    openai_api_status = "quota_exceeded"
+                elif "401" in error_str or "invalid" in error_str.lower():
+                    openai_api_status = "invalid_key"
+                elif "403" in error_str:
+                    openai_api_status = "forbidden"
+                else:
+                    openai_api_status = "error"
+                api_error_message = error_str
+        
+        # Check data directory and files
+        data_dir_exists = os.path.exists("src/data")
+        data_files_count = 0
+        if data_dir_exists:
+            try:
+                data_files_count = len([f for f in os.listdir("src/data") if f.endswith('.json')])
+            except:
+                data_files_count = 0
+        
+        # Check if required environment variables are set
+        api_key_configured = bool(openai_api_key and openai_api_key.startswith("sk-"))
+        
+        # Determine overall status based on all checks
+        overall_status = "healthy"
+        
+        if openai_api_status in ["quota_exceeded", "invalid_key", "forbidden"]:
+            overall_status = "warning"
+        elif openai_api_status == "error":
+            overall_status = "error"
+        elif agents_status != "initialized" or openai_client_status != "connected":
+            overall_status = "warning"
+        
+        # Create appropriate message
+        if overall_status == "error":
+            if openai_api_status == "quota_exceeded":
+                message = "OpenAI API quota exceeded. Please check your billing details."
+            elif openai_api_status == "invalid_key":
+                message = "OpenAI API key is invalid. Please check your API key."
+            elif openai_api_status == "forbidden":
+                message = "OpenAI API access forbidden. Please check your API key permissions."
+        elif overall_status == "warning":
+            message = "Some components have issues but system is partially operational."
+        else:
+            message = "AutoGen Agents and Services are operational."
+        
+        return {
+            "status": overall_status,
+            "message": message,
+            "timestamp": current_time,
+            "components": {
+                "agents_status": agents_status,
+                "openai_client_status": openai_client_status,
+                "openai_api_status": openai_api_status,
+                "api_key_configured": api_key_configured,
+                "data_directory_exists": data_dir_exists,
+                "data_files_count": data_files_count
+            },
+            "api_error": api_error_message,
+            "version": "1.0.0",
+            "uptime_check": current_time
+        }
+    except Exception as e:
+        logger.error(f"Health check failed: {str(e)}")
+        return {
+            "status": "unhealthy",
+            "message": f"AutoGen Business Insights API encountered an error: {str(e)}"
+        }
+
+
+@app.get("/test-stream")
+async def test_stream():
+    """Test streaming endpoint with mock events"""
+    async def generate_test_stream():
+        event_manager = StreamEventManager()
+        
+        test_events = [
+            (StreamEventType.STARTED, "System", "Test stream started"),
+            (StreamEventType.AGENT_THINKING, "TestAgent", "Processing test request..."),
+            (StreamEventType.AGENT_RESPONSE, "TestAgent", "Generated test response"),
+            (StreamEventType.COMPLETED, "System", "Test completed successfully")
+        ]
+        
+        for event_type, agent, message in test_events:
+            event = await event_manager.emit_event(event_type, agent, message)
+            yield f"data: {{\"event\": {event.model_dump_json()}}}\n\n"
+            await asyncio.sleep(1)
+    
+    return StreamingResponse(
+        generate_test_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        }
+    )
 
 
 @app.get("/")
 async def root():
     """Root endpoint"""
-    return {"message": "AutoGen Business Insights API", "docs": "/docs"}
+    return {"message": "AutoGen Business Insights API", "docs": "/docs", "client": "/client"}
+
+
+@app.get("/client")
+async def serve_client():
+    """Serve the streaming client HTML"""
+    return FileResponse("streaming_client.html", media_type="text/html")
 
 
 if __name__ == "__main__":

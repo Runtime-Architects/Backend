@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoGen Streaming Client</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .input-section {
+            margin-bottom: 30px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+        textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: inherit;
+            resize: vertical;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+        }
+        .btn-primary:hover:not(:disabled) {
+            background-color: #0056b3;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        .btn-secondary:hover:not(:disabled) {
+            background-color: #545b62;
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+        .status.info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .events-container {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            margin-top: 20px;
+            max-height: 600px;
+            overflow-y: auto;
+            background-color: #f8f9fa;
+        }
+        .events-header {
+            background-color: #343a40;
+            color: white;
+            padding: 15px;
+            font-weight: bold;
+            position: sticky;
+            top: 0;
+        }
+        .event {
+            padding: 12px 15px;
+            border-bottom: 1px solid #dee2e6;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 14px;
+        }
+        .event:last-child {
+            border-bottom: none;
+        }
+        .event.started {
+            background-color: #d4edda;
+            border-left: 4px solid #28a745;
+        }
+        .event.agent_thinking {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+        .event.agent_response {
+            background-color: #cce7ff;
+            border-left: 4px solid #007bff;
+        }
+        .event.tool_execution {
+            background-color: #e2e3e5;
+            border-left: 4px solid #6c757d;
+        }
+        .event.completed {
+            background-color: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+        }
+        .event.error {
+            background-color: #f8d7da;
+            border-left: 4px solid #dc3545;
+        }
+        .event-meta {
+            color: #666;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+        .event-message {
+            color: #333;
+            font-weight: bold;
+        }
+        .event-data {
+            color: #555;
+            font-size: 12px;
+            margin-top: 5px;
+            font-style: italic;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #e9ecef;
+            border-radius: 10px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background-color: #007bff;
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+        .final-response {
+            background-color: #f8f9fa;
+            border: 2px solid #007bff;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            white-space: pre-wrap;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AutoGen Streaming Client Tester</h1>
+        
+        <div class="input-section">
+            <label for="question">Question:</label>
+            <textarea 
+                id="question" 
+                placeholder="e.g., Generate a monthly business report for our sales performance and carbon footprint analysis">Generate a monthly business report for our sales performance and carbon footprint analysis</textarea>
+            
+            <div class="button-group">
+                <button id="streamBtn" class="btn-primary">Start</button>
+                <button id="clearBtn" class="btn-secondary">Clear</button>
+                <button id="testBtn" class="btn-secondary">Test</button>
+            </div>
+        </div>
+
+        <div id="status" class="status" style="display: none;"></div>
+        
+        <div class="progress-bar" id="progressContainer" style="display: none;">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+
+        <div class="events-container" id="eventsContainer" style="display: none;">
+            <div class="events-header">
+                Events
+            </div>
+            <div id="events"></div>
+        </div>
+
+        <div id="finalResponse" class="final-response" style="display: none;"></div>
+    </div>
+
+    <script>
+        const questionInput = document.getElementById('question');
+        const streamBtn = document.getElementById('streamBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const testBtn = document.getElementById('testBtn');
+        const statusDiv = document.getElementById('status');
+        const eventsContainer = document.getElementById('eventsContainer');
+        const eventsDiv = document.getElementById('events');
+        const finalResponseDiv = document.getElementById('finalResponse');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressFill = document.getElementById('progressFill');
+
+        let isStreaming = false;
+
+        // Event type emojis and colors
+        const eventConfig = {
+            started: { emoji: '🟢', label: 'Started' },
+            agent_thinking: { emoji: '🟡', label: 'Thinking' },
+            agent_response: { emoji: '🔵', label: 'Response' },
+            tool_execution: { emoji: '🔧', label: 'Tool' },
+            completed: { emoji: '✅', label: 'Completed' },
+            error: { emoji: '❌', label: 'Error' }
+        };
+
+        function showStatus(message, type = 'info') {
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+            statusDiv.style.display = 'block';
+        }
+
+        function hideStatus() {
+            statusDiv.style.display = 'none';
+        }
+
+        function updateProgress(percentage) {
+            if (percentage >= 0) {
+                progressContainer.style.display = 'block';
+                progressFill.style.width = `${percentage}%`;
+            }
+        }
+
+        function addEvent(eventData) {
+            const event = eventData.event;
+            const eventType = event.event_type || 'unknown';
+            const config = eventConfig[eventType] || { emoji: '❓', label: 'Unknown' };
+            
+            const eventDiv = document.createElement('div');
+            eventDiv.className = `event ${eventType}`;
+            
+            const timestamp = new Date(event.timestamp).toLocaleTimeString();
+            const agentName = event.agent_name || 'System';
+            const message = event.message || 'No message';
+            const data = event.data || {};
+            
+            eventDiv.innerHTML = `
+                <div class="event-meta">
+                    ${config.emoji} ${timestamp} | ${agentName} | ${config.label}
+                </div>
+                <div class="event-message">${message}</div>
+                ${Object.keys(data).length > 0 ? `<div class="event-data">${JSON.stringify(data, null, 2)}</div>` : ''}
+            `;
+            
+            eventsDiv.appendChild(eventDiv);
+            eventsContainer.scrollTop = eventsContainer.scrollHeight;
+            
+            // Update progress if available
+            if (data.progress !== undefined) {
+                updateProgress(data.progress);
+            }
+            
+            // Show final response if completed
+            if (eventType === 'completed' && data.final_response) {
+                finalResponseDiv.textContent = data.final_response;
+                finalResponseDiv.style.display = 'block';
+            }
+        }
+
+        function clearEvents() {
+            eventsDiv.innerHTML = '';
+            finalResponseDiv.style.display = 'none';
+            progressContainer.style.display = 'none';
+            hideStatus();
+        }
+
+        async function startStreaming(question) {
+            if (isStreaming) return;
+            
+            isStreaming = true;
+            streamBtn.disabled = true;
+            streamBtn.textContent = '⏳ Streaming...';
+            
+            clearEvents();
+            eventsContainer.style.display = 'block';
+            showStatus('Starting stream...', 'info');
+            
+            try {
+                const response = await fetch('/ask-stream', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ question: question })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const eventData = JSON.parse(line.slice(6));
+                                addEvent(eventData);
+                                
+                                if (eventData.event.event_type === 'completed') {
+                                    showStatus('Stream completed successfully!', 'success');
+                                } else if (eventData.event.event_type === 'error') {
+                                    showStatus(`Error: ${eventData.event.message}`, 'error');
+                                }
+                            } catch (e) {
+                                console.warn('Failed to parse event:', line, e);
+                            }
+                        }
+                    }
+                }
+                
+            } catch (error) {
+                console.error('Streaming error:', error);
+                showStatus(`Stream failed: ${error.message}`, 'error');
+            } finally {
+                isStreaming = false;
+                streamBtn.disabled = false;
+                streamBtn.textContent = '🚀 Start Streaming';
+            }
+        }
+
+        async function testStream() {
+            if (isStreaming) return;
+            
+            isStreaming = true;
+            testBtn.disabled = true;
+            testBtn.textContent = '⏳ Testing...';
+            
+            clearEvents();
+            eventsContainer.style.display = 'block';
+            showStatus('Running test stream...', 'info');
+            
+            try {
+                const response = await fetch('/test-stream');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const eventData = JSON.parse(line.slice(6));
+                                addEvent(eventData);
+                            } catch (e) {
+                                console.warn('Failed to parse test event:', line, e);
+                            }
+                        }
+                    }
+                }
+                
+                showStatus('Test stream completed!', 'success');
+                
+            } catch (error) {
+                console.error('Test streaming error:', error);
+                showStatus(`Test failed: ${error.message}`, 'error');
+            } finally {
+                isStreaming = false;
+                testBtn.disabled = false;
+                testBtn.textContent = '🧪 Test Stream';
+            }
+        }
+
+        // Event listeners
+        streamBtn.addEventListener('click', () => {
+            const question = questionInput.value.trim();
+            if (!question) {
+                showStatus('Please enter a question', 'error');
+                return;
+            }
+            startStreaming(question);
+        });
+
+        clearBtn.addEventListener('click', clearEvents);
+        testBtn.addEventListener('click', testStream);
+
+        // Allow Enter key to start streaming (with Ctrl/Cmd)
+        questionInput.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                streamBtn.click();
+            }
+        });
+    </script>
+</body>
+</html>
