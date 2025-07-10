@@ -1,0 +1,12 @@
+opentelemetry-api
+opentelemetry-sdk
+opentelemetry-exporter-otlp
+pandas
+numpy
+asyncio
+python-dotenv
+pathlib
+dataclasses
+statistics
+autogen-agentchat
+autogen-ext
