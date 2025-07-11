@@ -29,6 +29,10 @@ from run_eirgrid_downloader import main as eirgrid_main
 import json
 import os
 
+# Import the database creation and session management functions
+from db import create_db_and_tables, get_session
+from auth_routes import router as auth_router
+
 # Import the new streamer library
 from streamer import SSEStreamer, StreamEventManager, StreamEventType, StreamingLogHandler
 
@@ -64,8 +68,6 @@ class MessageResponse(BaseModel):
 class APIResponse(BaseModel):
     status: str
     message: MessageResponse
-
-# ...existing code... (keep all the system prompts and file functions)
 
 # Read the content of the Report template
 def read_file() -> str:
@@ -467,6 +469,10 @@ async def lifespan(app: FastAPI):
     """Initialize agents on startup"""
     global openai_model_client, openai_client, team
 
+    # Create database and tables
+    logger.info("Creating database and tables...")
+    create_db_and_tables()
+
     logger.info("Initializing AutoGen agents...")
 
     # Create the OpenAI chat completion client
@@ -554,6 +560,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(auth_router)
 
 @app.post("/ask", response_model=APIResponse)
 async def ask_endpoint(request: QuestionRequest):
