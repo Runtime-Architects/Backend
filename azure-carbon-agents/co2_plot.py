@@ -67,11 +67,20 @@ class CO2plot:
         
         # Plot the line for the full data
         ax.plot(df_batch["timestamp"], df_batch["value"], color="black", linewidth=2, 
-                label="CO2 Intensity (15-min)")
+                label="CO2 Intensity (15-min intervals)")
 
         # Color map for categories
         color_map = {"Low": "green", "Medium": "orange", "High": "red"}
-        added_to_legend = set()
+        
+        # Create custom legend entries for the highlights
+        legend_elements = [
+            plt.Rectangle((0,0), 1, 1, fc='green', alpha=0.2, 
+                         label=f'Low Intensity (<{p33:.1f} gCO₂/hr)'),
+            plt.Rectangle((0,0), 1, 1, fc='orange', alpha=0.2, 
+                         label=f'Medium Intensity ({p33:.1f}-{p66:.1f} gCO₂/hr)'),
+            plt.Rectangle((0,0), 1, 1, fc='red', alpha=0.2, 
+                         label=f'High Intensity (>{p66:.1f} gCO₂/hr)')
+        ]
 
         # First calculate all highlights to determine the maximum needed padding
         highlights = []
@@ -90,20 +99,11 @@ class CO2plot:
         
         # Calculate padding based on the data range and highlights
         if num_days == 1:
-            # For single day, use 1 hour padding but ensure it doesn't go beyond highlights
-            padding = pd.Timedelta(minutes=30)  # Start with 30 minutes
-            # Check if any highlight extends beyond our current padding
-            for start, end, _ in highlights:
-                if end > x_max + padding:
-                    padding = end - x_max + pd.Timedelta(minutes=15)
+            padding = pd.Timedelta(minutes=30)
         else:
-            # For multiple days, use 3 hours padding but check highlights
-            padding = pd.Timedelta(hours=2)  # Start with 2 hours
-            for start, end, _ in highlights:
-                if end > x_max + padding:
-                    padding = end - x_max + pd.Timedelta(hours=1)
+            padding = pd.Timedelta(hours=2)
         
-        # Apply final padding (minimum of calculated padding and 1 hour for single day/3 hours for multi-day)
+        # Apply final padding
         if num_days == 1:
             padding = min(padding, pd.Timedelta(hours=1))
         else:
@@ -111,37 +111,30 @@ class CO2plot:
         
         ax.set_xlim(x_min - padding, x_max + padding)
 
-        # Now plot the highlights with the correct x-limits
+        # Plot the highlights
         for start_time, highlight_end, category in highlights:
-            label = f"{category} Region" if category not in added_to_legend else None
             ax.axvspan(start_time, highlight_end,
-                    color=color_map[category], alpha=0.2, label=label)
-            if label:
-                added_to_legend.add(category)
+                    color=color_map[category], alpha=0.2)
 
         # X-axis formatting
         if num_days == 1:
-            # Single day format
-            ax.xaxis.set_major_locator(mdates.HourLocator(interval=2))  # Every 2 hours
+            ax.xaxis.set_major_locator(mdates.HourLocator(interval=2))
             ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
             date_str = unique_days[0].strftime("%Y-%m-%d")
-            title = f"15-Minute CO2 Intensity Trend for {date_str}"
-            # Every 2 hours markers and annotations
+            title = f"15-Minute CO₂ Intensity Trend for {date_str}"
             annotation_points = df_batch[(df_batch["timestamp"].dt.hour % 2 == 0) & 
                                     (df_batch["timestamp"].dt.minute == 0)]
         else:
-            # Multi-day format - show ticks at midnight and noon
             ax.xaxis.set_major_locator(mdates.HourLocator(byhour=[0, 12]))
             ax.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d %H:%M"))
             date_range_str = f"{unique_days[0].strftime('%Y-%m-%d')} to {unique_days[-1].strftime('%Y-%m-%d')}"
-            title = f"15-Minute CO2 Intensity Trend for {date_range_str}"
-            # Every 12 hours markers and annotations
+            title = f"15-Minute CO₂ Intensity Trend for {date_range_str}"
             annotation_points = df_batch[(df_batch["timestamp"].dt.hour % 12 == 0) & 
                                     (df_batch["timestamp"].dt.minute == 0)]
 
         plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
 
-        # Add markers and annotations only at selected points
+        # Add markers and annotations
         ax.scatter(annotation_points["timestamp"], annotation_points["value"], 
                 color="black", s=30, zorder=3)
         
@@ -149,9 +142,17 @@ class CO2plot:
             ax.annotate(f"{y:.1f}", (x, y), textcoords="offset points", 
                     xytext=(-5,10), ha='center', fontsize=8)
 
-        ax.set_ylabel("tCO2/hr")
+        # Updated Y-axis label with units
+        ax.set_ylabel("CO₂ Intensity (tCO₂/hr)")
         ax.set_title(title)
-        ax.legend(loc="upper left", bbox_to_anchor=(1, 1))
+        
+        # Combine both legends (line and highlights)
+        line_legend = ax.legend(handles=[plt.Line2D([], [], color='black', linewidth=2, 
+                                        label='CO₂ Intensity (15-min intervals)')], 
+                              loc='upper left')
+        ax.add_artist(line_legend)
+        ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(1, 1))
+        
         ax.grid(True, linestyle='--', alpha=0.5)
 
         plt.tight_layout()
@@ -160,11 +161,11 @@ class CO2plot:
         end_date = df['date'].iloc[-1]
 
         plt.savefig(f'{workdir}/co2plot_day_{start_date}_{end_date}.png', bbox_inches='tight')
-        plt.close()  # Close the figure to free memory
+        plt.close()
 
 
     def plot_week_intensity(df_, workdir: str):
-        """Analyzes and visualizes weekly CO2 intensity with 15-min data aggregated to hourly."""
+        """Analyzes and visualizes weekly CO₂ intensity with 15-min data aggregated to hourly."""
         
         df = df_.copy()
         
@@ -175,8 +176,8 @@ class CO2plot:
         # Extract date from timestamp
         df['date'] = df['timestamp'].dt.date
         
-        start_date= df['date'].iloc[0]
-        end_date= df['date'].iloc[-1]
+        start_date = df['date'].iloc[0]
+        end_date = df['date'].iloc[-1]
 
         # Get number of full weeks between the two dates
         num_days = (end_date - start_date).days
@@ -201,13 +202,23 @@ class CO2plot:
         # Plotting
         fig, ax = plt.subplots(figsize=(18, 8))
         
+        # Main plot line with updated label
         ax.plot(df["timestamp"], df["value"], color="black", 
-                linewidth=2, label="CO2 Intensity (hourly avg)")
+                linewidth=2, label="CO₂ Intensity (hourly avg)")
         ax.scatter(df["timestamp"][::6], df["value"][::6], color="black", s=40, zorder=3)
 
         # Color map for categories
         color_map = {"Low": "green", "Medium": "orange", "High": "red"}
-        added_to_legend = set()
+        
+        # Create custom legend entries for the highlights
+        legend_elements = [
+            plt.Rectangle((0,0), 1, 1, fc='green', alpha=0.2, 
+                        label=f'Low Intensity (<{p33:.1f} gCO₂/hr)'),
+            plt.Rectangle((0,0), 1, 1, fc='orange', alpha=0.2, 
+                        label=f'Medium Intensity ({p33:.1f}-{p66:.1f} gCO₂/hr)'),
+            plt.Rectangle((0,0), 1, 1, fc='red', alpha=0.2, 
+                        label=f'High Intensity (>{p66:.1f} gCO₂/hr)')
+        ]
 
         # Loop over groups (checking for consecutive hours)
         for _, group_df in df.groupby("group"):
@@ -218,12 +229,9 @@ class CO2plot:
             
             # Highlight regions lasting at least 6 consecutive hours
             if duration_hours >= 6:
-                label = f"{category} Region" if category not in added_to_legend else None
                 ax.axvspan(start_time - pd.Timedelta(minutes=30),  # Center the highlight
                         end_time + pd.Timedelta(minutes=30),
-                        color=color_map[category], alpha=0.2, label=label)
-                if label:
-                    added_to_legend.add(category)
+                        color=color_map[category], alpha=0.2)
 
         # Format x-axis differently based on number of weeks
         if num_weeks == 1:
@@ -243,34 +251,41 @@ class CO2plot:
         # Rotate and align x-axis labels
         plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
 
-        ax.set_ylabel("tCO2/hr")
+        # Updated Y-axis label with proper units and CO₂ formatting
+        ax.set_ylabel("CO₂ Intensity (gCO₂/hr)")
 
-        
         # Create accurate title with week count
         if num_weeks == 1:
-            title = f"Hourly CO2 Intensity Trend ({start_date.strftime('%b %d')} to {end_date.strftime('%b %d')})"
+            title = f"Hourly CO₂ Intensity Trend ({start_date.strftime('%b %d')} to {end_date.strftime('%b %d')})"
         else:
-            title = f"Hourly CO2 Intensity Trend - {num_weeks} Weeks ({start_date.strftime('%b %d')} to {end_date.strftime('%b %d')})"
+            title = f"Hourly CO₂ Intensity Trend - {num_weeks} Weeks ({start_date.strftime('%b %d')} to {end_date.strftime('%b %d')})"
         
         ax.set_title(title)
-        ax.legend(loc="upper left", bbox_to_anchor=(1, 1))
+        
+        # Combine both legends (line and highlights)
+        line_legend = ax.legend(handles=[plt.Line2D([], [], color='black', linewidth=2, 
+                                        label='CO₂ Intensity (hourly avg)')], 
+                            loc='upper left')
+        ax.add_artist(line_legend)
+        ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(1, 1))
+        
         ax.grid(True, linestyle='--', alpha=0.5)
         
         plt.tight_layout()
-        # plt.show()
-                
-        plt.savefig(f'{workdir}/co2plot_week_{start_date}_{end_date}.png')
+        plt.savefig(f'{workdir}/co2plot_week_{start_date}_{end_date}.png', bbox_inches='tight')
+        plt.close()
 
 
-    def plot_month_intensity(df_, workdir:str, max_months=11):
+    def plot_month_intensity(df_, workdir: str, max_months=11):
         """
-        Plots the trend of CO2 intensity over multiple months (up to 11) with:
+        Plots the trend of CO₂ intensity over multiple months (up to 11) with:
         - Background bands (green/yellow/red) based on percentiles
         - Scatter point colors matching the percentile classification
         - Clear month separation and labeling
         
         Parameters:
         - df_: DataFrame with timestamp and value columns
+        - workdir: Directory to save the plot
         - max_months: Maximum number of months to display (1-11)
         """
 
@@ -283,29 +298,31 @@ class CO2plot:
 
         df['date'] = df['timestamp'].dt.date
         
-        start_date= df['date'].iloc[0]
-        end_date= df['date'].iloc[-1]
+        start_date = df['date'].iloc[0]
+        end_date = df['date'].iloc[-1]
+
+        # Calculate number of months in data
+        num_months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month) + 1
+        
+        # Validate maximum months
+        if num_months > max_months:
+            print(f"Warning: Data spans {num_months} months which exceeds maximum plottable months ({max_months}). No plot generated.")
+            return
 
         df["timestamp"] = pd.to_datetime(df["timestamp"])
         df.sort_values("timestamp", inplace=True)
         df.set_index("timestamp", inplace=True)
 
-        
-        # Limit to max_months if needed
-        if len(df.resample('ME').count()) > max_months:
-            start_date = df.index[-1] - pd.DateOffset(months=max_months-1)
-            df = df[df.index >= start_date]
-        
         # Calculate percentile thresholds for the entire period
-        low_thresh = df["value"].quantile(0.33)
-        high_thresh = df["value"].quantile(0.66)
+        p33 = df["value"].quantile(0.33)
+        p66 = df["value"].quantile(0.66)
         
         # Assign colors based on percentiles
         colors = []
         for val in df["value"]:
-            if val <= low_thresh:
+            if val <= p33:
                 colors.append("green")  # Low intensity
-            elif val <= high_thresh:
+            elif val <= p66:
                 colors.append("orange")  # Medium intensity
             else:
                 colors.append("red")  # High intensity
@@ -313,13 +330,24 @@ class CO2plot:
         # Create figure
         fig, ax = plt.subplots(figsize=(14, 6))
         
+        # Create custom legend entries for the bands
+        legend_elements = [
+            plt.Rectangle((0,0), 1, 1, fc='green', alpha=0.15, 
+                        label=f'Low Intensity (<{p33:.1f} gCO₂/hr)'),
+            plt.Rectangle((0,0), 1, 1, fc='orange', alpha=0.15, 
+                        label=f'Medium Intensity ({p33:.1f}-{p66:.1f} gCO₂/hr)'),
+            plt.Rectangle((0,0), 1, 1, fc='red', alpha=0.15, 
+                        label=f'High Intensity (>{p66:.1f} gCO₂/hr)')
+        ]
+
         # Background bands for entire period
-        ax.axhspan(high_thresh, df["value"].max(), color="red", alpha=0.15, label="High Intensity")
-        ax.axhspan(low_thresh, high_thresh, color="orange", alpha=0.15, label="Medium Intensity")
-        ax.axhspan(df["value"].min(), low_thresh, color="green", alpha=0.15, label="Low Intensity")
+        ax.axhspan(p66, df["value"].max(), color="red", alpha=0.15)
+        ax.axhspan(p33, p66, color="orange", alpha=0.15)
+        ax.axhspan(df["value"].min(), p33, color="green", alpha=0.15)
         
         # Plot trend line
-        ax.plot(df.index, df["value"], color="navy", alpha=0.7, linewidth=1.5, label="CO2 value")
+        ax.plot(df.index, df["value"], color="navy", alpha=0.7, linewidth=1.5, 
+            label="CO₂ Intensity (daily values)")
         
         # Scatter plot with colors
         sc = ax.scatter(
@@ -345,7 +373,7 @@ class CO2plot:
         #             ha='left', va='bottom', fontsize=10)
         
         # Format x-axis based on timespan
-        if len(months) <= 3:  # Few months - show days
+        if num_months <= 3:  # Few months - show days
             ax.xaxis.set_major_locator(mdates.DayLocator(interval=5))
             ax.xaxis.set_major_formatter(mdates.DateFormatter("%d %b %a"))
         else:  # More months - show weeks
@@ -356,20 +384,29 @@ class CO2plot:
         plt.setp(ax.get_xticklabels(), rotation=0, ha="center")
         
         # Set title with date range
-        ax.set_title(f"CO2 Intensity Trend: {start_date} to {end_date}", pad=20)
+        if num_months == 1:
+            title = f"CO₂ Intensity Trend: {start_date.strftime('%b %Y')}"
+        else:
+            title = f"CO₂ Intensity Trend: {start_date.strftime('%b %Y')} to {end_date.strftime('%b %Y')}"
+        ax.set_title(title, pad=20)
         
-        # Y-axis settings
-        ax.set_ylabel("tCO2/hr")
+        # Y-axis settings with proper units
+        ax.set_ylabel("CO₂ Intensity (gCO₂/hr)")
         buffer = (df["value"].max() - df["value"].min()) * 0.1
         ax.set_ylim(max(0, df["value"].min() - buffer), df["value"].max() + buffer)
         
-        # Legend and grid
-        ax.legend(loc="upper left", bbox_to_anchor=(1, 1))
+        # Combine both legends (line and bands)
+        line_legend = ax.legend(handles=[plt.Line2D([], [], color='navy', linewidth=1.5, 
+                                    label='CO₂ Intensity (daily values)')], 
+                            loc='upper left')
+        ax.add_artist(line_legend)
+        ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(1, 1))
+        
         ax.grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.7)
         
         plt.tight_layout()
-        # plt.show()
-        plt.savefig(f'{workdir}/co2plot_month_{start_date}_{end_date}.png')
+        plt.savefig(f'{workdir}/co2plot_month_{start_date}_{end_date}.png', bbox_inches='tight')
+        plt.close()
 
 
 

@@ -17,8 +17,42 @@ class CO2IntensityAnalyzer:
     with date formatting as dd-mmm-yy for multi-day data.
     """
     
-    def __init__(self, json_data: Dict):
+    def __init__(self, json_data: Dict, start: str, end: str):
         self.data = self._process_json_data(json_data)
+        self.start_date, self.end_date= self.convert_to_date(start, end)
+
+
+    def convert_to_date(self, start: str, end: str):
+        start_date= datetime.strptime(start, '%Y-%m-%d').date()
+        end_date= datetime.strptime(end, '%Y-%m-%d').date()
+
+        return start_date, end_date
+    
+
+    def get_view(self) -> str:
+        """
+        Determines the appropriate view based on the date range:
+        - 'day' view: 1-6 days
+        - 'week' view: 7-21 days (up to 3 weeks)
+        - 'month' view: 22+ days (more than 3 weeks)
+        
+        Returns:
+            str: One of 'day', 'week', or 'month'
+        """
+
+        if not hasattr(self, 'start_date') or not hasattr(self, 'end_date'):
+            return "day"  # default if dates aren't set
+        
+        # Calculate total days (adding 1 to include both start and end dates)
+        day_diff = (self.end_date - self.start_date).days + 1
+        
+        if day_diff <= 6:  # Up to 6 days
+            return "day"
+        elif day_diff <= 21:  # 7-21 days (up to 3 weeks)
+            return "week"
+        else:  # 22+ days (more than 3 weeks)
+            return "month"
+        
     
     def _process_json_data(self, json_data: Dict) -> pd.DataFrame:
         time_series = json_data['data']['time_series']
@@ -80,8 +114,9 @@ class CO2IntensityAnalyzer:
             # Cross-day, show full timestamps
             return f"{start_str} to {end_str}"
         
+        
     
-    def get_intensity_periods(self, view: str = 'day') -> Dict[str, List[str]]:
+    def get_intensity_periods(self) -> Dict[str, List[str]]:
         """
         Returns CO2 intensity periods with appropriate formatting and automatic aggregation.
         
@@ -96,6 +131,8 @@ class CO2IntensityAnalyzer:
         
         if self.data.empty:
             return combined
+        
+        view= self.get_view()
         
         # Determine aggregation based on view type
         if view == 'week':
@@ -158,33 +195,33 @@ class CO2IntensityAnalyzer:
     
     
 
-if __name__ == '__main__':
+# if __name__ == '__main__':
 
-    # def call_as_cli():
-    # # Simulate command line arguments
-    #     sys.argv = [
-    #         'run_eirgrid_downloader.py',
-    #         '--areas', 'co2_intensity',
-    #         '--start', '2025-06-25',
-    #         '--end', '2025-06-25',
-    #         '--region', 'all',
-    #         '--forecast',
-    #         '--output-dir', './data'
-    #     ]
+#     # def call_as_cli():
+#     # # Simulate command line arguments
+#     #     sys.argv = [
+#     #         'run_eirgrid_downloader.py',
+#     #         '--areas', 'co2_intensity',
+#     #         '--start', '2025-06-25',
+#     #         '--end', '2025-06-25',
+#     #         '--region', 'all',
+#     #         '--forecast',
+#     #         '--output-dir', './data'
+#     #     ]
     
-    #     # Run the main function
-    #     return eirgrid_main()
+#     #     # Run the main function
+#     #     return eirgrid_main()
     
-    # call_as_cli()
+#     # call_as_cli()
 
-    try:
-        with open('C:\\Users\\nithy\\NK\\UCD\\Sem3\\SustainbleCityAI\\Backend\\azure-carbon-agents\\data\\co2_intensity\\co2_intensity_roi_2025-07-08_2025-07-08.json', 'r') as file:
-            scraper_data = json.load(file)
-    except:
-        raise Exception
+#     try:
+#         with open('C:\\Users\\nithy\\NK\\UCD\\Sem3\\SustainbleCityAI\\Backend\\azure-carbon-agents\\data\\co2_intensity\\co2_intensity_roi_2025-07-03_2025-07-09.json', 'r') as file:
+#             scraper_data = json.load(file)
+#     except:
+#         raise Exception
     
 
-    analyzer = CO2IntensityAnalyzer(scraper_data)
-    intensity_periods = analyzer.get_intensity_periods('day')
+#     analyzer = CO2IntensityAnalyzer(scraper_data, '2025-07-03', '2025-07-09')
+#     intensity_periods = analyzer.get_intensity_periods()
 
-    print(intensity_periods)
+#     print(intensity_periods)
