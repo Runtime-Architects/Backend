@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 # Import the evaluation framework and agent code
-from agent_evaluation_framework import AgentEvaluator, create_carbon_agent_test_cases
+from agent_evaluation_framework import AgentEvaluator
 from azurecarbonagent import main as carbon_agent_main
 from azuremultiagent import main as multi_agent_main
 
