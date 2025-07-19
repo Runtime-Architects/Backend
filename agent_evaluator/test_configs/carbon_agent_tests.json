@@ -1,11 +1,4 @@
 {
-  "evaluation_config": {
-    "max_retries": 3,
-    "timeout_seconds": 120,
-    "consistency_threshold": 0.8,
-    "telemetry_endpoint": null,
-    "output_dir": "./evaluation_results"
-  },
   "test_cases": [
     {
       "id": "carbon_001_basic",
@@ -26,7 +19,11 @@
       ],
       "category": "basic_query",
       "priority": "high",
-      "timeout_seconds": 60
+      "timeout_seconds": 60,
+      "domain_context": "Carbon emissions optimization for appliance usage in Ireland",
+      "available_functions": [
+        "get_emission_analysis"
+      ]
     },
     {
       "id": "carbon_002_ev",
@@ -35,7 +32,8 @@
         "get_emission_analysis"
       ],
       "expected_behavior": [
-        "correct_function_call"
+        "correct_function_call",
+        "high_quality_response"
       ],
       "expected_output_keywords": [
         "charge",
@@ -45,7 +43,11 @@
       ],
       "category": "ev_charging",
       "priority": "high",
-      "timeout_seconds": 60
+      "timeout_seconds": 60,
+      "domain_context": "EV charging optimization based on carbon intensity",
+      "available_functions": [
+        "get_emission_analysis"
+      ]
     },
     {
       "id": "carbon_003_data",
@@ -54,7 +56,8 @@
         "get_emission_analysis"
       ],
       "expected_behavior": [
-        "correct_function_call"
+        "correct_function_call",
+        "high_quality_response"
       ],
       "expected_output_keywords": [
         "co2",
@@ -64,21 +67,30 @@
       ],
       "category": "data_request",
       "priority": "medium",
-      "timeout_seconds": 90
+      "timeout_seconds": 90,
+      "domain_context": "Carbon intensity data retrieval and presentation",
+      "available_functions": [
+        "get_emission_analysis"
+      ]
     },
     {
       "id": "carbon_004_irrelevant",
       "query": "What's the weather like today?",
       "expected_functions": [],
       "expected_behavior": [
-        "consistent_output"
+        "consistent_output",
+        "proper_error_handling"
       ],
       "expected_output_keywords": [
         "weather"
       ],
       "category": "irrelevant_query",
       "priority": "low",
-      "timeout_seconds": 30
+      "timeout_seconds": 30,
+      "domain_context": "Handling queries outside carbon emissions domain",
+      "available_functions": [
+        "get_emission_analysis"
+      ]
     },
     {
       "id": "carbon_005_comparison",
@@ -87,7 +99,8 @@
         "get_emission_analysis"
       ],
       "expected_behavior": [
-        "correct_function_call"
+        "correct_function_call",
+        "domain_expertise"
       ],
       "expected_output_keywords": [
         "carbon",
@@ -98,7 +111,11 @@
       ],
       "category": "comparison_query",
       "priority": "medium",
-      "timeout_seconds": 90
+      "timeout_seconds": 90,
+      "domain_context": "Comparative analysis of carbon intensity across regions",
+      "available_functions": [
+        "get_emission_analysis"
+      ]
     },
     {
       "id": "carbon_006_consistency",
@@ -107,7 +124,8 @@
         "get_emission_analysis"
       ],
       "expected_behavior": [
-        "correct_function_call"
+        "correct_function_call",
+        "high_quality_response"
       ],
       "expected_output_keywords": [
         "statistical",
@@ -118,7 +136,11 @@
       ],
       "category": "analysis_query",
       "priority": "high",
-      "timeout_seconds": 120
+      "timeout_seconds": 120,
+      "domain_context": "Statistical analysis and summarization of carbon emission data",
+      "available_functions": [
+        "get_emission_analysis"
+      ]
     },
     {
       "id": "carbon_007_error_handling",
@@ -127,7 +149,8 @@
         "get_emission_analysis"
       ],
       "expected_behavior": [
-        "proper_error_handling"
+        "proper_error_handling",
+        "user_friendly"
       ],
       "expected_output_keywords": [
         "error",
@@ -136,7 +159,11 @@
       ],
       "category": "error_handling",
       "priority": "medium",
-      "timeout_seconds": 60
+      "timeout_seconds": 60,
+      "domain_context": "Error handling for invalid date inputs",
+      "available_functions": [
+        "get_emission_analysis"
+      ]
     }
   ]
 }
