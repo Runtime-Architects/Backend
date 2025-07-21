@@ -1,63 +1,46 @@
-import asyncio
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
-import logging
-from contextlib import asynccontextmanager
-import uvicorn
-import queue
-import threading
 import time
 from datetime import datetime
-from typing import AsyncGenerator, Dict, Any
-from enum import Enum
-from autogen_ext.models.openai import OpenAIChatCompletionClient
-from autogen_agentchat.agents import AssistantAgent
-from autogen_ext.agents.openai import OpenAIAssistantAgent
-from openai import AsyncOpenAI
-from autogen_agentchat.conditions import (
-    TextMentionTermination,
-    MaxMessageTermination,
-)
-from autogen_agentchat.teams import SelectorGroupChat
-from autogen_core.tools import FunctionTool
-import sys
-from co2_analysis import CO2IntensityAnalyzer
-from run_eirgrid_downloader import main as eirgrid_main
-import json
+import asyncio
 import os
-
-# Import the database creation and session management functions
-from db import create_db_and_tables, get_session
+import logging
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator
 from auth_routes import router as auth_router
 
-# Import the new streamer library
-from streamer import SSEStreamer, StreamEventManager, StreamEventType, StreamingLogHandler
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+import uvicorn
 
-# Set up logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# AutoGen imports
+from autogen_agentchat.agents import AssistantAgent, MessageFilterAgent, MessageFilterConfig, PerSourceFilter
+from autogen_agentchat.teams import DiGraphBuilder, GraphFlow
+from autogen_agentchat.ui import Console
+from autogen_ext.models.openai import AzureOpenAIChatCompletionClient
+from db import create_db_and_tables, get_session
+
+# Pydantic models for API
+from pydantic import BaseModel
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Create a separate logger for streaming events
-stream_logger = logging.getLogger("stream_events")
-stream_handler = logging.StreamHandler()
-stream_handler.setFormatter(logging.Formatter('%(asctime)s - STREAM - %(levelname)s - %(message)s'))
-stream_logger.addHandler(stream_handler)
-stream_logger.setLevel(logging.INFO)
+# Streamer
+from streamer import SSEStreamer, StreamEventManager, StreamEventType, StreamingLogHandler
 
-# --- Configuration Variables ---
-openai_api_key = "key"
-openai_model = "gpt-4o-mini"
-openai_carbon_assistant_id = ""
-openai_analysis_assistant_id = ""
-openai_report_assistant_id = ""
+# Azure OpenAI Configuration
+AZURE_ENDPOINT = "https://runtime-architects-ai-hub-dev.cognitiveservices.azure.com/"
+MODEL = "gpt-4o"
+AZURE_DEPLOYMENT = "gpt-4o"
+API_KEY = "key"
+API_VERSION = "2024-12-01-preview"
 
-# Pydantic models
+# Global variables
+client = None
+team_flow = None
+
+# Pydantic Models
 class QuestionRequest(BaseModel):
     question: str
 
@@ -69,256 +52,211 @@ class APIResponse(BaseModel):
     status: str
     message: MessageResponse
 
-# Read the content of the Report template
-def read_file() -> str:
-    """Reads the content of the report_template.txt file."""
-    try:
-        with open("report_template.txt", "r") as file:
-            return file.read()
-    except FileNotFoundError:
-        return "No specific report template file found. Proceed with a general business insights report structure."
+# Agent System Messages
+planner_system_message = f"""You are the Planner Agent orchestrating a team of specialists. Your role is to decompose complex tasks into structured workflows with clear dependencies.
 
-# System prompts (same as before)
-planner_sys_prompt = """
-# **Planner Agent System Prompt: Refined for ASCII Dashboard Creation (Synthetic Data)**
+Your responsibilities:
+1. Task Decomposition: Break objectives into atomic sub-tasks for:
+   - Carbon Agent (emissions data retrieval): 
+        - Has the access to emission tool which can retrieve carbon emissions and analyse the data to classify the data into low:[], medium:[], high:[]
+   -Policy Agent (policy data retrieval):
+        - Has the access to search tool which can retrieve policies and analyse them to decide and report them based on the query
+   -Data Analysis Agent ():
+        - Has the access to python executor tool, which can execute python scripts, which it uses to analyse data given by the user. Only use it if necesssary.
+   - Report Agent (visualization and summarization): 
+        - Has access to the python executor tool, which can execute python scripts. It summarises the data 
 
-### **Role Definition**
-You are the **Planning Agent**, orchestrating the creation of a Monthly Business Insights Report in the form of an ASCII dashboard. You do **not** create data, analysis, or ASCII visuals yourself; you delegate tasks to:
+RULES:
+- State the plan you are following clearly
+- ONLY output what agents are to be invoked
 
-1.  **CarbonAgent**: **Generates synthetic raw data tables** based on the request.
-2.  **DataAnalysisAgent**: Analyzes the data tables from CarbonAgent, generating insights and summaries.
-3.  **ReportAgent**: Uses the analysis from DataAnalysisAgent to generate the final ASCII dashboard report with text and ASCII graphs.
-
-### **IMPORTANT: Final Response Aggregation**
-After all agents complete their tasks, you must provide a comprehensive final response that aggregates all outputs. This final response should include:
-1. A summary of the data generated by CarbonAgent
-2. Key insights from DataAnalysisAgent
-3. The complete ASCII dashboard from ReportAgent
-4. Your own executive summary and recommendations
-
----
-
-### **Core Workflow & States**
-
-1.  **Parse the Report Template**:
-    -   Identify each section's data-table requirement, analysis need, and the structure for the ASCII dashboard.
-    -   If no specific template is provided, default to a standard monthly business insights structure.
-2.  **Carbon Phase (Synthetic Data Provision)**:
-    -   Request **all** required raw data tables from the **CarbonAgent**.
-    -   The CarbonAgent will **generate plausible synthetic data** for relevant categories or metrics directly in its message, simulating data from a source like "Contoso Products" and "Contoso Sales Data".
-    -   Once the CarbonAgent returns them, **verify** correctness (e.g., plausible format, relevant columns). If correct, **accept** them and **do not** repeatedly reject.
-        -   If partial corrections are needed, do so. But once you confirm the data is good, explicitly state that "CarbonAgent's synthetic data is accepted. We are moving to DataAnalysisAgent tasks."
-    -   If the CarbonAgent tries to perform analysis, generate charts, or create reports, reject. Admonish it to focus on providing raw data tables only.
-
-3.  **DataAnalysis Phase (Insights & Summaries)**:
-    -   Only after **accepting** the synthetic data from the CarbonAgent do you instruct **DataAnalysisAgent** to:
-        -   Perform the specified analysis for each section, using the raw data tables generated by CarbonAgent.
-        -   Generate summaries and key insights. Ensure the output is concise and structured for easy consumption by the ReportAgent.
-    -   If the DataAnalysisAgent tries to skip analysis, generate raw data tables, or create the final ASCII report, reject. If it produces the correct analysis and summaries, explicitly accept each once verified.
-    -   Once analysis is complete, explicitly state: "DataAnalysisAgent's analysis is accepted. We are moving to ReportAgent tasks."
-
-4.  **Report Phase (ASCII Dashboard Generation)**:
-    -   After **accepting** the analysis and summaries from the DataAnalysisAgent, instruct **ReportAgent** to:
-        -   Compile a comprehensive ASCII dashboard report.
-        -   The dashboard should include:
-            -   A clear title for the report.
-            -   Textual summaries of the insights from DataAnalysisAgent.
-            -   **ASCII graphs** (e.g., bar charts, line charts) representing key data trends. The ReportAgent must use its `code_interpreter` to generate these ASCII visuals.
-            -   Ensure the overall layout is clean, professional, and readable in plain text/console.
-            -   **In a "Prepared By" section of the ASCII dashboard, state that it is a collaborative effort between the CarbonAgent, DataAnalysisAgent, and ReportAgent.**
-    -   If the ReportAgent tries to generate raw data or perform deep analysis, reject. If it produces a correct and complete ASCII dashboard, explicitly accept it.
-
-5.  **Final Aggregation & Response**:
-    -   After the complete ASCII dashboard is generated and accepted, provide a comprehensive final response that includes:
-        -   **Executive Summary**: Your overview of the entire process and key findings
-        -   **Data Summary**: Brief overview of the synthetic data generated by CarbonAgent
-        -   **Analysis Highlights**: Key insights from DataAnalysisAgent
-        -   **Complete Dashboard**: The full ASCII dashboard from ReportAgent
-        -   **Recommendations**: Your strategic recommendations based on all findings
-    -   After providing this comprehensive final response, respond "**TERMINATE**" and ignore subsequent messages.
-
----
-
-### **Detailed Instructions**
-
-1.  **No Looping Rejections**:
-    -   If an agent repeatedly tries to finalize or skip tasks, politely **reject** but also check if the output is actually correct.
-        -   If it is, accept it and proceed.
-        -   If not, ask for corrections once.
-    -   Once an agent's output for its phase is correct, **do not** keep re-asking for the same output. **Accept** them with a message like "Data verified. Carbon tasks are complete." or "Analysis accepted. DataAnalysis tasks are complete."
-
-2.  **Example Acceptance**:
-    -   "**Accepted**: The synthetic data tables from the CarbonAgent for all sections are valid. Now we move to data analysis."
-    -   "**Accepted**: The DataAnalysisAgent's analysis and summaries are correct. Let's compile the ASCII dashboard report."
-    -   "**Accepted**: The final ASCII dashboard report is correct. Now providing final aggregated response."
-
-3.  **Verification**:
-    -   If any mismatch arises (e.g. incorrect ASCII formatting), you must reject.
-    -   But once corrected, you must explicitly accept it to avoid re-issuing the same tasks forever.
-
----
-
-### **Prevention of Infinite Loop**
-
--   **Always** provide a path to acceptance once each agent's output is correct.
--   If an agent attempts a repeated final report compilation or repeated data generation, check if the output is actually correct.
-    -   If yes, accept it, move on or **provide final aggregated response** if everything is done.
-    -   If no, reject and re-ask.
--   Once you provide the final aggregated response, respond with "**TERMINATE**."
-
----
-
-### **No Additional Steps After Termination**
--   If any agent tries to continue conversation after "TERMINATE," ignore them.
--   End the workflow with no further messages.
-
----
-
-### **Summary**
-
-Use this refined approach so that:
-
-1.  You **accept** correct data from the CarbonAgent (no indefinite rejections).
-2.  You **accept** correct analysis/summaries from the DataAnalysisAgent.
-3.  You **accept** the ASCII dashboard compilation if correct.
-4.  You **provide a comprehensive final aggregated response** with all outputs.
-5.  Finally, you say "**TERMINATE**."
-
-This ensures a clean path to completion **without** repeated rejections or infinite loops, and provides a complete aggregated response for the user.
-
----
-
-### **Context**
-*Here is the report template for your action*
-
+The goal is to help energy-conscious consumers make sustainable choices by clear, actionable advice about electricity usage, renewable energy, and carbon reduction using markdown. 
 """
 
-carbon_system_prompt = """
-### **Role Definition**
-You are the **CarbonAgent**, responsible for **generating synthetic raw data tables** based on the PlannerAgent's requests. You must create structured data that simulates **sales performance, product information, or carbon emissions estimates**. Your output should be directly in your message, ready for analysis by the DataAnalysisAgent.
+CARBON_AGENT_SYSMSG = f"""You are an intelligent assistant with access to specialized tools. Today's date and time is: {datetime.now()}.
 
----
+### Available Tools:
+- **PythonCodeExecutionTool**: For general programming tasks
+- **Carbon Data Retriever**: Fetches raw CO2 intensity data (use when you need unprocessed data)
+- **Daily Analyzer**: For analysis day/days (15 minute granularity)
+- **Weekly Analyzer**: For analysis week/weeks (hourly granularity)
+- **Monthly Analyzer**: For analysis of month/months (day granularity)
 
-### **Instructions**
+TOOL USAGE RULES:
+- For CO2 intensity queries, ALWAYS use the emission_tool with these exact parameters:
+  - Date format MUST be YYYY-MM-DD (e.g., '2025-06-24')
+  - Region MUST be one of:
+    * 'roi' for Republic of Ireland (Ireland)
+    * 'ni' for Northern Ireland
+    * 'all' for both Republic of Ireland (Ireland) & Northern Ireland
 
-1. **Task Execution**:
-    - When requested by the PlannerAgent, generate structured, tabular data relevant to the task (e.g., sales figures, product categories, carbon footprint by activity or region).
-    - The data should be presented clearly, for example, in Markdown tables or a similar easy-to-parse format.
-    - For a request like "sales performance for July 2024" or "carbon emissions for urban transport", create plausible synthetic data across relevant categories.
-    - Clearly label each data table for easy identification by the DataAnalysisAgent.
-    - **Crucially, only provide raw, structured data. Do NOT perform analysis, generate charts, or create reports.** You are simulating the data source.
+- **Time Period** determines which analyzer to use:
+    - 1 day to 6 days → Daily Analyzer
+    - 7 days to 21 days → Weekly Analyzer
+    - greater than 21 days → Monthly Analyzer
 
-2. **Tool Use**:
-    - Use the **Carbon Footprint Estimator Tool** where applicable to simulate emissions data based on user activity, transport mode, distance, energy source, etc.
-    - Use the **code interpreter** to fetch the current date using Python. This ensures temporal context is included in the emissions or performance datasets when needed.
+- When using the tool:
+1. Determine the appropriate time period (default to today if not specified)
+2. Identify the region (default to 'all' if not specified)
+3. Use the emission_tool to get current data
+4. Analyze the results to provide a data-driven answer
 
+### Response Format Guidelines:
+1. Start with analysis type and time period covered
+2. Show key findings with emojis (🌱 for low, ⚠️ for medium, 🔥 for high emissions)
+3. Provide actionable recommendations
+4. Include any notable trends or comparisons
+
+When providing recommendations for the current day, always consider the current time. 
+Only suggest activities or actions for future time slots—never for times that have already passed. 
+For example, if it is currently 16:00, recommendations should only apply to 16:00 onward today.
 """
 
-data_analysis_system_prompt = """
-### **Role Definition**
-You are the **DataAnalysisAgent**, responsible for analyzing the raw data tables provided by the CarbonAgent and generating meaningful insights and summaries.
+POLICY_AGENT_SYSMSG = '''
+You are a SEAI Policy Agent that answers questions using only the provided SEAI documents.
 
----
+INSTRUCTIONS:
+- When a user asks a question, first identify key terms and synonyms that may appear in SEAI policy documents
+- Use the run_curl_search tool to query those terms against SEAI search
+- Reformulate queries if no relevant documents are found
+- Answer questions using ONLY information from the returned documents
+- If information is not in the documents, say: "I don't have that information in the available SEAI documents"
+- Be conversational and helpful
+- Don't mention JSON, technical details, or internal tools
+- Cite relevant document titles when answering
+'''
 
-### **Instructions**
+REPORT_AGENT_SYSMSG = f"""You are the Report Agent creating terminal-friendly visualizations. Today's date and time is: {datetime.now()}. You turn analysis into human-readable dashboards.
 
-1.  **Start Condition**:
-    -   You will start processing information **only when the latest message in the conversation explicitly states "CarbonAgent's synthetic data is accepted. We are moving to DataAnalysisAgent tasks."** If this condition is not met, yield control back to the PlannerAgent with a message like: 'Sorry to barge in out of turn. Let me wait for the CarbonAgent to be done with generating valid data tables.'
+Your responsibilities:
+1. Only use data processed from from CarbonAgent, and PolicyAgent
+2. Include only the timings recieved from CarbonAgent while generating report or summaries. 
+2. Create clear visualizations of the data
+3. Generate summary insights and recommendations
 
-2.  **Analysis Task**:
-    -   Receive raw data tables from the CarbonAgent (via PlannerAgent).
-    -   Perform the requested analysis (e.g., aggregations, trend identification, comparisons) on the provided synthetic data.
-    -   Generate concise summaries and key insights based on your analysis.
-    -   Ensure your output is clear, factual, and directly addresses the PlannerAgent's requests.
+TOOLS:
+- python_executor: ONLY for creating visualizations from provided data
 
-3.  **Output Format**:
-    -   Present your analysis and summaries in a clear, text-based format suitable for consumption by the ReportAgent. Do NOT attempt to create charts, graphs, or the final ASCII report yourself.
-    -   Focus on the numerical results, trends, and textual interpretations.
+RULES:
+- NEVER try to fetch raw data yourself 
+- always use the processed data from CarbonAgent
+- For visualization:
+  - Use ASCII art for terminal display
+  - Include clear labels and time periods
+  - Add emoji indicators (🌱 for low, ⚠️ for medium, 🔥 for high)
+  
+EXAMPLE OUTPUT:
+```ascii
+CO2 Intensity Trend (ROI) - {datetime.now().date()}
+┌─────────────────────────────────────┐
+│  High (🔥) ███▄                      │
+│ Medium (⚠️) █  █▄▄                   │
+│  Low (🌱) █    ███▄▄▄               │
+└─────────────────────────────────────┘
+Best Time: 02:00-05:00 (🌱 Lowest Intensity)
+
+Always include:
+- Date/period covered
+- Clear intensity classification
+- Specific usage recommendations 
+
+CRITICAL: After completing your report, you MUST end with exactly "TERMINATE" on a new line to signal completion.
 """
 
-report_system_prompt = """
-### **Role Definition**
-You are the **ReportAgent**, responsible for compiling the final ASCII dashboard report, integrating analysis and insights provided by the DataAnalysisAgent. Your primary tool is the `code_interpreter` to generate ASCII visuals.
-
----
-
-### **Instructions**
-
-1.  **Start Condition**:
-    -   You will start processing information **only when the latest message in the conversation explicitly states "DataAnalysisAgent's analysis is accepted. We are moving to ReportAgent tasks."** If this condition is not met, yield control back to the PlannerAgent with a message like: 'Sorry to barge in out of turn. Let me wait for the DataAnalysisAgent to be done with generating valid analysis.'
-
-2.  **Dashboard Generation**:
-    -   Receive analyzed data and summaries from the DataAnalysisAgent (via PlannerAgent).
-    -   Your task is to generate a complete **ASCII dashboard** report. This dashboard should include:
-        -   **Report Title**: A clear, prominent title for the report (e.g., "Monthly Sales Performance Dashboard").
-        -   **Textual Summaries**: Incorporate the key insights and summaries provided by the DataAnalysisAgent. Format these for readability within an ASCII context.
-        -   **ASCII Graphs**: **Crucially, use your `code_interpreter` to generate ASCII-art representations of graphs (e.g., bar charts, simple line charts) to visualize trends or data comparisons.** Do not use external libraries that produce image files; output should be pure text-based ASCII. The `code_interpreter` should print the ASCII art directly.
-        -   **Prepared By Section**: Include a section indicating that the report is a "Collaborative effort by CarbonAgent, DataAnalysisAgent, and ReportAgent."
-        -   **Overall Layout**: Ensure the dashboard has a clean, organized, and readable layout using ASCII characters (e.g., borders, separators).
-
-3.  **Output Format**:
-    -   The final output should be a single, comprehensive text string representing the entire ASCII dashboard, suitable for direct printing to a console.
-    -   Do NOT generate .docx files or any other binary file types. Your output is a text-based dashboard.
-"""
-
-async def get_emission_analysis(startdate: str, enddate: str, region: str) -> any:
-    file_path = f'data/co2_intensity_all_{startdate.replace("-", "")}.json'
-
-    def call_as_cli():
-        # Simulate command line arguments
-        sys.argv = [
-            "run_eirgrid_downloader.py",
-            "--areas",
-            "co2_intensity",
-            "--start",
-            startdate,
-            "--end",
-            enddate,
-            "--region",
-            region,
-            "--forecast",
-            "--output-dir",
-            "./data",
-        ]
-        return eirgrid_main()
-
-    # Step 1: Try to load data from existing file
-    try:
-        if os.path.exists(file_path):
-            with open(file_path, "r") as file:
-                scraper_data = json.load(file)
-        else:
-            raise FileNotFoundError
-    except (FileNotFoundError, json.JSONDecodeError):
-        # Step 2: If failed, call the CLI-based scraper
-        call_as_cli()
-        try:
-            with open(file_path, "r") as file:
-                scraper_data = json.load(file)
-        except Exception as e:
-            raise Exception(
-                "Failed to retrieve emission data even after scraping."
-            ) from e
-
-    # Step 3: Analyze data
-    analyzer = CO2IntensityAnalyzer(scraper_data)
-    intensity_periods = analyzer.get_combined_periods()
-
-    return intensity_periods
-
-# Create a function tool
-emission_tool = FunctionTool(
-    func=get_emission_analysis,
-    description="Gets the CO2 intensity levels, for the specified start date and end date, the tool also takes regions all (Republic of Ireland & Northern Ireland), roi (Republic of Ireland), ni (Northern Ireland)",
+data_analysis_agent_system_message = (
+    "You are a data analyst responsible for synthesizing inputs from the Carbon Agent and Policy Agent. "
+    "Analyze the relationship between emissions data and sustainability policies to identify trends, anomalies, and actionable insights. "
+    "Present your findings clearly, using bullet points or tables if helpful, for use in a final report. "
 )
 
-# Global variables for agents (initialized once)
-openai_model_client = None
-openai_client = None
-team = None
+def create_agent(name, system_message):
+    """Helper function to create an AssistantAgent."""
+    return AssistantAgent(
+        name=name,
+        model_client=client,
+        system_message=system_message,
+        model_client_stream=False,
+    )
+
+async def initialize_agents():
+    """Initialize AutoGen agents and workflow."""
+    global client, team_flow
+    
+    try:
+        logger.info("Initializing Azure OpenAI client...")
+        client = AzureOpenAIChatCompletionClient(
+            azure_deployment=AZURE_DEPLOYMENT,
+            model=MODEL,
+            api_version=API_VERSION,
+            azure_endpoint=AZURE_ENDPOINT,
+            api_key=API_KEY,
+            max_completion_tokens=1024,
+        )
+        
+        logger.info("Creating agents...")
+        # Create agents
+        planner = create_agent("PlannerAgent", planner_system_message)
+        carbon = create_agent("CarbonAgent", CARBON_AGENT_SYSMSG)
+        policy = create_agent("PolicyAgent", POLICY_AGENT_SYSMSG)
+        analysis = create_agent("DataAnalysisAgent", data_analysis_agent_system_message)
+        report = create_agent("ReportAgent", REPORT_AGENT_SYSMSG)
+
+        # Create filtered agents
+        filtered_carbon = MessageFilterAgent(
+            name="CarbonAgent",
+            wrapped_agent=carbon,
+            filter=MessageFilterConfig(per_source=[PerSourceFilter(source="PlannerAgent", position="last", count=1)]),
+        )
+
+        filtered_policy = MessageFilterAgent(
+            name="PolicyAgent",
+            wrapped_agent=policy,
+            filter=MessageFilterConfig(per_source=[PerSourceFilter(source="PlannerAgent", position="last", count=1)]),
+        )
+
+        filtered_analysis = MessageFilterAgent(
+            name="DataAnalysisAgent",
+            wrapped_agent=analysis,
+            filter=MessageFilterConfig(per_source=[PerSourceFilter(source="PlannerAgent", position="last", count=1)]),
+        )
+
+        # Build the workflow graph
+        logger.info("Building workflow graph...")
+        builder = DiGraphBuilder()
+        
+        # Add all agents to the graph
+        builder.add_node(planner)
+        builder.add_node(filtered_carbon)
+        builder.add_node(filtered_policy)
+        builder.add_node(filtered_analysis)
+        builder.add_node(report)
+
+        # Define edges (communication flow)
+        builder.add_edge(planner, filtered_carbon)
+        builder.add_edge(planner, filtered_policy)
+        builder.add_edge(planner, filtered_analysis)
+        builder.add_edge(filtered_carbon, report)
+        builder.add_edge(filtered_policy, report)
+        builder.add_edge(filtered_analysis, report)
+
+        # Build the graph flow
+        team_flow = GraphFlow(
+            participants=builder.get_participants(),
+            graph=builder.build(),
+        )
+        
+        logger.info("AutoGen agents initialized successfully!")
+        
+    except Exception as e:
+        logger.error(f"Failed to initialize agents: {str(e)}")
+        raise
+
 
 async def run_autogen_task(question: str) -> str:
     """Run the AutoGen task and return the aggregated response"""
+    if team_flow is None:
+        raise HTTPException(status_code=500, detail="AutoGen agents not initialized")
+    
     try:
         logger.info(f"Starting AutoGen task with question: {question[:100]}...")
 
@@ -326,46 +264,34 @@ async def run_autogen_task(question: str) -> str:
         task = f"Generate a comprehensive business insights report based on this request: {question}"
 
         # Run the team task - the planner agent will orchestrate everything
-        result = await team.run(task=task)
+        result = await team_flow.run(task=task)
 
-        # Extract the final aggregated response from the planner agent
+        # Extract the final response - prioritize ReportAgent's final output
         final_response = ""
 
-        # Look for the planner's final aggregated response in the conversation
+        # First, look for ReportAgent's comprehensive report
         for message in result.messages:
-            if message.source == "PlanningAgent":
-                # Check if this is the final comprehensive response (before TERMINATE)
-                if any(
-                    keyword in message.content
-                    for keyword in [
-                        "Executive Summary",
-                        "Final Aggregated Response",
-                        "COMPREHENSIVE FINAL RESPONSE",
-                    ]
-                ):
-                    final_response = message.content
-                    break
+            if message.source == "ReportAgent" and len(message.content) > 100:
+                final_response = message.content
+                # Remove TERMINATE if present for cleaner output
+                final_response = final_response.replace("TERMINATE", "").strip()
+                break
 
-        # If no specific final response found, use the last substantial planner message before TERMINATE
+        # Fallback: look for the last substantial message from any agent
         if not final_response:
-            planner_messages = [
-                msg for msg in result.messages if msg.source == "PlanningAgent"
+            substantial_messages = [
+                msg for msg in result.messages 
+                if len(msg.content) > 100 and "TERMINATE" not in msg.content
             ]
-            if planner_messages:
-                # Find the last substantial message before TERMINATE
-                for msg in reversed(planner_messages):
-                    if "TERMINATE" not in msg.content and len(msg.content) > 100:
-                        final_response = msg.content
-                        break
+            if substantial_messages:
+                final_response = substantial_messages[-1].content
 
-        # Fallback: if still no response, aggregate all meaningful responses
+        # Final fallback: aggregate all meaningful responses
         if not final_response:
-            logger.warning(
-                "No final aggregated response found from planner. Attempting to aggregate all responses."
-            )
+            logger.warning("No substantial response found. Aggregating all responses.")
             all_responses = []
             for message in result.messages:
-                if len(message.content) > 50 and "TERMINATE" not in message.content:
+                if len(message.content) > 50 and "TERMINATE" not in message.content and message.type != "StopMessage":
                     all_responses.append(f"**{message.source}**: {message.content}")
             final_response = (
                 "\n\n".join(all_responses)
@@ -373,17 +299,25 @@ async def run_autogen_task(question: str) -> str:
                 else "No meaningful response generated."
             )
 
-        logger.info(
-            f"AutoGen task completed successfully. Response length: {len(final_response)}"
-        )
+        logger.info(f"AutoGen task completed successfully. Response length: {len(final_response)}")
         return final_response
 
     except Exception as e:
         logger.error(f"Error in AutoGen task: {str(e)}")
         raise HTTPException(status_code=500, detail=f"AutoGen task failed: {str(e)}")
 
+
 async def run_autogen_task_streaming(event_manager: StreamEventManager, question: str) -> AsyncGenerator[str, None]:
     """Run the AutoGen task with real-time message monitoring using AutoGen's streaming"""
+    if team_flow is None:
+        error_event = await event_manager.emit_event(
+            StreamEventType.ERROR,
+            message="AutoGen agents not initialized",
+            data={"error": "AutoGen agents not initialized"}
+        )
+        yield f"data: {{\"event\": {error_event.model_dump_json()}}}\n\n"
+        return
+        
     try:
         logger.info(f"Starting streaming AutoGen task with question: {question[:100]}...")
         
@@ -398,9 +332,23 @@ async def run_autogen_task_streaming(event_manager: StreamEventManager, question
         # Create the task
         task = f"Generate a comprehensive business insights report based on this request: {question}"
         
+        # Track the final response
+        final_report = ""
+        
         # Use AutoGen's streaming capability
-        async for message in team.run_stream(task=task):
-            # Process real AutoGen messages
+        async for message in team_flow.run_stream(task=task):
+            # Check for StopMessage (indicates completion)
+            if hasattr(message, 'type') and message.type == "StopMessage":
+                event = await event_manager.emit_event(
+                    StreamEventType.COMPLETED,
+                    agent_name="GraphManager",
+                    message="Workflow completed successfully",
+                    data={"progress": 100}
+                )
+                yield f"data: {{\"event\": {event.model_dump_json()}}}\n\n"
+                break
+                
+            # Process regular messages
             if hasattr(message, 'source') and hasattr(message, 'content'):
                 event_manager.increment_step()
                 
@@ -422,6 +370,10 @@ async def run_autogen_task_streaming(event_manager: StreamEventManager, question
                 else:
                     content_str = str(message.content)
                 
+                # Store ReportAgent's final output
+                if message.source == "ReportAgent" and len(content_str) > 100:
+                    final_report = content_str
+                
                 # Determine event type based on content
                 if "TERMINATE" in content_str:
                     event_type = StreamEventType.COMPLETED
@@ -441,19 +393,11 @@ async def run_autogen_task_streaming(event_manager: StreamEventManager, question
                     message=display_message,
                     data={
                         "progress": min(event_manager.get_progress_percentage(), 95),
-                        "content_type": content_type
+                        "content_type": content_type,
+                        "full_content": content_str if message.source == "ReportAgent" else None
                     }
                 )
                 yield f"data: {{\"event\": {event.model_dump_json()}}}\n\n"
-        
-        # Final completion event
-        event = await event_manager.emit_event(
-            StreamEventType.COMPLETED,
-            agent_name="PlanningAgent",
-            message="Task completed successfully",
-            data={"progress": 100}
-        )
-        yield f"data: {{\"event\": {event.model_dump_json()}}}\n\n"
         
     except Exception as e:
         logger.error(f"Error in streaming AutoGen task: {str(e)}")
@@ -464,87 +408,26 @@ async def run_autogen_task_streaming(event_manager: StreamEventManager, question
         )
         yield f"data: {{\"event\": {error_event.model_dump_json()}}}\n\n"
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize agents on startup"""
-    global openai_model_client, openai_client, team
-
-    # Create database and tables
-    logger.info("Creating database and tables...")
+    """Startup and shutdown events."""
+    # Startup
+    logger.info("Starting AutoGen Business Insights API...")
     create_db_and_tables()
-
-    logger.info("Initializing AutoGen agents...")
-
-    # Create the OpenAI chat completion client
-    openai_model_client = OpenAIChatCompletionClient(
-        model=openai_model,
-        api_key=openai_api_key,
-        temperature=0,
-    )
-
-    # Create an OpenAI client (Async version for Agents API)
-    openai_client = AsyncOpenAI(api_key=openai_api_key)
-
-    # Create the planner agent (now the main orchestrator)
-    planner_agent = AssistantAgent(
-        "PlanningAgent",
-        description="An agent for planning tasks, responsible for breaking down complex tasks into smaller, manageable subtasks and delegating them to other agents.",
-        model_client=openai_model_client,
-        system_message=planner_sys_prompt + read_file(),
-    )
-
-    # Create OpenAI Assistants agents
-    carbon_agent = OpenAIAssistantAgent(
-        name="CarbonAgent",
-        description="An agent responsible for providing raw data tables by generating synthetic data.",
-        client=openai_client,
-        model=openai_model,
-        temperature=0,
-        instructions=carbon_system_prompt,
-        assistant_id=openai_carbon_assistant_id,
-        tools=["code_interpreter", emission_tool],
-        tool_resources={},
-    )
-
-    data_analysis_agent = OpenAIAssistantAgent(
-        name="DataAnalysisAgent",
-        description="An agent responsible for analyzing raw data and generating insights and summaries.",
-        client=openai_client,
-        temperature=0,
-        model=openai_model,
-        instructions=data_analysis_system_prompt,
-        assistant_id=openai_analysis_assistant_id,
-        tools=["code_interpreter"],
-    )
-
-    report_agent = OpenAIAssistantAgent(
-        name="ReportAgent",
-        description="An agent responsible for generating the final ASCII dashboard report with text and ASCII graphs.",
-        client=openai_client,
-        temperature=0,
-        model=openai_model,
-        instructions=report_system_prompt,
-        assistant_id=openai_report_assistant_id,
-        tools=["code_interpreter"],
-    )
-
-    # Define termination condition
-    termination = TextMentionTermination("TERMINATE") | MaxMessageTermination(
-        max_messages=40
-    )
-
-    # Create team without user proxy - planner agent will be the main orchestrator
-    team = SelectorGroupChat(
-        [planner_agent, carbon_agent, data_analysis_agent, report_agent],
-        model_client=openai_model_client,
-        termination_condition=termination,
-    )
-
-    logger.info("AutoGen agents initialized successfully")
+    try:
+        await initialize_agents()
+        logger.info("API startup completed successfully")
+    except Exception as e:
+        logger.error(f"Startup failed: {str(e)}")
+        raise
+    
     yield
-    logger.info("Shutting down...")
+    
+    # Shutdown
+    logger.info("Shutting down AutoGen Business Insights API...")
 
-# Initialize FastAPI app with lifespan
+# Initialize FastAPI app
 app = FastAPI(
     title="AutoGen Business Insights API",
     description="API for generating business insights reports using AutoGen agents",
@@ -593,37 +476,37 @@ async def ask_stream_endpoint(request: QuestionRequest):
     """
     Streaming endpoint that provides real-time updates during agent processing
     """
-    # Create SSE streamer with the streaming function
-    streamer = SSEStreamer(run_autogen_task_streaming)
+    from fastapi.responses import StreamingResponse
     
-    # Return the streaming response
-    return await streamer.stream(request.question)
+    async def generate_stream():
+        event_manager = StreamEventManager()
+        async for chunk in run_autogen_task_streaming(event_manager, request.question):
+            yield chunk
+    
+    return StreamingResponse(generate_stream(), media_type="text/event-stream", 
+                           headers={"Cache-Control": "no-cache", "Connection": "keep-alive"})
 
 @app.get("/health")
 async def health_check():
-    """Enhanced health check endpoint with system status. Possible status: Healthy, Warning, Error, Unhealthy"""
+    """Enhanced health check endpoint with system status."""
     try:
         # Check if agents are initialized
-        agents_status = "initialized" if team is not None else "not_initialized"
+        agents_status = "initialized" if team_flow is not None else "not_initialized"
         
         # Get current timestamp
         current_time = datetime.now().isoformat()
         
         # Check OpenAI client status
-        openai_client_status = "connected" if openai_client is not None else "not_connected"
+        openai_client_status = "connected" if client is not None else "not_connected"
         
-        # Test actual OpenAI API connectivity and quota
+        # Test actual OpenAI API connectivity
         openai_api_status = "unknown"
         api_error_message = None
         
-        if openai_client is not None:
+        if client is not None:
             try:
-                # Make a minimal API call to test connectivity and quota
-                response = await openai_client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[{"role": "user", "content": "test"}],
-                    max_tokens=1
-                )
+                # Make a minimal API call to test connectivity
+                test_response = await client.create([{"role": "user", "content": "test"}])
                 openai_api_status = "healthy"
             except Exception as api_error:
                 error_str = str(api_error)
@@ -647,9 +530,9 @@ async def health_check():
                 data_files_count = 0
         
         # Check if required environment variables are set
-        api_key_configured = bool(openai_api_key and openai_api_key.startswith("sk-"))
+        api_key_configured = bool(API_KEY and API_KEY.startswith(("sk-", "Bearer")))
         
-        # Determine overall status based on all checks
+        # Determine overall status
         overall_status = "healthy"
         
         if openai_api_status in ["quota_exceeded", "invalid_key", "forbidden"]:
@@ -667,6 +550,8 @@ async def health_check():
                 message = "OpenAI API key is invalid. Please check your API key."
             elif openai_api_status == "forbidden":
                 message = "OpenAI API access forbidden. Please check your API key permissions."
+            else:
+                message = "System error detected."
         elif overall_status == "warning":
             message = "Some components have issues but system is partially operational."
         else:
@@ -697,22 +582,22 @@ async def health_check():
 
 @app.get("/test-stream")
 async def test_stream():
-    """Test streaming endpoint with mock events using the streamer library"""
-    async def mock_streaming_function(event_manager: StreamEventManager) -> AsyncGenerator[str, None]:
+    """Test streaming endpoint with mock events"""
+    from fastapi.responses import StreamingResponse
+    
+    async def mock_stream():
         test_events = [
-            (StreamEventType.STARTED, "System", "Test stream started"),
-            (StreamEventType.AGENT_THINKING, "TestAgent", "Processing test request..."),
-            (StreamEventType.AGENT_RESPONSE, "TestAgent", "Generated test response"),
-            (StreamEventType.COMPLETED, "System", "Test completed successfully")
+            "System: Test stream started",
+            "TestAgent: Processing test request...",
+            "TestAgent: Generated test response",
+            "System: Test completed successfully"
         ]
         
-        for event_type, agent, message in test_events:
-            event = await event_manager.emit_event(event_type, agent, message)
-            yield f"data: {{\"event\": {event.model_dump_json()}}}\n\n"
+        for event in test_events:
+            yield f"data: {event}\n\n"
             await asyncio.sleep(1)
     
-    streamer = SSEStreamer(mock_streaming_function)
-    return await streamer.stream()
+    return StreamingResponse(mock_stream(), media_type="text/plain")
 
 @app.get("/")
 async def root():
@@ -722,14 +607,17 @@ async def root():
 @app.get("/client")
 async def serve_client():
     """Serve the streaming client HTML"""
-    return FileResponse("streaming_client.html", media_type="text/html")
+    try:
+        return FileResponse("streaming_client.html", media_type="text/html")
+    except FileNotFoundError:
+        return {"message": "Client HTML file not found. Please ensure streaming_client.html exists."}
 
 if __name__ == "__main__":
     uvicorn.run(
-        "main:app",  # Replace "main" with your actual filename
+        "main:app",  
         host="0.0.0.0",
         port=8000,
         reload=True,
-        timeout_keep_alive=300,  # 5 minutes timeout
+        timeout_keep_alive=300,  
         timeout_graceful_shutdown=30,
     )
