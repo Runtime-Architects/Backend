@@ -1,0 +1,169 @@
+{
+  "test_cases": [
+    {
+      "id": "carbon_001_basic",
+      "query": "What is the best time to use my appliances today in Ireland?",
+      "expected_functions": [
+        "get_emission_analysis"
+      ],
+      "expected_behavior": [
+        "correct_function_call",
+        "consistent_output"
+      ],
+      "expected_output_keywords": [
+        "time",
+        "appliances",
+        "Ireland",
+        "co2",
+        "intensity"
+      ],
+      "category": "basic_query",
+      "priority": "high",
+      "timeout_seconds": 60,
+      "domain_context": "Carbon emissions optimization for appliance usage in Ireland",
+      "available_functions": [
+        "get_emission_analysis"
+      ]
+    },
+    {
+      "id": "carbon_002_ev",
+      "query": "When should I charge my electric vehicle for minimal carbon footprint?",
+      "expected_functions": [
+        "get_emission_analysis"
+      ],
+      "expected_behavior": [
+        "correct_function_call",
+        "high_quality_response"
+      ],
+      "expected_output_keywords": [
+        "charge",
+        "carbon",
+        "footprint",
+        "time"
+      ],
+      "category": "ev_charging",
+      "priority": "high",
+      "timeout_seconds": 60,
+      "domain_context": "EV charging optimization based on carbon intensity",
+      "available_functions": [
+        "get_emission_analysis"
+      ]
+    },
+    {
+      "id": "carbon_003_data",
+      "query": "Show me CO2 intensity data for the next 24 hours in Republic of Ireland",
+      "expected_functions": [
+        "get_emission_analysis"
+      ],
+      "expected_behavior": [
+        "correct_function_call",
+        "high_quality_response"
+      ],
+      "expected_output_keywords": [
+        "co2",
+        "intensity",
+        "24 hours",
+        "ireland"
+      ],
+      "category": "data_request",
+      "priority": "medium",
+      "timeout_seconds": 90,
+      "domain_context": "Carbon intensity data retrieval and presentation",
+      "available_functions": [
+        "get_emission_analysis"
+      ]
+    },
+    {
+      "id": "carbon_004_irrelevant",
+      "query": "What's the weather like today?",
+      "expected_functions": [],
+      "expected_behavior": [
+        "consistent_output",
+        "proper_error_handling"
+      ],
+      "expected_output_keywords": [
+        "weather"
+      ],
+      "category": "irrelevant_query",
+      "priority": "low",
+      "timeout_seconds": 30,
+      "domain_context": "Handling queries outside carbon emissions domain",
+      "available_functions": [
+        "get_emission_analysis"
+      ]
+    },
+    {
+      "id": "carbon_005_comparison",
+      "query": "Compare carbon intensity between ROI and Northern Ireland",
+      "expected_functions": [
+        "get_emission_analysis"
+      ],
+      "expected_behavior": [
+        "correct_function_call",
+        "domain_expertise"
+      ],
+      "expected_output_keywords": [
+        "carbon",
+        "intensity",
+        "roi",
+        "northern ireland",
+        "compare"
+      ],
+      "category": "comparison_query",
+      "priority": "medium",
+      "timeout_seconds": 90,
+      "domain_context": "Comparative analysis of carbon intensity across regions",
+      "available_functions": [
+        "get_emission_analysis"
+      ]
+    },
+    {
+      "id": "carbon_006_consistency",
+      "query": "Give me a statistical summary of last week carbon emission in Ireland",
+      "expected_functions": [
+        "get_emission_analysis"
+      ],
+      "expected_behavior": [
+        "correct_function_call",
+        "high_quality_response"
+      ],
+      "expected_output_keywords": [
+        "statistical",
+        "summary",
+        "carbon",
+        "emission",
+        "ireland"
+      ],
+      "category": "analysis_query",
+      "priority": "high",
+      "timeout_seconds": 120,
+      "domain_context": "Statistical analysis and summarization of carbon emission data",
+      "available_functions": [
+        "get_emission_analysis"
+      ]
+    },
+    {
+      "id": "carbon_007_error_handling",
+      "query": "Get carbon data for invalid date 2025-13-45",
+      "expected_functions": [
+        "get_emission_analysis"
+      ],
+      "expected_behavior": [
+        "proper_error_handling",
+        "user_friendly"
+      ],
+      "expected_output_keywords": [
+        "error",
+        "invalid",
+        "date"
+      ],
+      "category": "error_handling",
+      "priority": "medium",
+      "timeout_seconds": 60,
+      "domain_context": "Error handling for invalid date inputs",
+      "available_functions": [
+        "get_emission_analysis"
+      ]
+    }
+  ]
+}

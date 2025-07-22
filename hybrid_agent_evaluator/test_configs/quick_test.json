@@ -1,0 +1,24 @@
+{
+  "test_cases": [
+    {
+      "id": "quick_test_001",
+      "query": "What's the best time to use appliances in Ireland?",
+      "expected_functions": [
+        "get_emission_analysis"
+      ],
+      "expected_behavior": [
+        "correct_function_call"
+      ],
+      "expected_output_keywords": [
+        "time",
+        "appliances"
+      ],
+      "category": "basic_query",
+      "domain_context": "Carbon optimization query",
+      "available_functions": [
+        "get_emission_analysis"
+      ],
+      "timeout_seconds": 30
+    }
+  ]
+}
