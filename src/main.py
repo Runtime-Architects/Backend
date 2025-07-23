@@ -7,15 +7,17 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 from auth_routes import router as auth_router
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 import uvicorn
+from sqlmodel import Session
 
 # AutoGen imports
 from autogen_agentchat.agents import AssistantAgent, MessageFilterAgent, MessageFilterConfig, PerSourceFilter
 from autogen_agentchat.teams import DiGraphBuilder, GraphFlow
 from autogen_agentchat.ui import Console
+from autogen_agentchat.messages import StopMessage
 from autogen_ext.models.openai import AzureOpenAIChatCompletionClient
 from db import create_db_and_tables, get_session
 
@@ -29,11 +31,15 @@ logger = logging.getLogger(__name__)
 # Streamer
 from streamer import SSEStreamer, StreamEventManager, StreamEventType, StreamingLogHandler
 
+# Models
+from models import Conversation, Message, User
+from auth_routes import get_current_user
+
 # Azure OpenAI Configuration
 AZURE_ENDPOINT = "https://runtime-architects-ai-hub-dev.cognitiveservices.azure.com/"
 MODEL = "gpt-4o"
 AZURE_DEPLOYMENT = "gpt-4o"
-API_KEY = "key"
+API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
 API_VERSION = "2024-12-01-preview"
 
 # Global variables
@@ -160,7 +166,7 @@ Always include:
 - Clear intensity classification
 - Specific usage recommendations 
 
-CRITICAL: After completing your report, you MUST end with exactly "TERMINATE" on a new line to signal completion.
+CRITICAL: After completing your final end report, you MUST end with exactly TERMINATE on a new line to signal completion.
 """
 
 data_analysis_agent_system_message = (
@@ -307,7 +313,7 @@ async def run_autogen_task(question: str) -> str:
         raise HTTPException(status_code=500, detail=f"AutoGen task failed: {str(e)}")
 
 
-async def run_autogen_task_streaming(event_manager: StreamEventManager, question: str) -> AsyncGenerator[str, None]:
+async def run_autogen_task_streaming(event_manager: StreamEventManager, question: str, user_id: int) -> AsyncGenerator[str, None]:
     """Run the AutoGen task with real-time message monitoring using AutoGen's streaming"""
     if team_flow is None:
         error_event = await event_manager.emit_event(
@@ -321,29 +327,101 @@ async def run_autogen_task_streaming(event_manager: StreamEventManager, question
     try:
         logger.info(f"Starting streaming AutoGen task with question: {question[:100]}...")
         
+        # Create conversation in database
+        from db import get_session
+        session = next(get_session())
+        try:
+            conversation = Conversation(
+                user_id=user_id,
+                title=question[:50] + "..." if len(question) > 50 else question,
+                created_at=datetime.now().isoformat(),
+                updated_at=datetime.now().isoformat()
+            )
+            session.add(conversation)
+            session.commit()
+            session.refresh(conversation)
+            conversation_id = conversation.id
+            
+            # Save user message
+            user_message = Message(
+                conversation_id=conversation_id,
+                role="user",
+                content=question,
+                timestamp=datetime.now().isoformat()
+            )
+            session.add(user_message)
+            session.commit()
+        finally:
+            session.close()
+        
         # Emit starting event
         event = await event_manager.emit_event(
             StreamEventType.STARTED,
             message=f"Starting analysis for: {question[:100]}...",
-            data={"question": question, "progress": 0}
+            data={"question": question, "progress": 0, "conversation_id": conversation_id}
         )
         yield f"data: {{\"event\": {event.model_dump_json()}}}\n\n"
         
         # Create the task
         task = f"Generate a comprehensive business insights report based on this request: {question}"
         
-        # Track the final response
+        # Track the final response - collect all meaningful messages
+        all_agent_responses = []
         final_report = ""
         
         # Use AutoGen's streaming capability
         async for message in team_flow.run_stream(task=task):
             # Check for StopMessage (indicates completion)
-            if hasattr(message, 'type') and message.type == "StopMessage":
+            if isinstance(message, StopMessage):
+                # Compile final response - prioritize ReportAgent, then fallback to all responses
+                report_agent_messages = [resp for resp in all_agent_responses if resp['source'] == 'ReportAgent']
+                
+                if report_agent_messages:
+                    # Use ReportAgent's responses
+                    final_report = "\n\n".join([resp['content'] for resp in report_agent_messages])
+                elif all_agent_responses:
+                    # Fallback: use all substantial responses
+                    final_report = "\n\n".join([f"**{resp['source']}**: {resp['content']}" for resp in all_agent_responses])
+                else:
+                    final_report = "Task completed but no response was generated."
+                
+                # Clean up the final report
+                final_report = final_report.replace("TERMINATE", "").strip()
+                
+                # Save final response to database
+                if final_report:
+                    session = next(get_session())
+                    try:
+                        assistant_message = Message(
+                            conversation_id=conversation_id,
+                            role="assistant",
+                            content=final_report,
+                            timestamp=datetime.now().isoformat()
+                        )
+                        session.add(assistant_message)
+                        
+                        # Update conversation timestamp
+                        conversation = session.get(Conversation, conversation_id)
+                        if conversation:
+                            conversation.updated_at = datetime.now().isoformat()
+                        
+                        session.commit()
+                        logger.info(f"Successfully saved assistant response to database for conversation {conversation_id}")
+                        logger.info(f"!!!!!!!! Final report length: {len(final_report)} characters")
+                        logger.info(f"!!!!!!!! Final report content: {final_report[:100]}...")  # Log first 100 chars
+                    except Exception as db_error:
+                        logger.error(f"Failed to save assistant response: {str(db_error)}")
+                        session.rollback()
+                    finally:
+                        session.close()
+                else:
+                    logger.warning("Final report is empty, not saving to database")
+                
                 event = await event_manager.emit_event(
                     StreamEventType.COMPLETED,
                     agent_name="GraphManager",
                     message="Workflow completed successfully",
-                    data={"progress": 100}
+                    data={"progress": 100, "conversation_id": conversation_id, "final_response": final_report}
                 )
                 yield f"data: {{\"event\": {event.model_dump_json()}}}\n\n"
                 break
@@ -370,13 +448,35 @@ async def run_autogen_task_streaming(event_manager: StreamEventManager, question
                 else:
                     content_str = str(message.content)
                 
-                # Store ReportAgent's final output
-                if message.source == "ReportAgent" and len(content_str) > 100:
-                    final_report = content_str
+                # Store ALL substantial agent responses (not just ReportAgent)
+                if len(content_str.strip()) > 50 and "TERMINATE" not in content_str and content_type != "function_call":
+                    clean_content = content_str.strip()
+                    # Avoid duplicates
+                    if not any(resp['content'] == clean_content for resp in all_agent_responses):
+                        all_agent_responses.append({
+                            'source': message.source,
+                            'content': clean_content
+                        })
+                        logger.info(f"Collected response from {message.source}: {len(clean_content)} chars")
                 
                 # Determine event type based on content
                 if "TERMINATE" in content_str:
                     event_type = StreamEventType.COMPLETED
+                    try:
+                        # If TERMINATE is found, we assume the task is complete
+                        final_report = content_str.replace("TERMINATE", "").strip()
+                        assistant_message = Message(
+                            conversation_id=conversation_id,
+                            role="assistant",
+                            content=final_report,
+                            timestamp=datetime.now().isoformat()
+                        )
+                        session.add(assistant_message)
+                        await session.commit()
+                    except Exception as db_error:
+                        logger.error(f"Failed to save final report: {str(db_error)}")
+                        session.rollback()
+
                 elif content_type == "function_call":
                     event_type = StreamEventType.TOOL_EXECUTION
                 elif any(keyword in content_str.lower() for keyword in ["thinking", "planning", "analyzing", "processing"]):
@@ -384,7 +484,7 @@ async def run_autogen_task_streaming(event_manager: StreamEventManager, question
                 else:
                     event_type = StreamEventType.AGENT_RESPONSE
                 
-                # Create display message truncate if too long
+                # Create display message - truncate if too long
                 display_message = content_str[:100] + "..." if len(content_str) > 100 else content_str
                 
                 event = await event_manager.emit_event(
@@ -394,10 +494,16 @@ async def run_autogen_task_streaming(event_manager: StreamEventManager, question
                     data={
                         "progress": min(event_manager.get_progress_percentage(), 95),
                         "content_type": content_type,
-                        "full_content": content_str if message.source == "ReportAgent" else None
+                        "conversation_id": conversation_id,
+                        "full_content": content_str if len(content_str) < 5000 else None
                     }
                 )
+
                 yield f"data: {{\"event\": {event.model_dump_json()}}}\n\n"
+        
+        # Final check - if no responses were collected during streaming, try to get them from the completed flow
+        if not all_agent_responses:
+            logger.warning("No responses collected during streaming, this might indicate an issue with the workflow")
         
     except Exception as e:
         logger.error(f"Error in streaming AutoGen task: {str(e)}")
@@ -407,7 +513,6 @@ async def run_autogen_task_streaming(event_manager: StreamEventManager, question
             data={"error": str(e)}
         )
         yield f"data: {{\"event\": {error_event.model_dump_json()}}}\n\n"
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -472,19 +577,73 @@ async def ask_endpoint(request: QuestionRequest):
         )
 
 @app.post("/ask-stream")
-async def ask_stream_endpoint(request: QuestionRequest):
+async def ask_stream_endpoint(request: QuestionRequest, current_user: User = Depends(get_current_user)):
     """
     Streaming endpoint that provides real-time updates during agent processing
+    Requires authentication
     """
     from fastapi.responses import StreamingResponse
     
+    # Add debug logging
+    logger.info(f"Authenticated user for streaming: {current_user.email} (ID: {current_user.id})")
+    
     async def generate_stream():
         event_manager = StreamEventManager()
-        async for chunk in run_autogen_task_streaming(event_manager, request.question):
+        async for chunk in run_autogen_task_streaming(event_manager, request.question, current_user.id):
             yield chunk
     
     return StreamingResponse(generate_stream(), media_type="text/event-stream", 
                            headers={"Cache-Control": "no-cache", "Connection": "keep-alive"})
+
+@app.get("/conversations")
+async def get_conversations(current_user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    """Get all conversations for the authenticated user"""
+    conversations = session.query(Conversation).filter(
+        Conversation.user_id == current_user.id
+    ).order_by(Conversation.updated_at.desc()).all()
+    
+    return {"conversations": conversations}
+
+@app.get("/conversations/{conversation_id}")
+async def get_conversation(conversation_id: int, current_user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    """Get a specific conversation with all messages"""
+    conversation = session.query(Conversation).filter(
+        Conversation.id == conversation_id,
+        Conversation.user_id == current_user.id
+    ).first()
+    
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    messages = session.query(Message).filter(
+        Message.conversation_id == conversation_id
+    ).order_by(Message.timestamp.asc()).all()
+    
+    return {
+        "conversation": conversation,
+        "messages": messages
+    }
+
+@app.delete("/conversations/{conversation_id}")
+async def delete_conversation(conversation_id: int, current_user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    """Delete a conversation and all its messages"""
+    conversation = session.query(Conversation).filter(
+        Conversation.id == conversation_id,
+        Conversation.user_id == current_user.id
+    ).first()
+    
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    # Delete all messages first
+    session.query(Message).filter(Message.conversation_id == conversation_id).delete()
+    
+    # Delete the conversation
+    session.delete(conversation)
+    session.commit()
+    
+    return {"message": "Conversation deleted successfully"}
+
 
 @app.get("/health")
 async def health_check():

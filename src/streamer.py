@@ -32,7 +32,7 @@ class StreamEventManager:
         """Initialize the event manager with empty events list and progress tracking."""
         self.events = []
         self.current_step = 0
-        self.total_steps = 25
+        self.total_steps = 15
         
     async def emit_event(self, event_type: StreamEventType, agent_name: str = "", 
                         message: str = "", data: Dict[str, Any] = None) -> StreamEvent:
