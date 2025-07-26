@@ -7,17 +7,24 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 from auth_routes import router as auth_router
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 import uvicorn
+from sqlmodel import Session
+from autogen_ext.tools.code_execution import PythonCodeExecutionTool
+from autogen_ext.code_executors.local import LocalCommandLineCodeExecutor
+
 
 # AutoGen imports
 from autogen_agentchat.agents import AssistantAgent, MessageFilterAgent, MessageFilterConfig, PerSourceFilter
 from autogen_agentchat.teams import DiGraphBuilder, GraphFlow
 from autogen_agentchat.ui import Console
+from autogen_agentchat.messages import StopMessage
 from autogen_ext.models.openai import AzureOpenAIChatCompletionClient
 from db import create_db_and_tables, get_session
+from agents.policy_agent import policy_agent as policy
+from azure_carbon_agentv2.azurecarbonagent import carbon_agent as carbon
 
 # Pydantic models for API
 from pydantic import BaseModel
@@ -26,16 +33,27 @@ from pydantic import BaseModel
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Azure OpenAI Configuration
-AZURE_ENDPOINT = "https://runtime-architects-ai-hub-dev.cognitiveservices.azure.com/"
-MODEL = "gpt-4o"
-AZURE_DEPLOYMENT = "gpt-4o"
-API_KEY = "KEY"
-API_VERSION = "2024-12-01-preview"
+# Streamer
+from streamer import SSEStreamer, StreamEventManager, StreamEventType, StreamingLogHandler
+
+# Models
+from models import Conversation, Message, User
+from auth_routes import get_current_user
+
+
 
 # Global variables
 client = None
 team_flow = None
+
+client = AzureOpenAIChatCompletionClient(
+    azure_deployment='gpt-4o',
+    model='gpt-4o',
+    api_version='2024-12-01-preview',
+    azure_endpoint='https://runtime-architects-ai-hub-dev.cognitiveservices.azure.com/',
+    api_key='KEY',
+    max_completion_tokens=1024,
+)
 
 # Pydantic Models
 class QuestionRequest(BaseModel):
@@ -50,123 +68,124 @@ class APIResponse(BaseModel):
     message: MessageResponse
 
 # Agent System Messages
-planner_system_message = f"""You are the Planner Agent orchestrating a team of specialists. Your role is to decompose complex tasks into structured workflows with clear dependencies.
+planner_system_message = f"""You are an intelligent Planner Agent that orchestrates a team of specialists based on user queries. Your role is to analyze the user's request and determine which agents need to be activated.
 
-Your responsibilities:
-1. Task Decomposition: Break objectives into atomic sub-tasks for:
-   - Carbon Agent (emissions data retrieval): 
-        - Has the access to emission tool which can retrieve carbon emissions and analyse the data to classify the data into low:[], medium:[], high:[]
-   -Policy Agent (policy data retrieval):
-        - Has the access to search tool which can retrieve policies and analyse them to decide and report them based on the query
-   -Data Analysis Agent ():
-        - Has the access to python executor tool, which can execute python scripts, which it uses to analyse data given by the user. Only use it if necesssary.
-   - Report Agent (visualization and summarization): 
-        - Has access to the python executor tool, which can execute python scripts. It summarises the data 
+## CONDITIONAL FLOW ANALYSIS:
+Before invoking any agents, analyze the user query and categorize it:
 
-RULES:
-- State the plan you are following clearly
-- ONLY output what agents are to be invoked
+### Query Categories & Required Agents:
+1. **CARBON EMISSIONS ONLY** (keywords: emissions, CO2, carbon intensity, electricity timing, grid data, EirGrid)
+   - Activate: CarbonAgent → ReportAgent
+   - Skip: PolicyAgent, DataAnalysisAgent
 
-The goal is to help energy-conscious consumers make sustainable choices by clear, actionable advice about electricity usage, renewable energy, and carbon reduction using markdown. 
-"""
+2. **POLICY/GRANTS ONLY** (keywords: grants, SEAI, policy, funding, schemes, support, solar panels, heat pumps, retrofitting)
+   - Activate: PolicyAgent → ReportAgent  
+   - Skip: CarbonAgent, DataAnalysisAgent
 
-CARBON_AGENT_SYSMSG = f"""You are an intelligent assistant with access to specialized tools. Today's date and time is: {datetime.now()}.
+3. **USER DATA ANALYSIS** (keywords: analyze my data, uploaded file, CSV, my consumption, my usage)
+   - Activate: DataAnalysisAgent → ReportAgent
+   - Skip: CarbonAgent, PolicyAgent
 
-### Available Tools:
-- **PythonCodeExecutionTool**: For general programming tasks
-- **Carbon Data Retriever**: Fetches raw CO2 intensity data (use when you need unprocessed data)
-- **Daily Analyzer**: For analysis day/days (15 minute granularity)
-- **Weekly Analyzer**: For analysis week/weeks (hourly granularity)
-- **Monthly Analyzer**: For analysis of month/months (day granularity)
+4. **CARBON + POLICY COMBINATION** (keywords: sustainable choices, renewable energy advice, carbon reduction with grants)
+   - Activate: CarbonAgent, PolicyAgent → ReportAgent
+   - Skip: DataAnalysisAgent
 
-TOOL USAGE RULES:
-- For CO2 intensity queries, ALWAYS use the emission_tool with these exact parameters:
-  - Date format MUST be YYYY-MM-DD (e.g., '2025-06-24')
-  - Region MUST be one of:
-    * 'roi' for Republic of Ireland (Ireland)
-    * 'ni' for Northern Ireland
-    * 'all' for both Republic of Ireland (Ireland) & Northern Ireland
+5. **FULL ANALYSIS** (keywords: comprehensive report, full analysis, compare with policies, data + emissions + grants)
+   - Activate: CarbonAgent, PolicyAgent, DataAnalysisAgent → ReportAgent
 
-- **Time Period** determines which analyzer to use:
-    - 1 day to 6 days → Daily Analyzer
-    - 7 days to 21 days → Weekly Analyzer
-    - greater than 21 days → Monthly Analyzer
+6. **DATA + CARBON** (user has data AND asks about emissions)
+   - Activate: DataAnalysisAgent, CarbonAgent → ReportAgent
+   - Skip: PolicyAgent
 
-- When using the tool:
-1. Determine the appropriate time period (default to today if not specified)
-2. Identify the region (default to 'all' if not specified)
-3. Use the emission_tool to get current data
-4. Analyze the results to provide a data-driven answer
+## OUTPUT FORMAT:
+State your analysis clearly:
+"ANALYSIS: [Query Category] - [Brief reasoning]
+AGENTS TO ACTIVATE: [List of agents]"
 
-### Response Format Guidelines:
-1. Start with analysis type and time period covered
-2. Show key findings with emojis (🌱 for low, ⚠️ for medium, 🔥 for high emissions)
-3. Provide actionable recommendations
-4. Include any notable trends or comparisons
+Then provide specific instructions to each activated agent.
 
-When providing recommendations for the current day, always consider the current time. 
-Only suggest activities or actions for future time slots—never for times that have already passed. 
-For example, if it is currently 16:00, recommendations should only apply to 16:00 onward today.
-"""
-
-POLICY_AGENT_SYSMSG = '''
-You are a SEAI Policy Agent that answers questions using only the provided SEAI documents.
-
-INSTRUCTIONS:
-- When a user asks a question, first identify key terms and synonyms that may appear in SEAI policy documents
-- Use the run_curl_search tool to query those terms against SEAI search
-- Reformulate queries if no relevant documents are found
-- Answer questions using ONLY information from the returned documents
-- If information is not in the documents, say: "I don't have that information in the available SEAI documents"
-- Be conversational and helpful
-- Don't mention JSON, technical details, or internal tools
-- Cite relevant document titles when answering
-'''
-
-REPORT_AGENT_SYSMSG = f"""You are the Report Agent creating terminal-friendly visualizations. Today's date and time is: {datetime.now()}. You turn analysis into human-readable dashboards.
-
-Your responsibilities:
-1. Only use data processed from from CarbonAgent, and PolicyAgent
-2. Include only the timings recieved from CarbonAgent while generating report or summaries. 
-2. Create clear visualizations of the data
-3. Generate summary insights and recommendations
-
-TOOLS:
-- python_executor: ONLY for creating visualizations from provided data
+## AGENT CAPABILITIES:
+- **CarbonAgent**: EirGrid emissions data, timing recommendations, CO2 intensity analysis
+- **PolicyAgent**: SEAI grants, policies, funding schemes, renewable energy support
+- **DataAnalysisAgent**: User-provided data analysis, consumption patterns, personal usage insights  
+- **ReportAgent**: Synthesizes all activated agent outputs into final response
 
 RULES:
-- NEVER try to fetch raw data yourself 
-- always use the processed data from CarbonAgent
-- For visualization:
-  - Use ASCII art for terminal display
-  - Include clear labels and time periods
-  - Add emoji indicators (🌱 for low, ⚠️ for medium, 🔥 for high)
-  
-EXAMPLE OUTPUT:
-```ascii
-CO2 Intensity Trend (ROI) - {datetime.now().date()}
-┌─────────────────────────────────────┐
-│  High (🔥) ███▄                      │
-│ Medium (⚠️) █  █▄▄                   │
-│  Low (🌱) █    ███▄▄▄               │
-└─────────────────────────────────────┘
-Best Time: 02:00-05:00 (🌱 Lowest Intensity)
-Always include:
-
-Date/period covered
-
-Clear intensity classification
-
-Specific usage recommendations 
-
-When done, SAY "TERMINATE"
+- Always state your analysis and reasoning first
+- Only activate agents that are necessary for the specific query
+- Provide clear, specific instructions to each activated agent
+- If query is ambiguous, default to the most likely interpretation
 """
 
-data_analysis_agent_system_message = (
-    "You are a data analyst responsible for synthesizing inputs from the Carbon Agent and Policy Agent. "
-    "Analyze the relationship between emissions data and sustainability policies to identify trends, anomalies, and actionable insights. "
-    "Present your findings clearly, using bullet points or tables if helpful, for use in a final report. "
-)
+DATA_ANALYSIS_AGENT_SYSMSG = f"""You are the Data Analysis Specialist for user-provided energy consumption data.
+
+**ACTIVATION CONDITIONS:** Only respond when specifically instructed by the PlannerAgent AND user has provided data files.
+
+**YOUR ROLE:** Analyze user's personal energy consumption data to provide insights and recommendations.
+
+### Analysis Capabilities:
+- **Consumption Patterns**: Daily, weekly, monthly usage trends
+- **Peak Analysis**: Identify high consumption periods
+- **Efficiency Opportunities**: Suggest optimization strategies
+- **Cost Analysis**: Energy cost breakdowns and savings potential
+- **Comparative Analysis**: Benchmark against averages
+
+### Tool Usage:
+- **python_executor**: For data processing, visualization, and statistical analysis
+- Handle CSV, Excel, and other common data formats
+- Create visualizations and summary statistics
+
+### Analysis Process:
+1. **Data Validation**: Check format and completeness
+2. **Pattern Recognition**: Identify consumption trends
+3. **Insight Generation**: Extract actionable findings
+4. **Recommendations**: Provide specific improvement suggestions
+
+### Output Requirements:
+- Clear data insights with supporting evidence
+- Actionable recommendations
+- Visual representations where helpful
+- Quantified savings opportunities
+
+**OUTPUT TAG**: End responses with [DATA_ANALYSIS_COMPLETE] for workflow coordination.
+"""
+
+REPORT_AGENT_SYSMSG = f"""You are the Report Synthesis Specialist creating comprehensive user responses.
+
+**ACTIVATION CONDITIONS:** Only activate after receiving outputs from other agents (marked with completion tags).
+
+**YOUR ROLE:** Synthesize information from activated agents into a cohesive, actionable response.
+
+### Input Sources (conditional based on activated agents):
+- **CarbonAgent**: Emissions data, timing recommendations [CARBON_COMPLETE]
+- **PolicyAgent**: SEAI grants, policy information [POLICY_COMPLETE] 
+- **DataAnalysisAgent**: User data insights [DATA_ANALYSIS_COMPLETE]
+
+### Response Structure:
+1. **Executive Summary**: Key findings and recommendations
+2. **Detailed Insights**: Agent-specific information organized logically
+3. **Action Items**: Clear, prioritized recommendations
+4. **Additional Resources**: Relevant links or next steps
+
+### Visualization Tools:
+- **python_executor**: Create terminal-friendly ASCII visualizations
+- Use emojis for quick visual reference (🌱⚠️🔥)
+- Include clear labels and time periods
+
+### Quality Standards:
+- Integrate information seamlessly (avoid agent-by-agent reporting)
+- Focus on user's original question
+- Provide specific, actionable advice
+- Include relevant timeframes and deadlines
+
+**WORKFLOW COMPLETION**: End with "ANALYSIS COMPLETE" when finished.
+
+### Example Integration:
+Instead of: "CarbonAgent says X, PolicyAgent says Y"
+Use: "Based on current grid emissions and available SEAI grants, here's your optimal strategy..."
+
+CRITICAL: After completing your final end report, you MUST end with exactly TERMINATE on a new line to signal completion.
+"""
 
 def create_agent(name, system_message):
     """Helper function to create an AssistantAgent."""
@@ -174,81 +193,85 @@ def create_agent(name, system_message):
         name=name,
         model_client=client,
         system_message=system_message,
-        model_client_stream=True,
     )
 
 async def initialize_agents():
-    """Initialize AutoGen agents and workflow."""
-    global client, team_flow
-    
-    try:
-        logger.info("Initializing Azure OpenAI client...")
-        client = AzureOpenAIChatCompletionClient(
-            azure_deployment=AZURE_DEPLOYMENT,
-            model=MODEL,
-            api_version=API_VERSION,
-            azure_endpoint=AZURE_ENDPOINT,
-            api_key=API_KEY,
-            max_completion_tokens=1024,
-        )
-        
-        logger.info("Creating agents...")
-        # Create agents
-        planner = create_agent("PlannerAgent", planner_system_message)
-        carbon = create_agent("CarbonAgent", CARBON_AGENT_SYSMSG)
-        policy = create_agent("PolicyAgent", POLICY_AGENT_SYSMSG)
-        analysis = create_agent("DataAnalysisAgent", data_analysis_agent_system_message)
-        report = create_agent("ReportAgent", REPORT_AGENT_SYSMSG)
 
-        # Create filtered agents
-        filtered_carbon = MessageFilterAgent(
+    """Initialize AutoGen agents and workflow."""
+    async with LocalCommandLineCodeExecutor(work_dir="coding") as executor:
+        tool = PythonCodeExecutionTool(executor)
+        global client, team_flow
+        
+        try:
+            logger.info("Initializing Azure OpenAI client...")
+
+            
+            logger.info("Creating agents...")
+            # Create agents
+            planner = create_agent("PlannerAgent", planner_system_message)
+            #carbon = create_agent("CarbonAgent", CARBON_AGENT_SYSMSG)
+            #policy = create_agent("PolicyAgent", POLICY_AGENT_SYSMSG)
+            analysis = create_agent("DataAnalysisAgent", DATA_ANALYSIS_AGENT_SYSMSG)
+            report = create_agent("ReportAgent", REPORT_AGENT_SYSMSG)
+
+            # --- Conditional Message Filtering ---
+            # These filters now work with the conditional activation system
+            def create_conditional_filter(source_agent):
+                """Creates filters that only pass messages when agent is specifically mentioned."""
+                return MessageFilterConfig(
+                    per_source=[PerSourceFilter(source=source_agent, position="last", count=1)]
+                )
+
+            filtered_carbon = MessageFilterAgent(
             name="CarbonAgent",
             wrapped_agent=carbon,
-            filter=MessageFilterConfig(per_source=[PerSourceFilter(source="PlannerAgent", position="last", count=1)]),
-        )
+            filter=create_conditional_filter("PlannerAgent")
+            )
 
-        filtered_policy = MessageFilterAgent(
-            name="PolicyAgent",
+            filtered_policy = MessageFilterAgent(
+            name="PolicyAgent", 
             wrapped_agent=policy,
-            filter=MessageFilterConfig(per_source=[PerSourceFilter(source="PlannerAgent", position="last", count=1)]),
-        )
+            filter=create_conditional_filter("PlannerAgent")
+            )
 
-        filtered_analysis = MessageFilterAgent(
+            filtered_analysis = MessageFilterAgent(
             name="DataAnalysisAgent",
             wrapped_agent=analysis,
-            filter=MessageFilterConfig(per_source=[PerSourceFilter(source="PlannerAgent", position="last", count=1)]),
-        )
+            filter=create_conditional_filter("PlannerAgent")
+            )
 
-        # Build the workflow graph
-        logger.info("Building workflow graph...")
-        builder = DiGraphBuilder()
-        
-        # Add all agents to the graph
-        builder.add_node(planner)
-        builder.add_node(filtered_carbon)
-        builder.add_node(filtered_policy)
-        builder.add_node(filtered_analysis)
-        builder.add_node(report)
 
-        # Define edges (communication flow)
-        builder.add_edge(planner, filtered_carbon)
-        builder.add_edge(planner, filtered_policy)
-        builder.add_edge(planner, filtered_analysis)
-        builder.add_edge(filtered_carbon, report)
-        builder.add_edge(filtered_policy, report)
-        builder.add_edge(filtered_analysis, report)
+            # Build the workflow graph
+            logger.info("Building workflow graph...")
+            builder = DiGraphBuilder()
+            
+            # Add all agents to the graph
+            builder.add_node(planner)
+            builder.add_node(filtered_carbon)
+            builder.add_node(filtered_policy)
+            builder.add_node(filtered_analysis)
+            builder.add_node(report)
 
-        # Build the graph flow
-        team_flow = GraphFlow(
-            participants=builder.get_participants(),
-            graph=builder.build(),
-        )
-        
-        logger.info("AutoGen agents initialized successfully!")
-        
-    except Exception as e:
-        logger.error(f"Failed to initialize agents: {str(e)}")
-        raise
+            # Define edges (communication flow)
+            builder.add_edge(planner, filtered_carbon)
+            builder.add_edge(planner, filtered_policy)
+            builder.add_edge(planner, filtered_analysis)
+            builder.add_edge(filtered_carbon, report)
+            builder.add_edge(filtered_policy, report)
+            builder.add_edge(filtered_analysis, report)
+
+            # Build the graph flow
+            team_flow = GraphFlow(
+                participants=builder.get_participants(),
+                graph=builder.build(),
+            )
+            
+            logger.info("AutoGen agents initialized successfully!")
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize agents: {str(e)}")
+            raise
+
 
 async def run_autogen_task(question: str) -> str:
     """Run the AutoGen task and return the aggregated response"""
@@ -264,44 +287,32 @@ async def run_autogen_task(question: str) -> str:
         # Run the team task - the planner agent will orchestrate everything
         result = await team_flow.run(task=task)
 
-        # Extract the final aggregated response from the planner agent
+        # Extract the final response - prioritize ReportAgent's final output
         final_response = ""
 
-        # Look for the planner's final aggregated response in the conversation
+        # First, look for ReportAgent's comprehensive report
         for message in result.messages:
-            if message.source == "PlannerAgent":
-                # Check if this is the final comprehensive response (before TERMINATE)
-                if any(
-                    keyword in message.content
-                    for keyword in [
-                        "Executive Summary",
-                        "Final Aggregated Response",
-                        "COMPREHENSIVE FINAL RESPONSE",
-                    ]
-                ):
-                    final_response = message.content
-                    break
+            if message.source == "ReportAgent" and len(message.content) > 100:
+                final_response = message.content
+                # Remove TERMINATE if present for cleaner output
+                final_response = final_response.replace("TERMINATE", "").strip()
+                break
 
-        # If no specific final response found, use the last substantial planner message before TERMINATE
+        # Fallback: look for the last substantial message from any agent
         if not final_response:
-            planner_messages = [
-                msg for msg in result.messages if msg.source == "PlannerAgent"
+            substantial_messages = [
+                msg for msg in result.messages 
+                if len(msg.content) > 100 and "TERMINATE" not in msg.content
             ]
-            if planner_messages:
-                # Find the last substantial message before TERMINATE
-                for msg in reversed(planner_messages):
-                    if "TERMINATE" not in msg.content and len(msg.content) > 100:
-                        final_response = msg.content
-                        break
+            if substantial_messages:
+                final_response = substantial_messages[-1].content
 
-        # Fallback: if still no response, aggregate all meaningful responses
+        # Final fallback: aggregate all meaningful responses
         if not final_response:
-            logger.warning(
-                "No final aggregated response found from planner. Attempting to aggregate all responses."
-            )
+            logger.warning("No substantial response found. Aggregating all responses.")
             all_responses = []
             for message in result.messages:
-                if len(message.content) > 50 and "TERMINATE" not in message.content:
+                if len(message.content) > 50 and "TERMINATE" not in message.content and message.type != "StopMessage":
                     all_responses.append(f"**{message.source}**: {message.content}")
             final_response = (
                 "\n\n".join(all_responses)
@@ -309,61 +320,15 @@ async def run_autogen_task(question: str) -> str:
                 else "No meaningful response generated."
             )
 
-        logger.info(
-            f"AutoGen task completed successfully. Response length: {len(final_response)}"
-        )
+        logger.info(f"AutoGen task completed successfully. Response length: {len(final_response)}")
         return final_response
 
     except Exception as e:
         logger.error(f"Error in AutoGen task: {str(e)}")
         raise HTTPException(status_code=500, detail=f"AutoGen task failed: {str(e)}")
 
-# Streaming event types and manager classes
-from enum import Enum
-from typing import Optional, Dict, Any
 
-class StreamEventType(str, Enum):
-    STARTED = "started"
-    AGENT_THINKING = "agent_thinking"
-    AGENT_RESPONSE = "agent_response"
-    TOOL_EXECUTION = "tool_execution"
-    COMPLETED = "completed"
-    ERROR = "error"
-
-class StreamEvent(BaseModel):
-    event_type: StreamEventType
-    agent_name: Optional[str] = None
-    message: str
-    timestamp: datetime
-    data: Optional[Dict[str, Any]] = None
-
-class StreamEventManager:
-    def __init__(self):
-        self.step_count = 0
-        self.total_steps = 20  # Estimated total steps
-        
-    def increment_step(self):
-        self.step_count += 1
-        
-    def get_progress_percentage(self) -> int:
-        return min(int((self.step_count / self.total_steps) * 100), 95)
-    
-    async def emit_event(
-        self,
-        event_type: StreamEventType,
-        agent_name: Optional[str] = None,
-        message: str = "",
-        data: Optional[Dict[str, Any]] = None
-    ) -> StreamEvent:
-        return StreamEvent(
-            event_type=event_type,
-            agent_name=agent_name,
-            message=message,
-            timestamp=datetime.now(),
-            data=data or {}
-        )
-
-async def run_autogen_task_streaming(event_manager: StreamEventManager, question: str) -> AsyncGenerator[str, None]:
+async def run_autogen_task_streaming(event_manager: StreamEventManager, question: str, user_id: int) -> AsyncGenerator[str, None]:
     """Run the AutoGen task with real-time message monitoring using AutoGen's streaming"""
     if team_flow is None:
         error_event = await event_manager.emit_event(
@@ -377,20 +342,106 @@ async def run_autogen_task_streaming(event_manager: StreamEventManager, question
     try:
         logger.info(f"Starting streaming AutoGen task with question: {question[:100]}...")
         
+        # Create conversation in database
+        from db import get_session
+        session = next(get_session())
+        try:
+            conversation = Conversation(
+                user_id=user_id,
+                title=question[:50] + "..." if len(question) > 50 else question,
+                created_at=datetime.now().isoformat(),
+                updated_at=datetime.now().isoformat()
+            )
+            session.add(conversation)
+            session.commit()
+            session.refresh(conversation)
+            conversation_id = conversation.id
+            
+            # Save user message
+            user_message = Message(
+                conversation_id=conversation_id,
+                role="user",
+                content=question,
+                timestamp=datetime.now().isoformat()
+            )
+            session.add(user_message)
+            session.commit()
+        finally:
+            session.close()
+        
         # Emit starting event
         event = await event_manager.emit_event(
             StreamEventType.STARTED,
             message=f"Starting analysis for: {question[:100]}...",
-            data={"question": question, "progress": 0}
+            data={"question": question, "progress": 0, "conversation_id": conversation_id}
         )
         yield f"data: {{\"event\": {event.model_dump_json()}}}\n\n"
         
         # Create the task
         task = f"Generate a comprehensive business insights report based on this request: {question}"
         
+        # Track the final response - collect all meaningful messages
+        all_agent_responses = []
+        final_report = ""
+        
         # Use AutoGen's streaming capability
         async for message in team_flow.run_stream(task=task):
-            # Process real AutoGen messages
+            # Check for StopMessage (indicates completion)
+            if isinstance(message, StopMessage):
+                # Compile final response - prioritize ReportAgent, then fallback to all responses
+                report_agent_messages = [resp for resp in all_agent_responses if resp['source'] == 'ReportAgent']
+                
+                if report_agent_messages:
+                    # Use ReportAgent's responses
+                    final_report = "\n\n".join([resp['content'] for resp in report_agent_messages])
+                elif all_agent_responses:
+                    # Fallback: use all substantial responses
+                    final_report = "\n\n".join([f"**{resp['source']}**: {resp['content']}" for resp in all_agent_responses])
+                else:
+                    final_report = "Task completed but no response was generated."
+                
+                # Clean up the final report
+                final_report = final_report.replace("TERMINATE", "").strip()
+                
+                # Save final response to database
+                if final_report:
+                    session = next(get_session())
+                    try:
+                        assistant_message = Message(
+                            conversation_id=conversation_id,
+                            role="assistant",
+                            content=final_report,
+                            timestamp=datetime.now().isoformat()
+                        )
+                        session.add(assistant_message)
+                        
+                        # Update conversation timestamp
+                        conversation = session.get(Conversation, conversation_id)
+                        if conversation:
+                            conversation.updated_at = datetime.now().isoformat()
+                        
+                        session.commit()
+                        logger.info(f"Successfully saved assistant response to database for conversation {conversation_id}")
+                        logger.info(f"!!!!!!!! Final report length: {len(final_report)} characters")
+                        logger.info(f"!!!!!!!! Final report content: {final_report[:100]}...")  # Log first 100 chars
+                    except Exception as db_error:
+                        logger.error(f"Failed to save assistant response: {str(db_error)}")
+                        session.rollback()
+                    finally:
+                        session.close()
+                else:
+                    logger.warning("Final report is empty, not saving to database")
+                
+                event = await event_manager.emit_event(
+                    StreamEventType.COMPLETED,
+                    agent_name="GraphManager",
+                    message="Workflow completed successfully",
+                    data={"progress": 100, "conversation_id": conversation_id, "final_response": final_report}
+                )
+                yield f"data: {{\"event\": {event.model_dump_json()}}}\n\n"
+                break
+                
+            # Process regular messages
             if hasattr(message, 'source') and hasattr(message, 'content'):
                 event_manager.increment_step()
                 
@@ -412,9 +463,35 @@ async def run_autogen_task_streaming(event_manager: StreamEventManager, question
                 else:
                     content_str = str(message.content)
                 
+                # Store ALL substantial agent responses (not just ReportAgent)
+                if len(content_str.strip()) > 50 and "TERMINATE" not in content_str and content_type != "function_call":
+                    clean_content = content_str.strip()
+                    # Avoid duplicates
+                    if not any(resp['content'] == clean_content for resp in all_agent_responses):
+                        all_agent_responses.append({
+                            'source': message.source,
+                            'content': clean_content
+                        })
+                        logger.info(f"Collected response from {message.source}: {len(clean_content)} chars")
+                
                 # Determine event type based on content
                 if "TERMINATE" in content_str:
                     event_type = StreamEventType.COMPLETED
+                    try:
+                        # If TERMINATE is found, we assume the task is complete
+                        final_report = content_str.replace("TERMINATE", "").strip()
+                        assistant_message = Message(
+                            conversation_id=conversation_id,
+                            role="assistant",
+                            content=final_report,
+                            timestamp=datetime.now().isoformat()
+                        )
+                        session.add(assistant_message)
+                        await session.commit()
+                    except Exception as db_error:
+                        logger.error(f"Failed to save final report: {str(db_error)}")
+                        session.rollback()
+
                 elif content_type == "function_call":
                     event_type = StreamEventType.TOOL_EXECUTION
                 elif any(keyword in content_str.lower() for keyword in ["thinking", "planning", "analyzing", "processing"]):
@@ -422,7 +499,7 @@ async def run_autogen_task_streaming(event_manager: StreamEventManager, question
                 else:
                     event_type = StreamEventType.AGENT_RESPONSE
                 
-                # Create display message truncate if too long
+                # Create display message - truncate if too long
                 display_message = content_str[:100] + "..." if len(content_str) > 100 else content_str
                 
                 event = await event_manager.emit_event(
@@ -431,19 +508,17 @@ async def run_autogen_task_streaming(event_manager: StreamEventManager, question
                     message=display_message,
                     data={
                         "progress": min(event_manager.get_progress_percentage(), 95),
-                        "content_type": content_type
+                        "content_type": content_type,
+                        "conversation_id": conversation_id,
+                        "full_content": content_str if len(content_str) < 5000 else None
                     }
                 )
+
                 yield f"data: {{\"event\": {event.model_dump_json()}}}\n\n"
         
-        # Final completion event
-        event = await event_manager.emit_event(
-            StreamEventType.COMPLETED,
-            agent_name="PlannerAgent",
-            message="Task completed successfully",
-            data={"progress": 100}
-        )
-        yield f"data: {{\"event\": {event.model_dump_json()}}}\n\n"
+        # Final check - if no responses were collected during streaming, try to get them from the completed flow
+        if not all_agent_responses:
+            logger.warning("No responses collected during streaming, this might indicate an issue with the workflow")
         
     except Exception as e:
         logger.error(f"Error in streaming AutoGen task: {str(e)}")
@@ -488,7 +563,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 app.include_router(auth_router)
+
 @app.post("/ask", response_model=APIResponse)
 async def ask_endpoint(request: QuestionRequest):
     """
@@ -515,19 +592,73 @@ async def ask_endpoint(request: QuestionRequest):
         )
 
 @app.post("/ask-stream")
-async def ask_stream_endpoint(request: QuestionRequest):
+async def ask_stream_endpoint(request: QuestionRequest, current_user: User = Depends(get_current_user)):
     """
     Streaming endpoint that provides real-time updates during agent processing
+    Requires authentication
     """
     from fastapi.responses import StreamingResponse
     
+    # Add debug logging
+    logger.info(f"Authenticated user for streaming: {current_user.email} (ID: {current_user.id})")
+    
     async def generate_stream():
         event_manager = StreamEventManager()
-        async for chunk in run_autogen_task_streaming(event_manager, request.question):
+        async for chunk in run_autogen_task_streaming(event_manager, request.question, current_user.id):
             yield chunk
     
     return StreamingResponse(generate_stream(), media_type="text/event-stream", 
                            headers={"Cache-Control": "no-cache", "Connection": "keep-alive"})
+
+@app.get("/conversations")
+async def get_conversations(current_user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    """Get all conversations for the authenticated user"""
+    conversations = session.query(Conversation).filter(
+        Conversation.user_id == current_user.id
+    ).order_by(Conversation.updated_at.desc()).all()
+    
+    return {"conversations": conversations}
+
+@app.get("/conversations/{conversation_id}")
+async def get_conversation(conversation_id: int, current_user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    """Get a specific conversation with all messages"""
+    conversation = session.query(Conversation).filter(
+        Conversation.id == conversation_id,
+        Conversation.user_id == current_user.id
+    ).first()
+    
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    messages = session.query(Message).filter(
+        Message.conversation_id == conversation_id
+    ).order_by(Message.timestamp.asc()).all()
+    
+    return {
+        "conversation": conversation,
+        "messages": messages
+    }
+
+@app.delete("/conversations/{conversation_id}")
+async def delete_conversation(conversation_id: int, current_user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    """Delete a conversation and all its messages"""
+    conversation = session.query(Conversation).filter(
+        Conversation.id == conversation_id,
+        Conversation.user_id == current_user.id
+    ).first()
+    
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    # Delete all messages first
+    session.query(Message).filter(Message.conversation_id == conversation_id).delete()
+    
+    # Delete the conversation
+    session.delete(conversation)
+    session.commit()
+    
+    return {"message": "Conversation deleted successfully"}
+
 
 @app.get("/health")
 async def health_check():
