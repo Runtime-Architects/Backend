@@ -47,11 +47,11 @@ client = None
 team_flow = None
 
 client = AzureOpenAIChatCompletionClient(
-    azure_deployment='gpt-4o',
-    model='gpt-4o',
-    api_version='2024-12-01-preview',
-    azure_endpoint='https://runtime-architects-ai-hub-dev.cognitiveservices.azure.com/',
-    api_key='KEY',
+    azure_deployment=os.getenv("AZURE_AI_DEPLOYMENT", "gpt-4o"),
+    model=os.getenv("AZURE_AI_MODEL", "gpt-4o"),
+    api_version=os.getenv("AZURE_AI_API_VERSION", "2024-12-01-preview"),
+    azure_endpoint=os.getenv("AZURE_AI_ENDPOINT"),
+    api_key=os.getenv("AZURE_AI_API_KEY"),
     max_completion_tokens=1024,
 )
 

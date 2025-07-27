@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer
 from sqlmodel import Session, select
@@ -43,9 +44,9 @@ security = HTTPBearer()
 challenges = {}
 
 # Configuration
-RP_ID = "localhost"
-RP_NAME = "Sustainable City AI App"
-ORIGIN = "http://localhost:3000"
+RP_ID = os.getenv("WEBAUTHN_RP_ID", "localhost")
+RP_NAME = os.getenv("WEBAUTHN_RP_NAME", "Sustainable Development")
+ORIGIN = os.getenv("WEBAUTHN_ORIGIN", "http://localhost:3000")
 
 @router.post("/register/begin")
 async def begin_registration(request: RegisterRequest, session: Session = Depends(get_session)):
