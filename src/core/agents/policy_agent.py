@@ -2,12 +2,16 @@ import os
 import json
 import subprocess
 import asyncio
+from dotenv import load_dotenv
 #from azureclients import azure_ai_gpt_client as client
 from autogen_agentchat.agents import AssistantAgent
 from autogen_core.tools import FunctionTool
 from autogen_agentchat.ui import Console
 from autogen_core.tools import FunctionTool
 from autogen_ext.models.openai import AzureOpenAIChatCompletionClient
+
+# Load environment variables
+load_dotenv()
 
 scopes = os.getenv("SCOPES")
 search_index_name = os.getenv("SEARCH_INDEX_NAME")
@@ -17,11 +21,11 @@ search_endpoint=  os.getenv("SEARCH_ENDPOINT")
 
 
 client = AzureOpenAIChatCompletionClient(
-    azure_deployment='gpt-4o',
-    model='gpt-4o',
-    api_version='2024-12-01-preview',
-    azure_endpoint='https://runtime-architects-ai-hub-dev.cognitiveservices.azure.com/',
-    api_key='KEY',
+    azure_deployment=os.getenv("AZURE_AI_DEPLOYMENT", "gpt-4o"),
+    model=os.getenv("AZURE_AI_MODEL", "gpt-4o"),
+    api_version=os.getenv("AZURE_AI_API_VERSION", "2024-12-01-preview"),
+    azure_endpoint=os.getenv("AZURE_AI_ENDPOINT"),
+    api_key=os.getenv("AZURE_AI_API_KEY"),
     max_completion_tokens=1024,
 )
 

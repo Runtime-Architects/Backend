@@ -203,8 +203,14 @@ async def initialize_agents():
         global client, team_flow
         
         try:
-            logger.info("Initializing Azure OpenAI client...")
-
+            logger.info("Validating Azure OpenAI configuration...")
+            
+            # Validate required environment variables
+            required_vars = ["AZURE_AI_ENDPOINT", "AZURE_AI_API_KEY"]
+            missing_vars = [var for var in required_vars if not os.getenv(var)]
+            
+            if missing_vars:
+                raise ValueError(f"Missing required environment variables: {missing_vars}")
             
             logger.info("Creating agents...")
             # Create agents
@@ -704,7 +710,8 @@ async def health_check():
                 data_files_count = 0
         
         # Check if required environment variables are set
-        api_key_configured = bool(API_KEY and API_KEY.startswith(("sk-", "Bearer")))
+        api_key = os.getenv("AZURE_AI_API_KEY")
+        api_key_configured = bool(api_key)
         
         # Determine overall status
         overall_status = "healthy"
