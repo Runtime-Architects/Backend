@@ -49,7 +49,7 @@ system_message = f"""You are an intelligent assistant with access to specialized
 TOOL USAGE RULES:
 - For CO2 intensity queries, ALWAYS use the emission_tool with these exact parameters:
   - Date format MUST be YYYY-MM-DD (e.g., '2025-06-24')
-  - Region MUST be one of:
+  - Region MUST be one of (based on the user query):
     * 'roi' for Republic of Ireland or Ireland
     * 'ni' for Northern Ireland
     * 'all' for both Republic of Ireland (Ireland) & Northern Ireland
@@ -98,7 +98,8 @@ async def main() -> None:
             agent.run_stream(
                 #task=f"Based on last month's data, which day had the highest emission in Ireland?"
                 #task=f"What were the cleanest energy times last Tuesday in Northern Ireland?"
-                task= f"What was the carbon emission for the first two weeks of this month versus the last two weeks of the last month?"
+                # task= f"What was the carbon emission for the first two weeks of this month versus the last two weeks of the last month?"
+                task= "What is the best time to use my appliances today in Ireland"
                 # task=f"Compare ROI and NI emissions for the first week of June"
             )
         )

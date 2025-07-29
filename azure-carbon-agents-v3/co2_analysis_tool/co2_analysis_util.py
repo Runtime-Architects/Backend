@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from datetime import datetime
+from datetime import datetime, date
 from typing import Dict, List
 import json
 import os
@@ -18,7 +18,7 @@ def get_emission_data(startdate: str, enddate: str, region: str) -> float:
         return process_json_data(json_data)
     
     else:
-        if(datetime.strptime(enddate, "%Y-%m-%d").date() == datetime.today()):
+        if(datetime.strptime(enddate, "%Y-%m-%d").date() == date.today()):
             call_as_cli(startdate, enddate, region, True)
         else:
             call_as_cli(startdate, enddate, region, False)
