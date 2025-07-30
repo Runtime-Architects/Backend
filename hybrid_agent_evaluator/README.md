@@ -566,4 +566,4 @@ class CustomEvaluationStrategy(BaseEvaluationStrategy):
 
 ## License
 
-This evaluation system is part of the Runtime Architects project for carbon emission optimization in Ireland's electricity grid.
+This evaluation system is part of the Runtime Architect's UCD x Microsoft Summer Mentorship project.
