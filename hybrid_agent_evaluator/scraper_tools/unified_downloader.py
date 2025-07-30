@@ -15,7 +15,7 @@ import logging
 
 # Import the updated CSV downloader
 try:
-    from csv_downloader import CSVDataDownloader
+    from scraper_tools.csv_downloader import CSVDataDownloader
     csv_downloader_available = True
 except ImportError:
     csv_downloader_available = False

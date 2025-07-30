@@ -1,7 +1,0 @@
-{
-  "max_retries": 3,
-  "timeout_seconds": 120,
-  "consistency_threshold": 0.8,
-  "telemetry_endpoint": null,
-  "output_dir": "./evaluation_results"
-}

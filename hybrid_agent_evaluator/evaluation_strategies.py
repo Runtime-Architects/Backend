@@ -1,6 +1,6 @@
 """
-Evaluation strategies for the hybrid agent evaluator
-Separates rule-based and LLM-based evaluation logic
+Evaluation strategies with ground truth support and LLM evaluation
+Contains rule-based and LLM-based evaluation approaches for agent testing
 """
 
 import re
@@ -10,6 +10,9 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 from enum import Enum
 from abc import ABC, abstractmethod
+
+# Import LLM judge
+from llm_judge import LLMJudge, GroundTruthEvaluationResult
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +49,7 @@ class RuleBasedResult:
 
 @dataclass
 class LLMResult:
-    """Result from LLM evaluation"""
+    """LLM evaluation result with ground truth comparison"""
     status: EvaluationStatus
     quality_score: float
     confidence: float
@@ -54,6 +57,20 @@ class LLMResult:
     reasoning: str
     feedback: List[str]
     improvement_suggestions: List[str]
+    
+    # Additional fields for ground truth evaluation
+    accuracy_score: float = 0.0
+    completeness_score: float = 0.0
+    clarity_score: float = 0.0
+    actionability_score: float = 0.0
+    format_score: float = 0.0
+    
+    # Ground truth specific
+    ground_truth_used: bool = False
+    specific_matches: List[str] = None
+    specific_gaps: List[str] = None
+    penalties_applied: List[str] = None
+    
     function_analysis: Optional[Dict] = None
     behavior_analysis: Optional[Dict] = None
 
@@ -69,7 +86,7 @@ class BaseEvaluationStrategy(ABC):
         pass
 
 class RuleBasedStrategy(BaseEvaluationStrategy):
-    """Rule-based evaluation strategy with improved logic"""
+    """Rule-based evaluation strategy - keeping existing implementation"""
     
     def __init__(self, config: Dict):
         super().__init__(config)
@@ -77,7 +94,7 @@ class RuleBasedStrategy(BaseEvaluationStrategy):
         self.keyword_weight = config.get("keyword_weight", 0.3)
         self.behavior_weight = config.get("behavior_weight", 0.3)
     
-    async def evaluate(self, test_case: Dict, output_text: str) -> RuleBasedResult:
+    async def evaluate(self, test_case: Dict, output_text: str, conversation_log: List = None) -> RuleBasedResult:
         """Perform rule-based evaluation with robust error handling"""
         
         # Validate inputs
@@ -106,8 +123,11 @@ class RuleBasedStrategy(BaseEvaluationStrategy):
             )
         
         try:
-            # Extract functions
-            functions_called = self._extract_functions(output_text)
+            # Extract functions - prefer conversation log if available
+            if conversation_log:
+                functions_called = self._extract_functions_from_log(conversation_log)
+            else:
+                functions_called = self._extract_functions(output_text)
             
             # Check behaviors
             behaviors_observed = self._analyze_behaviors(test_case, output_text)
@@ -123,6 +143,10 @@ class RuleBasedStrategy(BaseEvaluationStrategy):
             status, reasoning, issues = self._determine_status(test_case, functions_called, 
                                                              behaviors_observed, keyword_matches, 
                                                              total_keywords, output_text)
+            
+            logger.debug(f"Rule-based evaluation for {test_case.get('id', 'unknown')}: "
+                        f"functions={functions_called}, behaviors={behaviors_observed}, "
+                        f"keywords={keyword_matches}/{total_keywords}, score={score:.2f}")
             
             return RuleBasedResult(
                 status=status,
@@ -148,535 +172,360 @@ class RuleBasedStrategy(BaseEvaluationStrategy):
                 issues_found=[f"Evaluation failed: {str(e)}"]
             )
     
+    # ... (keep all the existing rule-based methods unchanged)
     def _extract_functions(self, output_text: str) -> List[str]:
-        """Extract function calls from output with improved detection and error handling"""
-        
+        """Extract function calls from output"""
         if not output_text or not isinstance(output_text, str):
             return []
         
         functions_called = []
         
         try:
-            # Handle AutoGen structured message outputs
-            if "ToolCallRequestEvent" in output_text and "FunctionCall" in output_text:
-                pattern = r"FunctionCall\([^)]*name='([^']+)'"
-                matches = re.findall(pattern, output_text)
-                functions_called.extend(matches)
-            
-            # Check for ToolCallExecutionEvent (successful execution)
-            if "ToolCallExecutionEvent" in output_text:
-                pattern = r"name='([^']+)'[^}]*call_id"
-                matches = re.findall(pattern, output_text)
-                functions_called.extend(matches)
-            
-            # Fallback patterns for different agent frameworks
-            function_patterns = [
-                r"calling function[:\s]+([a-zA-Z_][a-zA-Z0-9_]*)",
-                r"executing[:\s]+([a-zA-Z_][a-zA-Z0-9_]*)",
-                r"tool[:\s]+([a-zA-Z_][a-zA-Z0-9_]*)",
-                r"function[:\s]+([a-zA-Z_][a-zA-Z0-9_]*)\(",
-            ]
-            
-            for pattern in function_patterns:
-                try:
-                    matches = re.findall(pattern, output_text, re.IGNORECASE)
-                    functions_called.extend(matches)
-                except Exception as e:
-                    logger.debug(f"Error in pattern {pattern}: {e}")
-                    continue
-            
-            # Specific function name detection
-            known_functions = [
-                "get_emission_analysis", "emission_tool", "PythonCodeExecutionTool",
-                "search_tool", "calculator", "file_reader", "web_search", "data_retrieval"
+            # Look for emission tool patterns
+            emission_patterns = [
+                r"get_emission_analysis",
+                r"emission_tool",
+                r"emission analysis",
+                r"calling.*emission",
+                r"executing.*emission",
+                r"CO2 intensity",
+                r"carbon intensity", 
+                r"emission.*data",
+                r"best time.*appliances",
+                r"\d{1,2}:\d{2}.*(?:AM|PM|am|pm|hours?)",
             ]
             
             output_lower = output_text.lower()
-            for func in known_functions:
-                try:
-                    if func.lower() in output_lower and func not in functions_called:
-                        functions_called.append(func)
-                except Exception as e:
-                    logger.debug(f"Error checking function {func}: {e}")
-                    continue
+            emission_evidence_count = 0
             
+            for pattern in emission_patterns:
+                if re.search(pattern, output_lower, re.IGNORECASE):
+                    emission_evidence_count += 1
+            
+            if emission_evidence_count >= 2:
+                if "get_emission_analysis" not in functions_called:
+                    functions_called.append("get_emission_analysis")
+                    
         except Exception as e:
             logger.debug(f"Error in function extraction: {e}")
-            # Return what we have so far
         
-        return list(set(functions_called))  # Remove duplicates
+        return functions_called
+    
+    def _extract_functions_from_log(self, conversation_log: List) -> List[str]:
+        """Extract actual function calls from conversation log"""
+        functions_called = []
+        
+        try:
+            for event in conversation_log:
+                # Check for ToolCallRequestEvent or similar
+                if hasattr(event, 'content'):
+                    content = event.content
+                    if isinstance(content, list):
+                        for item in content:
+                            # Check for FunctionCall objects
+                            if hasattr(item, 'name'):
+                                functions_called.append(item.name)
+                            # Check for dict with function name
+                            elif isinstance(item, dict) and 'name' in item:
+                                functions_called.append(item['name'])
+                
+                # Check for function execution results
+                if hasattr(event, 'type') and 'ToolCall' in str(event.type):
+                    # Try to extract function name from event metadata
+                    if hasattr(event, 'metadata') and isinstance(event.metadata, dict):
+                        if 'function_name' in event.metadata:
+                            functions_called.append(event.metadata['function_name'])
+        
+        except Exception as e:
+            logger.debug(f"Error extracting functions from log: {e}")
+            # Fall back to text-based extraction
+            return self._extract_functions(str(conversation_log))
+        
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_functions = []
+        for func in functions_called:
+            if func not in seen:
+                seen.add(func)
+                unique_functions.append(func)
+        
+        logger.debug(f"Extracted functions from conversation log: {unique_functions}")
+        return unique_functions
     
     def _analyze_behaviors(self, test_case: Dict, output_text: str) -> List[str]:
-        """Analyze behaviours with enhanced detection"""
+        """Analyze behaviors in output"""
         behaviors = []
+        
         output_lower = output_text.lower()
         
-        # Extract clean agent response
-        agent_response = self._extract_agent_response(output_text)
-        agent_response_lower = agent_response.lower()
-        
-        # Behaviour indicators
         behavior_indicators = {
             "correct_function_call": [
-                "ToolCallRequestEvent", "get_emission_analysis", "retrieved", "analyzed",
-                "FunctionCall", "ToolCallExecutionEvent", "data shows", "analysis reveals"
+                "emission", "carbon", "co2", "intensity", "data", "analysis",
+                "best time", "optimal", "recommend"
             ],
             "high_quality_response": [
-                "detailed", "comprehensive", "analysis", "recommendations", 
-                "windows", "intensity", "schedule", "tips", "optimal", "best time",
-                "summary", "statistics", "insights"
+                "recommend", "suggest", "analysis", "best", "optimal", 
+                "carbon", "emission", "schedule", "time"
             ],
             "user_friendly": [
-                "best time", "recommend", "suggest", "tips", "help", "easy", 
-                "simply", "here", "emoji", "🌱", "⚡", "🔥", "windows",
-                "you should", "i recommend", "here's what"
+                "best time", "recommend", "suggest", "should", "you can",
+                "morning", "evening", "🌱", "⚡", "🔥"
             ],
             "proper_error_handling": [
-                "sorry", "unable", "limitation", "try", "please", "invalid", 
-                "cannot", "not available", "error", "failed", "apologize",
-                "unfortunately", "however"
+                "sorry", "unable", "cannot", "error", "failed", "apologize"
             ],
             "domain_expertise": [
-                "carbon", "emission", "co2", "intensity", "sustainability", 
-                "renewable", "grid", "electricity", "ireland", "roi", 
-                "northern ireland", "kwh", "megawatt", "fossil fuel"
-            ],
-            "consistent_output": [
-                # This is evaluated at the consistency analysis level
+                "carbon intensity", "co2", "emission", "renewable", "grid",
+                "peak", "off-peak", "ireland", "roi"
             ]
         }
         
         expected_behaviors = test_case.get("expected_behavior", [])
         
         for behavior in expected_behaviors:
-            if behavior == "consistent_output":
-                continue  # Handled at consistency level
-            
             if behavior in behavior_indicators:
                 indicators = behavior_indicators[behavior]
-                # Check both full output and clean response
-                full_text = output_text.lower() + " " + agent_response_lower
-                
-                # Count matches and require a threshold
-                matches = sum(1 for indicator in indicators if indicator.lower() in full_text)
-                threshold = max(1, len(indicators) // 3)  # At least 1/3 of indicators
+                matches = sum(1 for indicator in indicators if indicator in output_lower)
+                threshold = max(1, len(indicators) // 6)
                 
                 if matches >= threshold:
                     behaviors.append(behavior)
         
         return behaviors
     
-    def _extract_agent_response(self, raw_output: str) -> str:
-        """Extract the actual agent response from structured output"""
-        # Handle AutoGen TextMessage patterns
-        pattern = r"TextMessage\([^)]*content='([^']*(?:\\.[^']*)*)'"
-        matches = re.findall(pattern, raw_output, re.DOTALL)
-        
-        if matches:
-            responses = []
-            for match in matches:
-                clean_match = match.replace('\\n', '\n').replace("\\'", "'")
-                if len(clean_match) > 50:  # Substantial response
-                    responses.append(clean_match)
-            
-            if responses:
-                return max(responses, key=len)  # Return longest response
-        
-        # Fallback extraction
-        if "content='" in raw_output:
-            try:
-                start = raw_output.rfind("content='") + 9
-                end = raw_output.find("'", start)
-                if end > start:
-                    content = raw_output[start:end]
-                    if len(content) > 50:
-                        return content.replace('\\n', '\n')
-            except:
-                pass
-        
-        return str(raw_output)
-    
     def _check_keywords(self, test_case: Dict, output_text: str) -> tuple[int, int]:
-        """Check for expected keywords with fuzzy matching"""
+        """Check for expected keywords"""
         expected_keywords = test_case.get("expected_output_keywords", [])
         if not expected_keywords:
             return 0, 0
         
-        # Clean text for matching
-        clean_output = self._extract_agent_response(output_text).lower()
-        
-        matches = 0
-        for keyword in expected_keywords:
-            keyword_lower = keyword.lower()
-            
-            # Direct match
-            if keyword_lower in clean_output:
-                matches += 1
-                continue
-            
-            # Fuzzy matching for common variations
-            variations = self._generate_keyword_variations(keyword_lower)
-            if any(var in clean_output for var in variations):
-                matches += 1
+        output_lower = output_text.lower()
+        matches = sum(1 for keyword in expected_keywords if keyword.lower() in output_lower)
         
         return matches, len(expected_keywords)
-    
-    def _generate_keyword_variations(self, keyword: str) -> List[str]:
-        """Generate variations of a keyword for fuzzy matching"""
-        variations = [keyword]
-        
-        # Common plurals/singulars
-        if keyword.endswith('s'):
-            variations.append(keyword[:-1])
-        else:
-            variations.append(keyword + 's')
-        
-        # Common word replacements
-        replacements = {
-            'co2': ['carbon dioxide', 'carbon', 'emissions'],
-            'ireland': ['roi', 'republic of ireland', 'irish'],
-            'time': ['timing', 'schedule', 'when'],
-            'appliance': ['device', 'equipment'],
-            'charge': ['charging', 'load'],
-            'intensity': ['level', 'rate', 'amount']
-        }
-        
-        for original, alts in replacements.items():
-            if original in keyword:
-                for alt in alts:
-                    variations.append(keyword.replace(original, alt))
-            if keyword in alts:
-                variations.append(original)
-        
-        return variations
     
     def _calculate_score(self, test_case: Dict, functions_called: List[str], 
                         behaviors_observed: List[str], keyword_matches: int, 
                         total_keywords: int) -> float:
-        """Calculate weighted score based on multiple factors"""
-        
-        # Function score
+        """Calculate weighted score"""
         expected_functions = test_case.get("expected_functions", [])
         if expected_functions:
             function_score = len([f for f in expected_functions if f in functions_called]) / len(expected_functions)
         else:
-            # If no functions expected, check if we correctly didn't call any
             function_score = 1.0 if not functions_called else 0.8
         
-        # Behavior score
         expected_behaviors = test_case.get("expected_behavior", [])
         if expected_behaviors:
             behavior_score = len([b for b in expected_behaviors if b in behaviors_observed]) / len(expected_behaviors)
         else:
             behavior_score = 1.0
         
-        # Keyword score
         keyword_score = keyword_matches / total_keywords if total_keywords > 0 else 1.0
         
-        # Weighted combination
         total_score = (
             function_score * self.function_weight +
             behavior_score * self.behavior_weight +
             keyword_score * self.keyword_weight
         )
         
-        return min(1.0, total_score)  # Cap at 1.0
+        return min(1.0, total_score)
     
     def _determine_status(self, test_case: Dict, functions_called: List[str], 
                          behaviors_observed: List[str], keyword_matches: int, 
                          total_keywords: int, output_text: str) -> tuple[EvaluationStatus, str, List[str]]:
-        """Determine pass/fail status with improved and more balanced logic"""
-        
+        """Determine pass/fail status with consistent criteria"""
         issues = []
         reasoning_parts = []
         
         # Check for critical errors
-        critical_errors = [
-            "exception occurred", "traceback", "failed to execute",
-            "error executing", "cannot complete", "tool failed"
-        ]
-        
-        agent_response = self._extract_agent_response(output_text).lower()
-        has_critical_error = any(error in agent_response for error in critical_errors)
-        
-        if has_critical_error:
-            issues.append("Critical execution error detected")
-            reasoning_parts.append("Failed due to critical execution error")
-            return EvaluationStatus.FAIL, "; ".join(reasoning_parts), issues
-        
-        # Check minimum response length (more lenient)
-        if len(agent_response.strip()) < 10:  # Reduced from 20
+        if len(output_text.strip()) < 10:
             issues.append("Response too short")
-            reasoning_parts.append("Response length insufficient")
-            return EvaluationStatus.FAIL, "; ".join(reasoning_parts), issues
+            return EvaluationStatus.FAIL, "Response too short", issues
         
-        # Function requirements (more flexible)
+        # Function requirements - STRICT CHECK
         expected_functions = test_case.get("expected_functions", [])
-        missing_functions = []
-        
         if expected_functions:
             missing_functions = [f for f in expected_functions if f not in functions_called]
             if missing_functions:
-                issues.append(f"Missing functions: {', '.join(missing_functions)}")
-                reasoning_parts.append(f"Missing {len(missing_functions)} expected functions")
-                
-                # More lenient function checking
-                category = test_case.get("category", "")
-                if category == "irrelevant_query":
-                    # For irrelevant queries, not calling functions is often correct
-                    reasoning_parts.append("Acceptable for irrelevant query")
-                elif len(missing_functions) == len(expected_functions):
-                    # Only fail if ALL expected functions are missing
-                    return EvaluationStatus.FAIL, "; ".join(reasoning_parts), issues
-                # Otherwise, note the issue but don't automatically fail
+                if test_case.get("category") != "irrelevant_query":
+                    issues.append(f"Missing required functions: {missing_functions}")
+                    reasoning_parts.append(f"Missing functions: {', '.join(missing_functions)}")
         
-        # Behavior requirements (more flexible)
+        # Calculate overall score for threshold check
+        score = self._calculate_score(test_case, functions_called, behaviors_observed, 
+                                    keyword_matches, total_keywords)
+        
+        # Apply consistent score threshold (matching LLM evaluator)
+        score_threshold = self.config.get("rule_based_min_score", 0.6)
+        if score < score_threshold:
+            issues.append(f"Score below threshold: {score:.2f} < {score_threshold}")
+            reasoning_parts.append(f"Insufficient score: {score:.2f}")
+        
+        # Behavior requirements check
         expected_behaviors = test_case.get("expected_behavior", [])
-        missing_behaviors = []
-        
         if expected_behaviors:
             missing_behaviors = [b for b in expected_behaviors if b not in behaviors_observed]
-            if missing_behaviors:
-                issues.append(f"Missing behaviors: {', '.join(missing_behaviors)}")
-                reasoning_parts.append(f"Missing {len(missing_behaviors)} expected behaviors")
-                
-                # Only fail on critical missing behaviors
-                critical_behaviors = ["correct_function_call"]
-                critical_missing = [b for b in missing_behaviors if b in critical_behaviors]
-                
-                # Allow for proper error handling as acceptable behavior
-                if "proper_error_handling" in behaviors_observed:
-                    reasoning_parts.append("Has proper error handling")
-                elif critical_missing and len(agent_response) > 50:
-                    # Only fail if missing critical behaviors AND response is substantial
-                    if not any(phrase in agent_response for phrase in ["sorry", "cannot", "unable", "limitation"]):
-                        return EvaluationStatus.FAIL, "; ".join(reasoning_parts), issues
+            if len(missing_behaviors) > len(expected_behaviors) * 0.5:  # Missing more than half
+                issues.append(f"Missing critical behaviors: {missing_behaviors}")
+                reasoning_parts.append("Insufficient behavioral indicators")
         
-        # Keyword requirements (more lenient threshold)
-        keyword_issues = []
+        # Keyword coverage check
         if total_keywords > 0:
-            keyword_ratio = keyword_matches / total_keywords
-            if keyword_ratio < 0.3:  # Reduced from 0.4
-                keyword_issues.append(f"Low keyword match: {keyword_matches}/{total_keywords}")
-                reasoning_parts.append(f"Only {keyword_ratio:.1%} keyword match")
-                
-                # Don't fail purely on keywords unless very low
-                if keyword_ratio < 0.1 and len(agent_response) < 100:
-                    issues.extend(keyword_issues)
-                    return EvaluationStatus.FAIL, "; ".join(reasoning_parts), issues
+            keyword_coverage = keyword_matches / total_keywords
+            if keyword_coverage < 0.4:  # Less than 40% keyword coverage
+                issues.append(f"Low keyword coverage: {keyword_coverage:.1%}")
+                reasoning_parts.append("Insufficient keyword matches")
         
-        # Overall assessment
-        total_issues = len(issues)
-        
-        if total_issues == 0:
-            reasoning_parts.append("All criteria met")
-            return EvaluationStatus.PASS, "; ".join(reasoning_parts), issues
-        elif total_issues == 1 and any("keyword" in issue.lower() for issue in issues):
-            reasoning_parts.append("Minor keyword issues only")
-            return EvaluationStatus.PASS, "; ".join(reasoning_parts), issues
-        elif total_issues <= 2 and len(agent_response) > 100:
-            # If response is substantial, be more lenient
-            reasoning_parts.append("Minor issues but substantial response")
-            return EvaluationStatus.PASS, "; ".join(reasoning_parts), issues
+        # Determine final status
+        if len(issues) == 0:
+            return EvaluationStatus.PASS, "All criteria met", issues
+        elif len(issues) == 1 and score >= score_threshold * 0.9:  # Allow ONE minor issue if score is close
+            return EvaluationStatus.PASS, "Minor issues but acceptable", issues
         else:
-            return EvaluationStatus.FAIL, "; ".join(reasoning_parts), issues
+            return EvaluationStatus.FAIL, "; ".join(reasoning_parts) or "Multiple criteria not met", issues
 
 class LLMJudgeStrategy(BaseEvaluationStrategy):
-    """LLM-based evaluation strategy"""
+    """LLM-based evaluation strategy with ground truth support"""
     
     def __init__(self, llm_judge, config: Dict):
         super().__init__(config)
         self.llm_judge = llm_judge
         self.quality_threshold = config.get("llm_quality_threshold", 0.7)
         self.confidence_threshold = config.get("llm_confidence_threshold", 0.6)
+        
+        # Ensure we have a valid LLM judge
+        if not self.llm_judge:
+            logger.error("No LLM judge provided to LLMJudgeStrategy")
     
     async def evaluate(self, test_case: Dict, output_text: str, 
-                      rule_result: Optional[RuleBasedResult] = None) -> LLMResult:
-        """Perform LLM-based evaluation with robust error handling"""
+                      rule_result: Optional[RuleBasedResult] = None,
+                      compressed_co2_data: Dict = None) -> LLMResult:
+        """Perform LLM-based evaluation with ground truth comparison"""
         
         # Validate inputs
         if not test_case or not isinstance(test_case, dict):
-            return LLMResult(
-                status=EvaluationStatus.ERROR,
-                quality_score=0.0,
-                confidence=0.0,
-                semantic_similarity=0.0,
-                reasoning="Invalid test case provided",
-                feedback=[],
-                improvement_suggestions=[]
-            )
+            logger.error("Invalid test case provided to LLM evaluation")
+            return self._create_error_result("Invalid test case provided")
         
         if not output_text or not isinstance(output_text, str):
-            return LLMResult(
-                status=EvaluationStatus.ERROR,
-                quality_score=0.0,
-                confidence=0.0,
-                semantic_similarity=0.0,
-                reasoning="Empty or invalid output text",
-                feedback=[],
-                improvement_suggestions=[]
-            )
+            logger.error("Invalid output text provided to LLM evaluation")
+            return self._create_error_result("Empty or invalid output text")
+        
+        # Check if LLM judge is available
+        if not self.llm_judge:
+            logger.error("LLM judge not available")
+            return self._create_error_result("LLM judge not available")
+        
+        # Check for ground truth
+        ground_truth = test_case.get("ground_truth")
+        if not ground_truth:
+            error_msg = f"No ground truth available for test case {test_case.get('id', 'unknown')}. Cannot perform LLM evaluation without reference data."
+            logger.error(error_msg)
+            return self._create_error_result(error_msg)
         
         try:
-            # Get clean agent response
-            agent_response = self._extract_agent_response(output_text)
+            logger.info(f"Starting LLM evaluation with ground truth for {test_case.get('id', 'unknown')}")
             
-            if not agent_response or len(agent_response.strip()) < 10:
-                return LLMResult(
-                    status=EvaluationStatus.FAIL,
-                    quality_score=0.0,
-                    confidence=0.8,
-                    semantic_similarity=0.0,
-                    reasoning="Response too short or empty",
-                    feedback=["Response is too short to evaluate"],
-                    improvement_suggestions=["Provide more detailed responses"]
-                )
-            
-            # Semantic similarity analysis (if multiple outputs available)
-            semantic_similarity = 0.0
-            
-            # Function analysis
-            function_analysis = None
-            if self.config.get("use_function_analysis", True):
-                try:
-                    function_analysis = await self.llm_judge.analyze_function_calls(
-                        agent_response,
-                        test_case.get("expected_functions", []),
-                        test_case["query"],
-                        test_case.get("available_functions", [])
-                    )
-                except Exception as e:
-                    logger.warning(f"Function analysis failed: {e}")
-            
-            # Behavior analysis
-            behavior_analysis = None
-            if self.config.get("use_behavior_analysis", True):
-                try:
-                    behavior_analysis = await self.llm_judge.analyze_behavior(
-                        agent_response,
-                        test_case["query"],
-                        test_case.get("expected_behavior", []),
-                        test_case.get("domain_context", "")
-                    )
-                except Exception as e:
-                    logger.warning(f"Behavior analysis failed: {e}")
-            
-            # Overall quality evaluation
-            try:
-                quality_result = await self.llm_judge.evaluate_semantic_similarity(
-                    [agent_response],
-                    test_case.get("expected_output_keywords", []),
-                    test_case.get("domain_context", "")
-                )
-            except Exception as e:
-                logger.warning(f"Quality evaluation failed: {e}")
-                quality_result = type('obj', (object,), {
-                    'quality_score': 0.5,
-                    'confidence': 0.3,
-                    'reasoning': f"LLM evaluation failed: {str(e)}",
-                    'improvement_suggestions': []
-                })()
-            
-            # Determine status based on LLM analysis
-            status = self._determine_llm_status(function_analysis, behavior_analysis, quality_result)
-            
-            # Combine feedback
-            feedback = []
-            if function_analysis and hasattr(function_analysis, 'reasoning'):
-                feedback.append(f"Function analysis: {function_analysis.reasoning}")
-            if behavior_analysis and hasattr(behavior_analysis, 'specific_feedback'):
-                feedback.extend(behavior_analysis.specific_feedback)
-            
-            improvement_suggestions = []
-            if hasattr(quality_result, 'improvement_suggestions') and quality_result.improvement_suggestions:
-                improvement_suggestions.extend(quality_result.improvement_suggestions)
-            
-            return LLMResult(
-                status=status,
-                quality_score=getattr(quality_result, 'quality_score', 0.0),
-                confidence=getattr(quality_result, 'confidence', 0.0),
-                semantic_similarity=semantic_similarity,
-                reasoning=getattr(quality_result, 'reasoning', 'No reasoning available'),
-                feedback=feedback,
-                improvement_suggestions=improvement_suggestions,
-                function_analysis=function_analysis.__dict__ if function_analysis else None,
-                behavior_analysis=behavior_analysis.__dict__ if behavior_analysis else None
+            # Use LLM judge with ground truth
+            gt_result = await self.llm_judge.evaluate_with_ground_truth(
+                agent_output=output_text,
+                ground_truth=ground_truth,
+                test_case=test_case,
+                compressed_co2_data=compressed_co2_data
             )
+            
+            # Convert to LLMResult format
+            llm_result = self._convert_ground_truth_result(gt_result, test_case)
+            
+            logger.info(f"LLM evaluation completed for {test_case.get('id', 'unknown')}: "
+                       f"{llm_result.status.value} (score: {llm_result.quality_score:.2f})")
+            
+            return llm_result
             
         except Exception as e:
-            logger.error(f"LLM evaluation failed: {e}")
-            return LLMResult(
-                status=EvaluationStatus.ERROR,
-                quality_score=0.0,
-                confidence=0.0,
-                semantic_similarity=0.0,
-                reasoning=f"LLM evaluation failed: {str(e)}",
-                feedback=[],
-                improvement_suggestions=[]
-            )
+            logger.error(f"LLM evaluation failed for {test_case.get('id', 'unknown')}: {e}")
+            return self._create_error_result(f"LLM evaluation failed: {str(e)}")
     
-    def _extract_agent_response(self, raw_output: str) -> str:
-        """Extract agent response - same logic as rule-based strategy"""
-        pattern = r"TextMessage\([^)]*content='([^']*(?:\\.[^']*)*)'"
-        matches = re.findall(pattern, raw_output, re.DOTALL)
+    def _convert_ground_truth_result(self, gt_result: GroundTruthEvaluationResult, 
+                                   test_case: Dict) -> LLMResult:
+        """Convert ground truth result to LLM result format"""
         
-        if matches:
-            responses = []
-            for match in matches:
-                clean_match = match.replace('\\n', '\n').replace("\\'", "'")
-                if len(clean_match) > 50:
-                    responses.append(clean_match)
+        # Determine status based on overall score
+        status = self._determine_status_from_score(gt_result.overall_score, gt_result.confidence)
+        
+        # Create comprehensive feedback
+        feedback = [gt_result.reasoning]
+        if gt_result.specific_matches:
+            feedback.append(f"Matches found: {', '.join(gt_result.specific_matches[:3])}")
+        if gt_result.specific_gaps:
+            feedback.append(f"Missing elements: {', '.join(gt_result.specific_gaps[:3])}")
+        if gt_result.penalties_applied:
+            feedback.extend(gt_result.penalties_applied[:2])
+        
+        return LLMResult(
+            status=status,
+            quality_score=gt_result.overall_score,
+            confidence=gt_result.confidence,
+            semantic_similarity=gt_result.similarity_score,
+            reasoning=gt_result.reasoning,
+            feedback=feedback,
+            improvement_suggestions=gt_result.improvement_suggestions,
             
-            if responses:
-                return max(responses, key=len)
-        
-        # Fallback
-        if "content='" in raw_output:
-            try:
-                start = raw_output.rfind("content='") + 9
-                end = raw_output.find("'", start)
-                if end > start:
-                    content = raw_output[start:end]
-                    if len(content) > 50:
-                        return content.replace('\\n', '\n')
-            except:
-                pass
-        
-        return str(raw_output)
+            # Detailed scores
+            accuracy_score=gt_result.accuracy_score,
+            completeness_score=gt_result.completeness_score,
+            clarity_score=gt_result.clarity_score,
+            actionability_score=gt_result.actionability_score,
+            format_score=gt_result.format_score,
+            
+            # Ground truth specific
+            ground_truth_used=True,
+            specific_matches=gt_result.specific_matches,
+            specific_gaps=gt_result.specific_gaps,
+            penalties_applied=gt_result.penalties_applied
+        )
     
-    def _determine_llm_status(self, function_analysis, behavior_analysis, quality_result) -> EvaluationStatus:
-        """Determine status based on LLM analysis"""
+    def _determine_status_from_score(self, overall_score: float, confidence: float) -> EvaluationStatus:
+        """Determine evaluation status from scores with calibrated thresholds"""
         
-        # High confidence override
-        if quality_result.confidence >= 0.9 and quality_result.quality_score >= 0.8:
+        # Primary threshold check (matching rule-based at 0.6)
+        if overall_score >= self.quality_threshold:
             return EvaluationStatus.PASS
         
-        # Quality-based determination
-        if quality_result.quality_score >= self.quality_threshold:
+        # Close to threshold with good confidence - allow some flexibility
+        elif overall_score >= self.quality_threshold * 0.9 and confidence >= self.confidence_threshold:
+            # Score is within 10% of threshold and confidence is good
             return EvaluationStatus.PASS
-        elif quality_result.quality_score < 0.3:
+        
+        # Medium quality with very high confidence - semantic equivalence cases
+        elif overall_score >= 0.5 and confidence >= 0.85:
+            return EvaluationStatus.PASS
+        
+        # Clear fail cases
+        elif overall_score < 0.4:
             return EvaluationStatus.FAIL
         
-        # Function analysis consideration
-        if function_analysis and hasattr(function_analysis, 'missing_functions'):
-            if function_analysis.missing_functions and len(function_analysis.missing_functions) > 0:
-                # Check confidence - if LLM is confident functions are missing, lean toward fail
-                avg_confidence = 0.0
-                if hasattr(function_analysis, 'confidence_scores') and function_analysis.confidence_scores:
-                    avg_confidence = sum(function_analysis.confidence_scores.values()) / len(function_analysis.confidence_scores)
-                
-                if avg_confidence >= 0.8:
-                    return EvaluationStatus.FAIL
-        
-        # Behavior analysis consideration
-        if behavior_analysis and hasattr(behavior_analysis, 'quality_metrics'):
-            if behavior_analysis.quality_metrics:
-                avg_behavior_quality = sum(behavior_analysis.quality_metrics.values()) / len(behavior_analysis.quality_metrics)
-                if avg_behavior_quality >= 0.7:
-                    return EvaluationStatus.PASS
-        
-        # Default based on overall confidence and quality
-        if quality_result.confidence >= self.confidence_threshold and quality_result.quality_score >= 0.5:
-            return EvaluationStatus.PASS
+        # Borderline cases (0.4-0.6) - use confidence as tiebreaker
         else:
-            return EvaluationStatus.FAIL
+            # If confidence is high enough, give benefit of doubt
+            if confidence >= 0.7 and overall_score >= 0.45:
+                return EvaluationStatus.PASS
+            else:
+                return EvaluationStatus.FAIL
+    
+    # Removed _fallback_evaluation method - no more fake evaluations
+    
+    def _create_error_result(self, error_message: str) -> LLMResult:
+        """Create error result"""
+        return LLMResult(
+            status=EvaluationStatus.ERROR,
+            quality_score=0.0,
+            confidence=0.0,
+            semantic_similarity=0.0,
+            reasoning=error_message,
+            feedback=[f"Evaluation error: {error_message}"],
+            improvement_suggestions=["Check LLM service configuration"],
+            ground_truth_used=False
+        )
+
+# Note: LLMJudgeStrategy is the main class name
