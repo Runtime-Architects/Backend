@@ -804,10 +804,13 @@ async def health_check():
 @app.get("/images/{image_name}")
 async def get_image(image_name: str):
     """Get an image by name"""
-    image_path = f"plots/{image_name}"
+    base_dir = os.path.abspath("plots")
+    image_path = os.path.normpath(os.path.join(base_dir, image_name))
+    if not image_path.startswith(base_dir):
+        raise HTTPException(status_code=400, detail="Invalid image path")
     if not os.path.exists(image_path):
         raise HTTPException(status_code=404, detail="Image not found")
-    return FileResponse(image_path)
+    return FileResponse(image_path, media_type="image/png", filename=image_name)
 
 @app.get("/")
 async def root():
