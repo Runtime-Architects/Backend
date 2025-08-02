@@ -1,16 +1,18 @@
-opentelemetry-api
-opentelemetry-sdk
-opentelemetry-exporter-otlp
-pandas
-numpy
-openai
-# asyncio
-# asyncio-timeout
-python-dotenv
-pathlib
-dataclasses
-statistics
-autogen-agentchat
-autogen-ext
-autogen-core
-tiktoken
+# AutoGen framework
+autogen-agentchat==0.6.2
+autogen-core==0.6.2
+autogen-ext==0.6.2
+
+# Data analysis and visualization
+pandas==2.2.3
+numpy==1.26.3
+matplotlib==3.9.2
+
+# System and web tools
+psutil==6.1.0
+requests==2.32.4
+selenium==4.33.0
+webdriver-manager==4.0.2
+
+# Environment and utilities
+python-dotenv==1.0.1
