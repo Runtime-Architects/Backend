@@ -1,5 +1,5 @@
 {
-  "evaluation_mode": "hybrid",
+  "evaluation_mode": "llm_only",
   "llm_evaluation_enabled": true,
   "llm_on_failures_only": false,
   "max_retries": 3,

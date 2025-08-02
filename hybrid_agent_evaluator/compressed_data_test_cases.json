@@ -1,10 +1,10 @@
 {
   "metadata": {
     "evaluation_framework": "compressed_data_consistency",
-    "created_date": "2025-08-02T16:39:37.783446",
+    "created_date": "2025-08-02T16:58:22.055170",
     "co2_data_source": "compressed_eirgrid_data",
     "co2_data_file": "compressed_data.json",
-    "co2_data_date": "2025-07-30",
+    "co2_data_date": "2025-08-02",
     "co2_data_region": "all",
     "compressed_data_points": 46,
     "compression_interval": 30,
@@ -42,7 +42,7 @@
     "daily_average": 221,
     "data_source": "compressed_eirgrid_data",
     "data_points": 46,
-    "analysis_timestamp": "2025-08-02T16:39:37.783446"
+    "analysis_timestamp": "2025-08-02T16:58:22.055170"
   },
   "test_cases": [
     {

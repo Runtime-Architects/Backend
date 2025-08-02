@@ -829,6 +829,9 @@ I can provide carbon intensity data for any valid date within the available rang
         """Save test cases generated from compressed CO2 data"""
         test_cases = self.generate_dynamic_test_cases()
         
+        # Get the query date from the test cases (they should all have the same date)
+        query_date = test_cases[0]['query_date'] if test_cases else datetime.datetime.now().strftime('%Y-%m-%d')
+        
         # Create the full test cases structure
         test_cases_data = {
             "metadata": {
@@ -836,7 +839,7 @@ I can provide carbon intensity data for any valid date within the available rang
                 "created_date": datetime.datetime.now().isoformat(),
                 "co2_data_source": "compressed_eirgrid_data",
                 "co2_data_file": getattr(self, 'compressed_data_file', 'compressed_data.json'),
-                "co2_data_date": self.carbon_data.get('date', datetime.datetime.now().strftime('%Y-%m-%d')),
+                "co2_data_date": query_date,
                 "co2_data_region": self.carbon_data.get('region', 'all'),
                 "compressed_data_points": len(self.data_points),
                 "compression_interval": self.carbon_data.get('interval_minutes', 30),
