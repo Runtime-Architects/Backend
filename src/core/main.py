@@ -1,6 +1,8 @@
 import time
-from datetime import datetime
+import glob
+from datetime import datetime, timedelta
 import asyncio
+import re
 import os
 import logging
 from contextlib import asynccontextmanager
@@ -291,8 +293,8 @@ async def run_autogen_task_streaming(event_manager: StreamEventManager, question
         return
         
     try:
-        logger.info(f"Starting streaming AutoGen task with question: {question[:100]}...")
-        
+        logger.info(f"Starting analysis for: {question[:100]}...")
+
         # Handle conversation creation or retrieval
         from db import get_session
         session = next(get_session())
@@ -339,6 +341,7 @@ async def run_autogen_task_streaming(event_manager: StreamEventManager, question
         # Emit starting event
         event = await event_manager.emit_event(
             StreamEventType.STARTED,
+            agent_name="user",
             message=f"Starting analysis for: {question[:100]}...",
             data={"question": question, "progress": 0, "conversation_id": conversation_id}
         )
@@ -494,6 +497,46 @@ async def run_autogen_task_streaming(event_manager: StreamEventManager, question
                 # Create display message - truncate if too long
                 display_message = content_str[:100] + "..." if len(content_str) > 100 else content_str
                 
+                agent_responses = {
+                    "CarbonAgent": "",
+                    "PolicyAgent": "", 
+                    "DataAnalysisAgent": ""
+                }
+
+                if message.source in agent_responses and len(content_str.strip()) > 50 and content_type != "function_call":
+                    agent_responses[message.source] = content_str
+
+                # Generate supportive content based on agent and context
+                supportive_content = ""
+                
+                if message.source == "CarbonAgent":
+                    # Use the stored CarbonAgent response
+                    if agent_responses["CarbonAgent"]:
+                        max_length = 5000
+                        carbon_response = agent_responses["CarbonAgent"]
+                        if len(carbon_response) > max_length:
+                            supportive_content = carbon_response[:max_length] + "..."
+                        else:
+                            supportive_content = carbon_response
+                    else:
+                        supportive_content = "Carbon analysis in progress"
+                        
+                    # Add plot information if available
+                    import re
+                    plot_pattern = r'(co2plot_[a-zA-Z0-9_\-]+\.png|carbon_[a-zA-Z0-9_\-]+\.png|plot_[a-zA-Z0-9_\-]+\.png)'
+                    plots_found = re.findall(plot_pattern, content_str)
+                    
+                    if plots_found:
+                        if supportive_content and supportive_content != "Carbon analysis in progress":
+                            supportive_content += f"\n\nPlots: {', '.join(plots_found)}"
+                        else:
+                            supportive_content = f"Generated plots: {', '.join(plots_found)}"
+                
+                elif message.source == "PolicyAgent":
+                    policy_response = agent_responses["PolicyAgent"]
+                    if policy_response:
+                        supportive_content = policy_response
+
                 event = await event_manager.emit_event(
                     event_type,
                     agent_name=message.source,
@@ -502,7 +545,8 @@ async def run_autogen_task_streaming(event_manager: StreamEventManager, question
                         "progress": min(event_manager.get_progress_percentage(), 95),
                         "content_type": content_type,
                         "conversation_id": conversation_id,
-                        "full_content": content_str if len(content_str) < 5000 else None
+                        "full_content": content_str if len(content_str) < 5000 else None,
+                        "context": supportive_content if len(supportive_content) < 5000 else None,
                     }
                 )
 
@@ -557,31 +601,6 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
-
-@app.post("/ask", response_model=APIResponse)
-async def ask_endpoint(request: QuestionRequest):
-    """
-    Main endpoint to process questions and return business insights
-    """
-    try:
-        logger.info(f"Received question: {request.question[:100]}...")
-
-        # Run the AutoGen task
-        response_content = await run_autogen_task(request.question)
-
-        # Return the response in the expected format
-        return APIResponse(
-            status="Success",
-            message=MessageResponse(role="assistant", content=response_content),
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Unexpected error in ask endpoint: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"An unexpected error occurred: {str(e)}"
-        )
 
 @app.post("/ask-stream")
 async def ask_stream_endpoint(request: QuestionRequest, current_user: User = Depends(get_current_user)):
@@ -781,6 +800,17 @@ async def health_check():
             "status": "unhealthy",
             "message": f"AutoGen Business Insights API encountered an error: {str(e)}"
         }
+    
+@app.get("/images/{image_name}")
+async def get_image(image_name: str):
+    """Get an image by name"""
+    base_dir = os.path.abspath("plots")
+    image_path = os.path.normpath(os.path.join(base_dir, image_name))
+    if not image_path.startswith(base_dir):
+        raise HTTPException(status_code=400, detail="Invalid image path")
+    if not os.path.exists(image_path):
+        raise HTTPException(status_code=404, detail="Image not found")
+    return FileResponse(image_path, media_type="image/png", filename=image_name)
 
 @app.get("/")
 async def root():
