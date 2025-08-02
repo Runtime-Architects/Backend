@@ -1,0 +1,42 @@
+app:
+  name: SustainableCityBackend
+  environment: development
+  version: 1.0.0
+  logging_level: info
+
+paths:
+  data_dir: ./data
+  logs_dir: ./logs
+
+agents:
+  - name: DataAnalysisAgent
+    model_client: ${model_client}
+    system_message: ${DATA_ANALYSIS_AGENT_SYSMSG}
+
+  - name: CarbonAgent
+    model_client: ${model_client}
+    tools: [emission_tool]
+    system_message: ${CARBON_AGENT_SYSMSG}
+    reflect_on_tool_use: true
+    max_tool_iterations: 5
+
+  - name: PlannerAgent
+    model_client: ${model_client}
+    system_message: ${PLANNER_AGENT_SYSMSG}
+
+  - name: PolicyAgent
+    model_client: ${model_client}
+    tools: [policy_search_tool]
+    system_message: ${POLICY_AGENT_SYSMSG}
+    reflect_on_tool_use: true
+    max_tool_iterations: 5
+
+  - name: ReportAgent
+    model_client: ${model_client}
+    system_message: ${REPORT_AGENT_SYSMSG}
+
+azure_search:
+  top: 5
+
+
+
