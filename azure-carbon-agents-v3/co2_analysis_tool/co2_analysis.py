@@ -3,10 +3,6 @@ from co2_analysis_tool.co2_analysis_util import (get_emission_data, get_view, ca
                                                  classify_intensity, format_time_range)
 from co2_analysis_tool.co2_plot import (plot_day_intensity, plot_weekly_intensity,
                       plot_monthly_intensity)
-import json
-
-from scraper_tools.run_eirgrid_downloader import main as eirgrid_main
-
 
 class CO2IntensityAnalyzer:
     """
@@ -158,36 +154,3 @@ class CO2IntensityAnalyzer:
             plot_weekly_intensity(self.data, self.start_date_str, self.end_date_str, self.region, work_dir)
         elif self.view == 'month':
             plot_monthly_intensity(self.data, self.start_date_str, self.end_date_str, self.region, work_dir)
-
-
-
-if __name__ == '__main__':
-
-    # def call_as_cli():
-    # # Simulate command line arguments
-    #     sys.argv = [
-    #         'run_eirgrid_downloader.py',
-    #         '--areas', 'co2_intensity',
-    #         '--start', '2025-07-20',
-    #         '--end', '2025-07-20',
-    #         '--region', 'all',
-    #         '--forecast',
-    #         '--output-dir', './data'
-    #     ]
-    
-    #     # Run the main function
-    #     return eirgrid_main()
-    
-    # call_as_cli()
-
-    try:
-        with open(f'C:\\Users\\nithy\\NK\\UCD\\Sem3\\SustainbleCityAI\\Backend\\azure-carbon-agents-v2\\scraper_tools\\data\\co2_intensity\\co2_intensity_all_2025-07-01_2025-07-14.json', 'r') as file:
-            scraper_data = json.load(file)
-    except:
-        raise Exception
-    
-
-    analyzer = CO2IntensityAnalyzer("2025-07-01", "2025-07-14", "all")
-    intensity_periods = analyzer.get_analysis_by_view()
-
-    print(intensity_periods)
