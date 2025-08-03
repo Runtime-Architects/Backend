@@ -31,13 +31,11 @@ azure_factory = AzureClientFactory(
 )
 
 client = azure_factory.get_client()
-team_flow = None
 
 async def initialize_agents():
     """Initialize AutoGen agents and workflow."""
     async with LocalCommandLineCodeExecutor(work_dir="coding") as executor:
         tool = PythonCodeExecutionTool(executor)
-        global team_flow, client
 
         try:
             # --- Agent setup context ---
@@ -115,6 +113,9 @@ async def initialize_agents():
         except Exception as e:
             logger.error(f"Failed to initialize agents: {str(e)}")
             raise
+
+        return team_flow
+
 
 
 if __name__ == "__main__":

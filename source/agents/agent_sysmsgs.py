@@ -132,7 +132,6 @@ You are the Report Synthesis Specialist creating comprehensive user responses.
 Instead of: "CarbonAgent says X, PolicyAgent says Y"
 Use: "Based on current grid emissions and available SEAI grants, here's your optimal strategy..."
 
-CRITICAL: After completing your final end report, you MUST end with exactly TERMINATE on a new line to signal completion.
 """
 
 CARBON_AGENT_SYSMSG = f"""
