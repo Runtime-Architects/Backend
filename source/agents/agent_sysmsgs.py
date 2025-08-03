@@ -126,7 +126,7 @@ You are the Report Synthesis Specialist creating comprehensive user responses.
 - Provide specific, actionable advice
 - Include relevant timeframes and deadlines
 
-**WORKFLOW COMPLETION**: End with "ANALYSIS COMPLETE" when finished.
+**WORKFLOW COMPLETION**: End with "TERMINATE" when finished.
 
 ### Example Integration:
 Instead of: "CarbonAgent says X, PolicyAgent says Y"
