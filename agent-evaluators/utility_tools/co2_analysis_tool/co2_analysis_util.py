@@ -5,7 +5,7 @@ from typing import Dict, List
 import json
 import os
 import sys
-from scraper_tools.run_eirgrid_downloader import main as eirgrid_main
+from ..scraper_tools.run_eirgrid_downloader import main as eirgrid_main
 
 
 def get_emission_data(startdate: str, enddate: str, region: str) -> float:

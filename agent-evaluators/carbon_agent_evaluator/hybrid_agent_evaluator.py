@@ -825,7 +825,9 @@ class HybridAgentEvaluator:
         try:
             import os
             from dotenv import load_dotenv
-            load_dotenv()
+            # Load .env from Backend root directory
+            env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), '.env')
+            load_dotenv(env_path)
             
             # Check for required environment variables
             required_vars = ["AZURE_AI_DEPLOYMENT", "AZURE_AI_ENDPOINT", "AZURE_AI_API_KEY", "AZURE_AI_API_VERSION", "AZURE_AI_MODEL"]

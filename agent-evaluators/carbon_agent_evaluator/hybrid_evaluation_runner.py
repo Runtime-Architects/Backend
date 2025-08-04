@@ -8,6 +8,9 @@ import asyncio
 import json
 import sys
 import os
+
+# Add parent directory to path to access utility_tools
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import subprocess
 from pathlib import Path
 from typing import Optional
@@ -50,7 +53,9 @@ class StreamlinedCarbonAgentEvaluationRunner:
     """
     
     def __init__(self):
-        load_dotenv()
+        # Load .env from Backend root directory
+        env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), '.env')
+        load_dotenv(env_path)
         self.setup_test_environment()
         self.evaluator = None
         self.compressed_data_file = None
@@ -87,6 +92,7 @@ class StreamlinedCarbonAgentEvaluationRunner:
                 "auto_run_scraper": True,
                 "use_compressed_data": True,
                 "relaxed_validation": True,
+                "enable_behavioral_assessment": True,
                 
                 # LLM settings
                 "llm_quality_threshold": 0.5,
@@ -131,7 +137,7 @@ class StreamlinedCarbonAgentEvaluationRunner:
         print("SUCCESS: Environment variables validated")
         
         # Check scraper availability
-        scraper_path = Path("scraper_tools/run_eirgrid_downloader.py")
+        scraper_path = Path("../utility_tools/scraper_tools/run_eirgrid_downloader.py")
         if not scraper_path.exists():
             print(f"ERROR: EirGrid scraper not found: {scraper_path}")
             return False
@@ -175,7 +181,7 @@ class StreamlinedCarbonAgentEvaluationRunner:
         
         try:
             # Import and run the scraper
-            from scraper_tools.run_eirgrid_downloader import main as eirgrid_main
+            from utility_tools.scraper_tools.run_eirgrid_downloader import main as eirgrid_main
             
             # Set up arguments
             original_argv = sys.argv.copy()
@@ -411,7 +417,7 @@ class StreamlinedCarbonAgentEvaluationRunner:
                 
                 # Run the scraper for the requested dates
                 try:
-                    from scraper_tools.run_eirgrid_downloader import main as eirgrid_main
+                    from utility_tools.scraper_tools.run_eirgrid_downloader import main as eirgrid_main
                     
                     original_argv = sys.argv.copy()
                     try:

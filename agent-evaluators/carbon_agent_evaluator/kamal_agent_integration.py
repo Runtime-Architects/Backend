@@ -17,7 +17,9 @@ from dotenv import load_dotenv
 # Setup logger
 logger = logging.getLogger(__name__)
 
-load_dotenv()
+# Load .env from Backend root directory
+env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), '.env')
+load_dotenv(env_path)
 
 class KamalAgentIntegrator:
     """

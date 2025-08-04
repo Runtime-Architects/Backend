@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-from co2_analysis_tool.co2_analysis_util import (get_days, str_to_date, find_region_str)
+from .co2_analysis_util import (get_days, str_to_date, find_region_str)
 
 
 def plot_day_intensity(df_, start_date_str, end_date_str, region, workdir):

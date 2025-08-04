@@ -1,7 +1,7 @@
 from pathlib import Path
-from co2_analysis_tool.co2_analysis_util import (get_emission_data, get_view, calculate_thresholds,
+from .co2_analysis_util import (get_emission_data, get_view, calculate_thresholds,
                                                  classify_intensity, format_time_range)
-from co2_analysis_tool.co2_plot import (plot_day_intensity, plot_weekly_intensity,
+from .co2_plot import (plot_day_intensity, plot_weekly_intensity,
                       plot_monthly_intensity)
 
 class CO2IntensityAnalyzer:

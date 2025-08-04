@@ -1,6 +1,8 @@
-# azurecarbonagent.py
 import os
 import sys
+
+# Add parent directory to path to access utility_tools
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from autogen_agentchat.agents import AssistantAgent
 from azure_client_factory import create_azure_client
 from autogen_ext.code_executors.local import LocalCommandLineCodeExecutor
@@ -9,14 +11,16 @@ from autogen_core.tools import FunctionTool
 from autogen_agentchat.ui import Console
 from datetime import datetime
 import asyncio
-from co2_analysis_tool.co2_analysis import CO2IntensityAnalyzer
+from utility_tools.co2_analysis_tool.co2_analysis import CO2IntensityAnalyzer
 from co2_statistics_utils import calculate_co2_statistics
-from scraper_tools.run_eirgrid_downloader import main as eirgrid_main
+from utility_tools.scraper_tools.run_eirgrid_downloader import main as eirgrid_main
 import json
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load .env from Backend root directory (two levels up from current file)
+env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), '.env')
+load_dotenv(env_path)
 
 client = create_azure_client(max_completion_tokens=1024)
 

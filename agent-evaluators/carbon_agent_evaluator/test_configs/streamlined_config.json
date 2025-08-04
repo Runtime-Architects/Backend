@@ -1,5 +1,5 @@
 {
-  "evaluation_mode": "llm_only",
+  "evaluation_mode": "hybrid",
   "llm_evaluation_enabled": true,
   "llm_on_failures_only": false,
   "max_retries": 3,
@@ -13,6 +13,7 @@
   "auto_run_scraper": true,
   "query_based_dates": true,
   "relaxed_validation": true,
+  "enable_behavioral_assessment": true,
   "llm_quality_threshold": 0.6,
   "llm_confidence_threshold": 0.5,
   "llm_override_enabled": true,

@@ -7,8 +7,9 @@ from typing import Optional
 from autogen_ext.models.openai import AzureOpenAIChatCompletionClient
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Load environment variables from Backend root directory
+env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), '.env')
+load_dotenv(env_path)
 
 
 class AzureClientFactory:

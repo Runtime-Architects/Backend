@@ -12,7 +12,7 @@ import logging
 import json
 import time
 
-from scraper_tools.unified_downloader import UnifiedEirGridDownloader
+from .unified_downloader import UnifiedEirGridDownloader
 
 
 def setup_logging(debug: bool = False, log_file: Optional[str] = None):
