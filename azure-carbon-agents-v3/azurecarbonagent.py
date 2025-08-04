@@ -27,11 +27,10 @@ async def get_emission_analysis(startdate: str, enddate: str, region: str) -> fl
         return intensity_periods
     except Exception as e:
             # Return detailed error info
-            return {
+            raise {
                 "error": str(e),
                 "input_params": {"startdate": startdate, "enddate": enddate, "region": region}
             }
-
 
 # Create a function tool
 emission_tool = FunctionTool(
@@ -96,10 +95,10 @@ async def main() -> None:
 
         await Console(
             agent.run_stream(
-                #task=f"Based on last month's data, which day had the highest emission in Ireland?"
+                task=f"Based on last month's data, which day had the highest emission in Ireland?"
                 #task=f"What were the cleanest energy times last Tuesday in Northern Ireland?"
                 # task= f"What was the carbon emission for the first two weeks of this month versus the last two weeks of the last month?"
-                task= "What is the best time to use my appliances today in Ireland"
+                #task= "What is the best time to use my appliances today in Ireland"
                 # task=f"Compare ROI and NI emissions for the first week of June"
             )
         )
