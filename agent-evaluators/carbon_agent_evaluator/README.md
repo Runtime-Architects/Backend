@@ -176,7 +176,7 @@ final_score = (rule_weight * rule_score) + (llm_weight * llm_score)
 | Directory/File | Purpose |
 |----------------|---------|
 | `co2_analysis_tool/` | Package for CO2 data analysis and visualization |
-| `co2_analysis_tool/co2_analysis.py` | Unified CO2IntensityAnalyzer class with daily/weekly/monthly analysis |
+| `co2_analysis_tool/co2_analysis.py` | CO2IntensityAnalyzer class (legacy, not used in main flow) |
 | `co2_analysis_tool/co2_analysis_util.py` | Utility functions for CO2 data processing |
 | `co2_analysis_tool/co2_plot.py` | Visualization tools for CO2 emission patterns |
 | `co2_statistics_utils.py` | Centralized CO2 statistics calculations to eliminate duplicate code |
@@ -598,27 +598,24 @@ stats = calculate_co2_statistics(data_points)
 │                     CO2 Analysis Flow                            │
 ├──────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│  ┌─────────────────┐    ┌──────────────────┐    ┌─────────────┐  │
-│  │  Raw CO2 Data   │    │ CO2IntensityA-   │    │ Centralized │  │
-│  │  (EirGrid JSON) │──▶│ nalyzer (Unified)│───▶│ Statistics  │  │
-│  │                 │    │                  │    │             │  │
-│  └─────────────────┘    └──────────────────┘    └─────────────┘  │
-│                                   │                      │       │
-│                                   ▼                      │       │
-│                          ┌──────────────────┐            │       │
-│                          │   View-Based     │            │       │
-│                          │   Analysis       │            │       │
-│                          │ • Day (≤6 days)  │            │       │
-│                          │ • Week (7-21d)   │◀───────────┘      │
-│                          │ • Month (≥22d)   │                    │
-│                          └──────────────────┘                    │
-│                                   │                              │
-│                                   ▼                              │
+│  ┌─────────────────┐                      ┌───────────────────┐  │
+│  │  EirGrid        │                      │  get_emission_    │  │
+│  │  Scraper        │────────────────────▶│    analysis()     │  │
+│  │                 │  (fetches if needed) │                   │  │
+│  └─────────────────┘                      └─────────┬─────────┘  │
+│                                                     │            │
+│  ┌─────────────────┐                                ▼            │
+│  │  Raw CO2 Data   │                      ┌────────────────────┐ │
+│  │  (JSON Files)   │◀─────────────────────│  calculate_co2_   │ │
+│  │                 │    (reads existing)   │  statistics()     │ │
+│  └─────────────────┘                      └─────────┬──────────┘ │
+│                                                     │            │
+│                                                     ▼            │
 │  ┌─────────────────────────────────────────────────────────────┐ │
-│  │              Agent Tools & Evaluation System                │ │
-│  │  • analyze_daily_co2() with error handling                  │ │
-│  │  • analyze_weekly_co2() with unified backend                │ │
-│  │  • analyze_monthly_co2() with fallback support              │ │
+│  │                     Carbon Agent                            │ │
+│  │  • Uses emission_tool to get CO2 analysis                   │ │
+│  │  • Provides data-driven recommendations                     │ │
+│  │  • Follows strict response formatting                       │ │
 │  └─────────────────────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────────────────┘
 ```

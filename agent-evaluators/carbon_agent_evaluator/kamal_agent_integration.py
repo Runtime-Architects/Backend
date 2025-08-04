@@ -55,14 +55,13 @@ class KamalAgentIntegrator:
         # Method 2: Try importing components and recreating agent
         try:
             from azurecarbonagent import (
-                emission_tool, daily_analyzer_tool, weekly_analyzer_tool, 
-                monthly_analyzer_tool, system_message
+                emission_tool, system_message
             )
             
             self.agent = AssistantAgent(
                 name="CarbonAgent", 
                 model_client=self.client, 
-                tools=[emission_tool, daily_analyzer_tool, weekly_analyzer_tool, monthly_analyzer_tool], 
+                tools=[emission_tool], 
                 reflect_on_tool_use=True,
                 max_tool_iterations=5,
                 system_message=system_message
@@ -116,10 +115,7 @@ class KamalAgentIntegrator:
 **ACTIVATION CONDITIONS:** Only respond when specifically instructed by the PlannerAgent or when directly queried about carbon emissions.
 
 ### Available Tools:
-- **Carbon Data Retriever**: Fetches raw CO2 intensity data (use when you need current emissions data)
-- **Daily Analyzer**: For analysis day/days (15 minute granularity) 
-- **Weekly Analyzer**: For analysis week/weeks (hourly granularity)
-- **Monthly Analyzer**: For analysis of month/months (day granularity)
+- **Emission Analysis Tool**: Fetches and analyzes CO2 intensity data from Ireland's electricity grid
 
 TOOL USAGE RULES:
 - For CO2 intensity queries, ALWAYS use the emission_tool with these exact parameters:
@@ -128,11 +124,6 @@ TOOL USAGE RULES:
     * 'roi' for Republic of Ireland (Ireland)
     * 'ni' for Northern Ireland
     * 'all' for both Republic of Ireland (Ireland) & Northern Ireland
-
-- **Time Period** determines which analyzer to use:
-    - 1 day to 6 days → Daily Analyzer
-    - 7 days to 21 days → Weekly Analyzer
-    - greater than 21 days → Monthly Analyzer
 
 When providing recommendations for the current day, always consider the current time. 
 Only suggest activities or actions for future time slots—never for times that have already passed.

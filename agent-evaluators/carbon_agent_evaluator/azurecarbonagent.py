@@ -115,89 +115,6 @@ async def get_emission_analysis(startdate: str, enddate: str, region: str) -> di
         else:
             raise Exception(f"Failed to fetch data from scrapper. File not found at {file_path}")
 
-async def analyze_daily_co2(startdate: str, enddate: str, region: str = "all") -> dict:
-    """Tool 2: Daily Data Analyzer - Analyzes CO2 data with daily granularity"""
-    
-    # Construct file path based on parameters
-    file_path = f'data/co2_intensity/co2_intensity_{region}_{startdate}_{enddate}.json'
-    
-    # Check if file exists, if not try to get the data first
-    if not os.path.exists(file_path):
-        try:
-            # Try to get the data using the emission analysis function
-            await get_emission_analysis(startdate, enddate, region)
-        except Exception as e:
-            return {"error": f"Failed to retrieve data: {str(e)}", "analysis_type": "daily"}
-    
-    analyzer = CO2IntensityAnalyzer(startdate, enddate, region)
-    analysis = analyzer.get_analysis_by_view()
-    return analysis
-
-async def analyze_weekly_co2(startdate: str, enddate: str, region: str = "all") -> dict:
-    """Tool 3: Weekly Data Analyzer - Analyzes CO2 data with weekly granularity"""
-
-    # Construct file path based on parameters
-    file_path = f'data/co2_intensity/co2_intensity_{region}_{startdate}_{enddate}.json'
-    
-    # Check if file exists, if not try to get the data first
-    if not os.path.exists(file_path):
-        try:
-            # Try to get the data using the emission analysis function
-            await get_emission_analysis(startdate, enddate, region)
-        except Exception as e:
-            return {"error": f"Failed to retrieve data: {str(e)}", "analysis_type": "weekly"}
-    
-    analyzer = CO2IntensityAnalyzer(startdate, enddate, region)
-    analysis = analyzer.get_analysis_by_view()
-    return analysis
-
-async def analyze_monthly_co2(startdate: str, enddate: str, region: str = "all") -> dict:
-    """Tool 4: Monthly Data Analyzer - Analyzes CO2 data with monthly granularity"""
-
-    # Construct file path based on parameters
-    file_path = f'data/co2_intensity/co2_intensity_{region}_{startdate}_{enddate}.json'
-    
-    # Check if file exists, if not try to get the data first
-    if not os.path.exists(file_path):
-        try:
-            # Try to get the data using the emission analysis function
-            await get_emission_analysis(startdate, enddate, region)
-        except Exception as e:
-            return {"error": f"Failed to retrieve data: {str(e)}", "analysis_type": "monthly"}
-    
-    analyzer = CO2IntensityAnalyzer(startdate, enddate, region)
-    
-    # Handle the method name mismatch in co2_analysis.py
-    try:
-        # First try the standard method
-        analysis = analyzer.get_analysis_by_view()
-    except AttributeError as e:
-        # If monthly_analysis doesn't exist, try get_monthly_analysis
-        if "monthly_analysis" in str(e):
-            analysis = analyzer.get_monthly_analysis()
-        else:
-            raise e
-    
-    return analysis
-
-daily_analyzer_tool = FunctionTool(
-    func=analyze_daily_co2,
-    description="Analyzes CO2 data with daily granularity. Best for periods <=6 days. Parameters: startdate (YYYY-MM-DD), enddate (YYYY-MM-DD), region ('all', 'roi', or 'ni')",
-    name= "analyze_daily_co2"
-)
-
-weekly_analyzer_tool = FunctionTool(
-    func=analyze_weekly_co2,
-    description="Analyzes CO2 data with weekly granularity. Best for periods >=7 days but <= 21 days. Parameters: startdate (YYYY-MM-DD), enddate (YYYY-MM-DD), region ('all', 'roi', or 'ni')",
-    name= "analyze_weekly_co2"
-)
-
-monthly_analyzer_tool = FunctionTool(
-    func=analyze_monthly_co2,
-    description="Analyzes CO2 data with monthly granularity. Best for periods >=22 days. Parameters: startdate (YYYY-MM-DD), enddate (YYYY-MM-DD), region ('all', 'roi', or 'ni')",
-    name= "analyze_monthly_co2"
-)
-
 # Create a function tool
 emission_tool = FunctionTool(
     func=get_emission_analysis,
@@ -325,7 +242,7 @@ system_message = create_robust_system_message()
 carbon_agent = AssistantAgent(
             name="CarbonAgent", 
             model_client=client, 
-            tools=[emission_tool, daily_analyzer_tool, weekly_analyzer_tool, monthly_analyzer_tool], 
+            tools=[emission_tool], 
             reflect_on_tool_use=True,
             max_tool_iterations=5,
             system_message=system_message

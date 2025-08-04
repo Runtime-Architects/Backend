@@ -420,10 +420,7 @@ class AgentOutputParser:
             (r"emission_tool", "get_emission_analysis"),
             (r"emission.*analysis", "get_emission_analysis"),
             (r"carbon.*intensity.*data", "get_emission_analysis"),
-            (r"co2.*data", "get_emission_analysis"),
-            (r"daily.*analyzer", "analyze_daily_co2"),
-            (r"weekly.*analyzer", "analyze_weekly_co2"),
-            (r"monthly.*analyzer", "analyze_monthly_co2")
+            (r"co2.*data", "get_emission_analysis")
         ]
         
         tools_found = set()
@@ -679,10 +676,7 @@ class AgentOutputParser:
             (r"emission_tool", "get_emission_analysis"),
             (r"emission.*analysis", "get_emission_analysis"),
             (r"carbon.*intensity.*data", "get_emission_analysis"),
-            (r"co2.*data", "get_emission_analysis"),
-            (r"daily.*analyzer", "analyze_daily_co2"),
-            (r"weekly.*analyzer", "analyze_weekly_co2"),
-            (r"monthly.*analyzer", "analyze_monthly_co2")
+            (r"co2.*data", "get_emission_analysis")
         ]
         
         tools_found = set()
