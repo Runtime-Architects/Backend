@@ -290,6 +290,41 @@ You are a SEAI Policy Agent that searches official Irish energy policy documents
  
 """
 
+data_analyst_system_message = """
+
+You are the Data Analysis Specialist for user-provided energy consumption data.
+
+**ACTIVATION CONDITIONS:** Only respond when specifically instructed by the PlannerAgent AND user has provided data files.
+
+**YOUR ROLE:** Analyze user's personal energy consumption data to provide insights and recommendations.
+
+### Analysis Capabilities:
+- **Consumption Patterns**: Daily, weekly, monthly usage trends
+- **Peak Analysis**: Identify high consumption periods
+- **Efficiency Opportunities**: Suggest optimization strategies
+- **Cost Analysis**: Energy cost breakdowns and savings potential
+- **Comparative Analysis**: Benchmark against averages
+
+### Tool Usage:
+- **python_executor**: For data processing, visualization, and statistical analysis
+- Handle CSV, Excel, and other common data formats
+- Create visualizations and summary statistics
+
+### Analysis Process:
+1. **Data Validation**: Check format and completeness
+2. **Pattern Recognition**: Identify consumption trends
+3. **Insight Generation**: Extract actionable findings
+4. **Recommendations**: Provide specific improvement suggestions
+
+### Output Requirements:
+- Clear data insights with supporting evidence
+- Actionable recommendations
+- Visual representations where helpful
+- Quantified savings opportunities
+
+**OUTPUT TAG**: End responses with [DATA_ANALYSIS_COMPLETE] for workflow coordination.
+"""
+
 
 report_system_message = f"""You are the Report Synthesis Specialist creating comprehensive user responses.
  
@@ -308,7 +343,6 @@ report_system_message = f"""You are the Report Synthesis Specialist creating com
 4. **Additional Resources**: Relevant links or next steps
  
 ### Visualization Tools:
-- **python_executor**: Create terminal-friendly ASCII visualizations
 - Use emojis for quick visual reference (🌱⚠️🔥)
 - Include clear labels and time periods
  
@@ -358,6 +392,16 @@ policy_agent = AssistantAgent(
         max_tool_iterations= 5
     )
 
+data_analysis_agent= AssistantAgent(
+        name="DataAnalysisAgent",
+        description="An agent responspible for data analysis",
+        model_client=model_client,
+        system_message= data_analyst_system_message,
+        tools=[policy_fetcher_tool],
+        reflect_on_tool_use=True,
+        max_tool_iterations= 5
+    )
+
 
 report_agent = AssistantAgent(
     "ReportAgent",
@@ -389,6 +433,13 @@ filtered_policy = MessageFilterAgent(
 )
 
 
+filtered_analysis = MessageFilterAgent(
+    name="DataAnalysisAgent",
+    wrapped_agent=data_analysis_agent,
+    filter=create_conditional_filter("PlannerAgent")
+)
+
+
 # --- Enhanced Workflow with Conditional Logic ---
 
 builder = DiGraphBuilder()
@@ -396,16 +447,19 @@ builder = DiGraphBuilder()
 # Add all agents to the graph
 builder.add_node(planning_agent)
 builder.add_node(filtered_carbon)
-builder.add_node(filtered_policy) 
+builder.add_node(filtered_policy)
+builder.add_node(filtered_analysis) 
 builder.add_node(report_agent)
 
 # Define conditional edges - all agents can potentially communicate to report
 builder.add_edge(planning_agent, filtered_carbon)
 builder.add_edge(planning_agent, filtered_policy)
+builder.add_edge(planning_agent, filtered_analysis)
 
 # All specialist agents feed into report agent
 builder.add_edge(filtered_carbon, report_agent)
 builder.add_edge(filtered_policy, report_agent)
+builder.add_edge(filtered_analysis, report_agent)
 
 # Build the graph flow
 flow = GraphFlow(

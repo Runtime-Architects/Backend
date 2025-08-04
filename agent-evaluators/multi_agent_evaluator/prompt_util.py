@@ -3,7 +3,11 @@ import json
 import sys
 from pathlib import Path
 from openai import AzureOpenAI
+from typing import Dict
 import logging
+import time
+from autogen_agentchat.base import TaskResult
+import workflow 
 
 # Configure Azure OpenAI client
 client = AzureOpenAI(
@@ -13,8 +17,13 @@ client = AzureOpenAI(
 )
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(message)s')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 logger = logging.getLogger(__name__)
+
 
 def get_user_input(display: str) -> str:
     """
@@ -50,6 +59,63 @@ def create_log_folder(path: str) -> Path:
     path_obj = Path(path)
     path_obj.mkdir(parents=True, exist_ok=True)
     return path_obj
+
+
+async def log_generator(task: str) -> Dict:
+    """
+    Generates a log of the agent interaction.
+    
+    Args:
+        task (str): prompt to test
+        
+    Returns:
+        Dict: Log of agent interaction
+    """
+    log = []
+    agents_used= set()
+    start_time = time.time()
+
+    try:
+        # Execute the workflow and capture each step
+        async for step_result in workflow.flow.run_stream(task=task):
+            if not isinstance(step_result, TaskResult):
+                # Extract source and content from the step result
+                source = getattr(step_result, 'source', 'unknown')
+                content = getattr(step_result, 'content', '')
+
+                if source.lower() != "user":
+                    agents_used.add(source)
+                
+                log.append({source: content})
+                logger.info(f"---------- TextMessage ({source}) ----------")
+                logger.info(f"{content}")
+
+    except KeyboardInterrupt:
+        log.append({"User": "Interrupted (KeyboardInterrupt)"})
+        logger.info("User interrupted the process")
+    except Exception as e:
+        log.append({"Error": str(e)})
+        logger.error(f"An error occurred: {e}")
+
+    # Calculate execution time
+    time_taken = time.time() - start_time
+
+    # Prepare log data structure
+    log_data = {
+        "planner_system_prompt": workflow.planner_system_message,
+        "carbon_system_prompt": workflow.carbon_system_message,
+        "policy_system_prompt": workflow.policy_system_message,
+        "data_analysis_system_prompt": workflow.data_analyst_system_message,
+        "report_system_prompt": workflow.report_system_message,
+        "agents_used": agents_used,
+        "time_taken": time_taken,
+        "query": task,
+        "log": log,
+        "critic": None
+    }
+
+    return log_data
+    
 
 async def prompt_helper(filename: str) -> None:
     """
@@ -140,7 +206,7 @@ async def generate_suggestion(recent_files: list) -> str:
     
     analysis_task = f"""
     Analyze these performance critiques: {critiques}.
-    Based on consistent weaknesses identified, suggest which agent's system prompt 
+    Based on consistent weaknesses identified, suggest the agent(s) system prompt 
     should be prioritized for improvement.
     """
     

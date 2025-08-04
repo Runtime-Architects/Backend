@@ -82,7 +82,9 @@ Logs are saved as JSON files with this structure:
   "planner_system_prompt": "...",
   "carbon_system_prompt": "...",
   "policy_system_prompt": "...",
+  "data_analysis_system_prompt": "...",
   "report_system_prompt": "...",
+  "agents_used": <List> // Agents participated in conversation,
   "time_taken": 12.34,
   "query": "user's original query",
   "log": [

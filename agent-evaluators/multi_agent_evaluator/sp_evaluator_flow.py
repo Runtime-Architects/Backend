@@ -7,22 +7,20 @@ This script provides an interactive console interface for:
 3. Performing prompt engineering analysis
 """
 
-import workflow
 import asyncio
 import logging
 from datetime import datetime
-import time
 import json
 import os
-from autogen_agentchat.base import TaskResult
-from prompt_util import (prompt_helper, get_user_input, create_log_folder,
+from prompt_util import (log_generator, prompt_helper, get_user_input, create_log_folder,
                          generate_suggestion)
 import glob
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
 )
 logger = logging.getLogger(__name__)
 
@@ -70,50 +68,19 @@ async def run_test():
     if not task:
         task = "what is the best time to use my appliance in Ireland?"
 
-    log = []
-    start_time = time.time()
-
-    try:
-        # Execute the workflow and capture each step
-        async for step_result in workflow.flow.run_stream(task=task):
-            if not isinstance(step_result, TaskResult):
-                # Extract source and content from the step result
-                source = getattr(step_result, 'source', 'unknown')
-                content = getattr(step_result, 'content', '')
-                
-                log.append({source: content})
-                logger.info(f"---------- TextMessage ({source}) ----------")
-                logger.info(f"{content}")
-
-    except KeyboardInterrupt:
-        log.append({"User": "Interrupted (KeyboardInterrupt)"})
-        logger.info("User interrupted the process")
-    except Exception as e:
-        log.append({"Error": str(e)})
-        logger.error(f"An error occurred: {e}")
-
-    # Calculate execution time
-    time_taken = time.time() - start_time
-
-    # Prepare log data structure
-    log_data = {
-        "planner_system_prompt": workflow.planner_system_message,
-        "carbon_system_prompt": workflow.carbon_system_message,
-        "policy_system_prompt": workflow.policy_system_message,
-        "report_system_prompt": workflow.report_system_message,
-        "time_taken": time_taken,
-        "query": task,
-        "log": log,
-        "critic": None
-    }
+    log_data= await log_generator(task= task)
 
     # Create timestamp and save log
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     work_dir = create_log_folder("agent_logs")
     filename = f"{work_dir}/agent_logs_{timestamp}.json"
+
+    #serialize data
+    serializable_data = log_data.copy()
+    serializable_data["agents_used"] = list(log_data["agents_used"])
     
     with open(filename, 'w', encoding='utf-8') as f:
-        json.dump(log_data, f, indent=2, default=str)
+        json.dump(serializable_data, f, indent=2, default=str)
     
     # Provide analysis of the conversation
     await prompt_helper(filename)
@@ -130,7 +97,7 @@ async def eval_existing():
     while True:
         filepath = get_user_input("Enter the log file to evaluate (or type 'exit' to quit): ").strip()
 
-        if filepath== "exit":
+        if filepath.lower()== "exit":
             logger.info("\n\n Exiting option 2...")
             break
         if os.path.isfile(filepath):
