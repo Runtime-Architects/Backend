@@ -26,7 +26,7 @@ class CO2IntensityAnalyzer:
         if self.view == 'week' or self.view == 'day':
             return self.day_weekly_analysis()
         elif self.view == 'month':
-            return self.monthly_analysis()
+            return self.get_monthly_analysis()
         else:
             return "Wrong view called no graph generated !"
 
