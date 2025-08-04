@@ -14,6 +14,7 @@ import logging
 
 from autogen_ext.models.openai import AzureOpenAIChatCompletionClient
 from autogen_core.models import SystemMessage, UserMessage
+from co2_statistics_utils import calculate_co2_statistics
 
 logger = logging.getLogger(__name__)
 
@@ -184,14 +185,14 @@ class LLMJudge:
         if compressed_co2_data and 'data' in compressed_co2_data:
             data_points = compressed_co2_data['data']
             if data_points:
-                values = [point['value'] for point in data_points]
-                min_val = min(values)
-                max_val = max(values)
-                avg_val = sum(values) / len(values)
+                # Use centralized statistics calculation
+                stats = calculate_co2_statistics(data_points)
                 
-                # Find optimal and peak times
-                min_point = min(data_points, key=lambda x: x['value'])
-                max_point = max(data_points, key=lambda x: x['value'])
+                min_val = stats["min_value"]
+                max_val = stats["max_value"]
+                avg_val = stats["avg_value"]
+                min_point = stats["min_point"]
+                max_point = stats["max_point"]
                 
                 co2_context = f"""
 **ACTUAL COMPRESSED CO2 DATA CONTEXT:**
@@ -269,10 +270,12 @@ Respond in valid JSON format only:
         if compressed_co2_data and 'data' in compressed_co2_data:
             data_points = compressed_co2_data['data']
             if data_points:
-                values = [point['value'] for point in data_points]
-                min_val = min(values)
-                max_val = max(values)
-                avg_val = sum(values) / len(values)
+                # Use centralized statistics calculation
+                stats = calculate_co2_statistics(data_points)
+                
+                min_val = stats["min_value"]
+                max_val = stats["max_value"]
+                avg_val = stats["avg_value"]
                 
                 co2_validation = f"""
 **ACTUAL CO2 DATA FOR VALIDATION:**

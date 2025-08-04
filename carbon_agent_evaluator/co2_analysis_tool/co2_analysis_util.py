@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from datetime import datetime
+from datetime import datetime, date
 from typing import Dict, List
 import json
 import os
@@ -18,7 +18,7 @@ def get_emission_data(startdate: str, enddate: str, region: str) -> float:
         return process_json_data(json_data)
     
     else:
-        if(datetime.strptime(enddate, "%Y-%m-%d").date() == datetime.today()):
+        if(datetime.strptime(enddate, "%Y-%m-%d").date() == date.today()):
             call_as_cli(startdate, enddate, region, True)
         else:
             call_as_cli(startdate, enddate, region, False)
@@ -60,31 +60,22 @@ def call_as_cli(startdate: str, enddate: str, region: str, forecast=False):
 
 
 
-def process_json_data(json_data: Dict) -> tuple:
-    """
-    Process JSON data and return (dataframe, start_date, end_date, region)
-    """
+def process_json_data(json_data: Dict) -> pd.DataFrame:
     time_series = json_data['data']['time_series']
     df = pd.DataFrame(time_series)
     try:
-        # Convert to datetime
+    # Convert to datetime
         df['timestamp'] = pd.to_datetime(df['time'], format='%Y-%m-%d %H:%M:%S')
-        
-        # Get the start, end date and region from metadata
-        start_date = json_data['metadata']['date_from']
-        end_date = json_data['metadata']['date_to']
-        region = json_data['metadata']['region']
-
-    except Exception as e:
-        raise Exception(f"Error processing json: {str(e)}")
     
-    # Return tuple as expected by the analysis modules
-    return (
-        df.sort_values('timestamp')[['timestamp', 'value']], 
-        start_date, 
-        end_date, 
-        region
-    )
+    # Get the start, end date and region
+    # start_date = json_data['metadata']['date_from']
+    # end_date = json_data['metadata']['date_to']
+    # region= find_region_str(json_data['metadata']['region'])
+
+    except:
+        raise Exception("Error processing json.")
+    
+    return (df.sort_values('timestamp')[['timestamp', 'value']])
 
 
 

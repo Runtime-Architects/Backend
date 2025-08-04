@@ -22,7 +22,7 @@ from evaluation_strategies import (
 )
 from result_combiner import ResultCombiner
 from llm_judge import LLMJudge
-from autogen_ext.models.openai import AzureOpenAIChatCompletionClient
+from azure_client_factory import create_azure_client
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +94,9 @@ class HybridEvaluationResult:
     behavioral_strengths: Optional[List[str]] = None
     behavioral_weaknesses: Optional[List[str]] = None
     behavioral_recommendations: Optional[List[str]] = None
+    
+    # Metadata validation results
+    metadata_validation: Optional[Dict[str, Any]] = None
     
     def __post_init__(self):
         """Initialize optional fields with defaults"""
@@ -320,139 +323,6 @@ class AgentOutputParser:
             # Don't create fallback - let the error propagate to show real parsing issues
             raise ValueError(f"Failed to parse agent output: {e}. Raw output may be corrupted or in unexpected format.")
     
-    def _extract_main_response(self, raw_output: str) -> str:
-        """Extract main response from agent output"""
-        
-        # Strategy 1: Look for structured carbon responses matching good examples
-        carbon_response_patterns = [
-            r'🏠\s*\*\*[^*]+\*\*[^🌱]*🌱[^🔥]*🔥[^📊]*📊[^🌍]*🌍[^!]*!',
-            r'🔋\s*\*\*[^*]+\*\*[^🌱]*🌱[^🔥]*🔥[^🌍]*🌍[^!]*!',
-            r'📊\s*\*\*[^*]+\*\*[^🌙]*🌙[^📈]*📈[^🎯]*🎯',
-        ]
-        
-        for pattern in carbon_response_patterns:
-            matches = re.findall(pattern, raw_output, re.DOTALL | re.IGNORECASE)
-            if matches:
-                longest_match = max(matches, key=len)
-                if len(longest_match) > 300:  # Substantial response
-                    return self._clean_content(longest_match)
-        
-        # Strategy 2: Look for TextMessage content extraction
-        textmessage_content = self._extract_textmessage_content(raw_output)
-        if textmessage_content and len(textmessage_content) > 200:
-            return textmessage_content
-        
-        # Strategy 3: Look for any substantial structured content
-        structured_patterns = [
-            r'(\*\*[^*]+\*\*[^*]{100,})',  # Headers with substantial content
-            r'([🌱⚡🔥📊🏠🔋🌍][^🌱⚡🔥📊🏠🔋🌍]{100,})',  # Emoji-based sections
-            r'(Best Times[^.]{200,})',  # Best times recommendations
-            r'(Optimal[^.]{200,})',  # Optimal recommendations
-        ]
-        
-        for pattern in structured_patterns:
-            matches = re.findall(pattern, raw_output, re.DOTALL | re.IGNORECASE)
-            if matches:
-                longest_match = max(matches, key=len)
-                if len(longest_match) > 200:
-                    return self._clean_content(longest_match)
-        
-        # Fallback to first substantial text block
-        lines = raw_output.split('\n')
-        substantial_content = []
-        
-        for line in lines:
-            clean_line = line.strip()
-            if (len(clean_line) > 50 and 
-                not clean_line.startswith('[') and 
-                'TextMessage' not in clean_line and
-                'created_at' not in clean_line):
-                substantial_content.append(clean_line)
-                
-                if len(' '.join(substantial_content)) > 300:
-                    break
-        
-        if substantial_content:
-            return self._clean_content(' '.join(substantial_content))
-        
-        return raw_output[:1000] if raw_output else "No response extracted"
-    
-    def _extract_textmessage_content(self, raw_output: str) -> str:
-        """Extract TextMessage content from agent output"""
-        import re
-        
-        # Patterns to match agent responses
-        agent_patterns = [
-            r"TextMessage\([^)]*source='(?:StreamlinedCarbonAgent|CarbonAgent|AssistantAgent)'[^)]*content='([^']*)'",
-            r"TextMessage\([^)]*content='([^']{400,})'[^)]*source='(?:StreamlinedCarbonAgent|CarbonAgent|AssistantAgent)'",
-            r"content='([^']{400,})'[^']*(?:StreamlinedCarbonAgent|CarbonAgent|AssistantAgent)",
-        ]
-        
-        for pattern in agent_patterns:
-            matches = re.findall(pattern, raw_output, re.DOTALL)
-            if matches:
-                longest_match = max(matches, key=len)
-                if len(longest_match) > 300:
-                    return self._clean_content(longest_match)
-        
-        return ""
-    
-    def _clean_content(self, content: str) -> str:
-        """Clean and format agent response content"""
-        if not content:
-            return ""
-        
-        # Clean encoding and escape issues
-        clean_content = content.replace('\\n', '\n').replace("\\'", "'").replace('\\"', '"')
-        clean_content = clean_content.replace('\\t', ' ').replace('\\r', '')
-        
-        # Remove AutoGen-specific artifacts
-        artifacts_to_remove = [
-            r"TextMessage\([^)]*\)",
-            r"created_at=datetime\.datetime\([^)]*\)",
-            r"source='[^']*'",
-            r"id='[^']*'",
-            r"type='[^']*'",
-            r"models_usage=[^,)]*",
-            r"metadata=\{[^}]*\}",
-        ]
-        
-        for artifact in artifacts_to_remove:
-            clean_content = re.sub(artifact, "", clean_content)
-        
-        # Remove trailing artifacts
-        clean_content = re.sub(r"',\s*type='[^']*'\).*$", "", clean_content)
-        clean_content = re.sub(r"'\)\s*,\s*TaskResult.*$", "", clean_content, re.DOTALL)
-        
-        # Clean line by line
-        lines = clean_content.split('\n')
-        cleaned_lines = []
-        
-        for line in lines:
-            line = line.strip()
-            if line:
-                # Remove excessive whitespace
-                line = ' '.join(line.split())
-                # Remove escape characters and artifacts
-                line = line.replace('\\', '')
-                line = re.sub(r'^[,\s\)\]\}]+', '', line)
-                line = re.sub(r'[,\s\(\[\{]+$', '', line)
-                
-                # Keep lines with actual content
-                if len(line) > 3 and not re.match(r'^[,\s\)\]\}\(\[\{]*$', line):
-                    cleaned_lines.append(line)
-        
-        result = '\n'.join(cleaned_lines).strip()
-        
-        # Final cleanup
-        result = re.sub(r'\n\n+', '\n\n', result)
-        result = re.sub(r'^\W+', '', result)
-        
-        # Ensure proper ending
-        if result and not result.endswith(('.', '!', '?')):
-            result += '.'
-        
-        return result
     
     def _analyze_against_examples(self, response: str) -> Dict[str, Any]:
         """Analyze response against good/bad examples"""
@@ -567,6 +437,266 @@ class AgentOutputParser:
         
         return list(tools_found)
     
+    def _extract_main_response(self, raw_output: str) -> str:
+        """Extract main response from agent output"""
+        # Strategy 1: Look for TextMessage content extraction first (most reliable)
+        textmessage_content = self._extract_textmessage_content(raw_output)
+        if textmessage_content and len(textmessage_content) > 200:
+            return textmessage_content
+            
+        # Strategy 2: Look for structured carbon responses matching good examples
+        import re
+        carbon_response_patterns = [
+            r'\*\*Best Times to Use Appliances[^!]*!',
+            r'\*\*Optimal EV Charging Schedule[^!]*!',
+            r'🏠\s*\*\*[^*]+\*\*[^🌱]*🌱[^🔥]*🔥[^📊]*📊[^🌍]*🌍[^!]*!',
+            r'🔋\s*\*\*[^*]+\*\*[^🌱]*🌱[^🔥]*🔥[^🌍]*🌍[^!]*!',
+            r'📊\s*\*\*[^*]+\*\*[^🌙]*🌙[^📈]*📈[^🎯]*🎯',
+        ]
+        
+        for pattern in carbon_response_patterns:
+            matches = re.findall(pattern, raw_output, re.DOTALL | re.IGNORECASE)
+            if matches:
+                longest_match = max(matches, key=len)
+                if len(longest_match) > 300:  # Substantial response
+                    return self._clean_content(longest_match)
+        
+        # Strategy 3: Look for any substantial structured content
+        structured_patterns = [
+            r'(\*\*[^*]+\*\*[^*]{100,})',  # Headers with substantial content
+            r'([🌱⚡🔥📊🏠🔋🌍][^🌱⚡🔥📊🏠🔋🌍]{100,})',  # Emoji-based sections
+            r'(Best Times[^.]{200,})',  # Best times recommendations
+            r'(Optimal[^.]{200,})',  # Optimal recommendations
+        ]
+        
+        for pattern in structured_patterns:
+            matches = re.findall(pattern, raw_output, re.DOTALL | re.IGNORECASE)
+            if matches:
+                longest_match = max(matches, key=len)
+                if len(longest_match) > 200:
+                    return self._clean_content(longest_match)
+        
+        # Fallback to first substantial text block
+        lines = raw_output.split('\n')
+        substantial_content = []
+        
+        for line in lines:
+            clean_line = line.strip()
+            if (len(clean_line) > 50 and 
+                not clean_line.startswith('[') and 
+                'TextMessage' not in clean_line and
+                'created_at' not in clean_line):
+                substantial_content.append(clean_line)
+                
+                if len(' '.join(substantial_content)) > 300:
+                    break
+        
+        if substantial_content:
+            return self._clean_content(' '.join(substantial_content))
+        
+        return raw_output[:1000] if raw_output else "No response extracted"
+    
+    def _extract_textmessage_content(self, raw_output: str) -> str:
+        """Extract TextMessage content from agent output"""
+        import re
+        
+        # Patterns to match agent responses - support both single and double quotes
+        agent_patterns = [
+            r'TextMessage\([^)]*source=\'(?:StreamlinedCarbonAgent|CarbonAgent|AssistantAgent)\'[^)]*content=\'([^\']*)\'' ,
+            r'TextMessage\([^)]*source="(?:StreamlinedCarbonAgent|CarbonAgent|AssistantAgent)"[^)]*content="([^"]*)"',
+            r'TextMessage\([^)]*content=\'([^\']{400,})\'[^)]*source=\'(?:StreamlinedCarbonAgent|CarbonAgent|AssistantAgent)\'',
+            r'TextMessage\([^)]*content="([^"]{200,})"[^)]*source="(?:StreamlinedCarbonAgent|CarbonAgent|AssistantAgent)"',
+            r'content=\'([^\']{300,})\'[^\']*(?:StreamlinedCarbonAgent|CarbonAgent|AssistantAgent)',
+            r'content="([^"]{300,})"[^"]*(?:StreamlinedCarbonAgent|CarbonAgent|AssistantAgent)',
+        ]
+        
+        for pattern in agent_patterns:
+            matches = re.findall(pattern, raw_output, re.DOTALL)
+            if matches:
+                longest_match = max(matches, key=len)
+                if len(longest_match) > 300:
+                    return self._clean_content(longest_match)
+        
+        return ""
+    
+    def _clean_content(self, content: str) -> str:
+        """Clean and format agent response content"""
+        import re
+        if not content:
+            return ""
+        
+        # Clean encoding and escape issues
+        clean_content = content.replace('\\n', '\n').replace("\\'", "'").replace('\\"', '"')
+        clean_content = clean_content.replace('\\t', ' ').replace('\\r', '')
+        
+        # Remove AutoGen-specific artifacts
+        artifacts_to_remove = [
+            r"TextMessage\([^)]*\)",
+            r"created_at=datetime\.datetime\([^)]*\)",
+            r"source='[^']*'",
+            r"id='[^']*'",
+            r"type='[^']*'",
+            r"models_usage=[^,)]*",
+            r"metadata=\{[^}]*\}",
+        ]
+        
+        for artifact in artifacts_to_remove:
+            clean_content = re.sub(artifact, "", clean_content)
+        
+        # Remove trailing artifacts
+        clean_content = re.sub(r"',\s*type='[^']*'\).*$", "", clean_content)
+        clean_content = re.sub(r"'\)\s*,\s*TaskResult.*$", "", clean_content, re.DOTALL)
+        
+        # Clean line by line
+        lines = clean_content.split('\n')
+        cleaned_lines = []
+        
+        for line in lines:
+            line = line.strip()
+            if line:
+                # Remove excessive whitespace
+                line = ' '.join(line.split())
+                # Remove escape characters and artifacts
+                line = line.replace('\\', '')
+                line = re.sub(r'^[,\s\)\]\}]+', '', line)
+                line = re.sub(r'[,\s\(\[\{]+$', '', line)
+                
+                # Keep lines with actual content
+                if len(line) > 3 and not re.match(r'^[,\s\)\]\}\(\[\{]*$', line):
+                    cleaned_lines.append(line)
+        
+        result = '\n'.join(cleaned_lines).strip()
+        
+        # Final cleanup
+        result = re.sub(r'\n\n+', '\n\n', result)
+        result = re.sub(r'^\W+', '', result)
+        
+        # Ensure proper ending
+        if result and not result.endswith(('.', '!', '?')):
+            result += '.'
+        
+        return result
+
+    def _analyze_against_examples(self, response: str) -> Dict[str, Any]:
+        """Analyze response against good/bad examples"""
+        import re
+        
+        good_matches = 0
+        bad_matches = 0
+        format_compliance = 0.0
+        
+        # Check against good examples patterns
+        good_patterns = [
+            r'🏠\s*\*\*.*\*\*',  # Proper header structure
+            r'🌱\s*\*\*.*\*\*',  # Optimal section
+            r'⚡\s*\*\*.*\*\*',  # Recommendations section
+            r'🔥\s*\*\*.*\*\*',  # Avoid section
+            r'📊\s*\*\*.*\*\*',  # Data section
+            r'🌍\s*\*\*.*\*\*',  # Impact section
+            r'\d{2}:\d{2}-\d{2}:\d{2}',  # Time format
+            r'\d+g CO2/kWh',  # CO2 values
+            r'\d+%',  # Percentage
+            r'REAL EirGrid data',  # Data source reference
+        ]
+        
+        for pattern in good_patterns:
+            if re.search(pattern, response, re.IGNORECASE):
+                good_matches += 1
+        
+        # Check against bad examples patterns
+        bad_patterns = [
+            r'\b(?:usually|typically|generally|probably)\b',  # Vague language
+            r'\b(?:might|could|may)\b',  # Uncertain language
+            r'between \d+ and \d+',  # Vague ranges instead of specific times
+        ]
+        
+        for pattern in bad_patterns:
+            if re.search(pattern, response, re.IGNORECASE):
+                bad_matches += 1
+        
+        # Calculate format compliance
+        total_good_patterns = len(good_patterns)
+        format_compliance = good_matches / total_good_patterns if total_good_patterns > 0 else 0.0
+        
+        return {
+            "good_patterns_matched": good_matches,
+            "bad_patterns_found": bad_matches,
+            "matches_good_format": good_matches >= 7,  # At least 70% of good patterns
+            "avoids_bad_patterns": bad_matches == 0,
+            "format_compliance_score": format_compliance
+        }
+    
+    def _has_time_recommendations(self, response: str) -> bool:
+        """Check if response has specific time recommendations"""
+        import re
+        time_patterns = [
+            r'\d{1,2}:\d{2}',
+            r'\d{1,2}:\d{2}-\d{1,2}:\d{2}',
+            r'(?:morning|afternoon|evening|overnight|night)',
+        ]
+        
+        return any(re.search(pattern, response, re.IGNORECASE) for pattern in time_patterns)
+    
+    def _has_carbon_data(self, response: str) -> bool:
+        """Check if response includes carbon data"""
+        import re
+        carbon_patterns = [
+            r'\d+g CO2/kWh',
+            r'carbon intensity',
+            r'emission',
+            r'CO2',
+        ]
+        
+        return any(re.search(pattern, response, re.IGNORECASE) for pattern in carbon_patterns)
+    
+    def _has_visual_elements(self, response: str) -> bool:
+        """Check if response has visual elements (emojis)"""
+        import re
+        visual_patterns = [
+            r'[🌱⚡🔥📊🏠🔋🌍🕐🌙🌅☀️🌆]',
+            r'\*\*.*\*\*',  # Bold headers
+            r'•',  # Bullet points
+        ]
+        
+        return any(re.search(pattern, response) for pattern in visual_patterns)
+    
+    def _has_proper_structure(self, response: str) -> bool:
+        """Check if response has proper structure"""
+        import re
+        structure_indicators = [
+            len(re.findall(r'\*\*[^*]+\*\*', response)) >= 3,  # At least 3 sections
+            len(re.findall(r'[•\-\*]', response)) >= 3,  # At least 3 bullet points
+            len(response.split('\n')) >= 5,  # Multiple lines
+        ]
+        
+        return sum(structure_indicators) >= 2
+    
+    def _detect_tools_used(self, raw_output: str) -> List[str]:
+        """Detect tools used in agent output"""
+        import re
+        tool_patterns = [
+            (r"get_emission_analysis", "get_emission_analysis"),
+            (r"emission_tool", "get_emission_analysis"),
+            (r"emission.*analysis", "get_emission_analysis"),
+            (r"carbon.*intensity.*data", "get_emission_analysis"),
+            (r"co2.*data", "get_emission_analysis"),
+            (r"daily.*analyzer", "analyze_daily_co2"),
+            (r"weekly.*analyzer", "analyze_weekly_co2"),
+            (r"monthly.*analyzer", "analyze_monthly_co2")
+        ]
+        
+        tools_found = set()
+        for pattern, tool_name in tool_patterns:
+            if re.search(pattern, raw_output, re.IGNORECASE):
+                tools_found.add(tool_name)
+        
+        # If no tools detected but response looks like CO2 analysis, assume tool was used
+        if not tools_found and self._has_carbon_data(raw_output):
+            tools_found.add("get_emission_analysis")
+        
+        return list(tools_found)
+    
+
     # Removed _create_fallback_structure method - no more fake parsing structures
 
 class HybridAgentEvaluator:
@@ -704,7 +834,7 @@ class HybridAgentEvaluator:
             load_dotenv()
             
             # Check for required environment variables
-            required_vars = ["AZURE_DEPLOYMENT", "AZURE_ENDPOINT", "API_KEY", "API_VERSION"]
+            required_vars = ["AZURE_AI_DEPLOYMENT", "AZURE_AI_ENDPOINT", "AZURE_AI_API_KEY", "AZURE_AI_API_VERSION", "AZURE_AI_MODEL"]
             missing_vars = [var for var in required_vars if not os.getenv(var)]
             
             if missing_vars:
@@ -713,18 +843,12 @@ class HybridAgentEvaluator:
                 return
             
             # Create Azure client
-            client = AzureOpenAIChatCompletionClient(
-                azure_deployment=os.getenv("AZURE_DEPLOYMENT"),
-                model=os.getenv("MODEL", "gpt-4"),
-                api_version=os.getenv("API_VERSION"),
-                azure_endpoint=os.getenv("AZURE_ENDPOINT"),
-                api_key=os.getenv("API_KEY")
-            )
+            client = create_azure_client()
             
             # Create LLM judge
             llm_judge = LLMJudge(
                 azure_client=client,
-                model_name=os.getenv("MODEL", "gpt-4"),
+                model_name=os.getenv("AZURE_AI_MODEL", "gpt-4o"),
                 max_retries=self.config.get("max_retries", 3)
             )
             
@@ -1040,6 +1164,26 @@ class HybridAgentEvaluator:
         result.matches_bad_examples = examples_analysis.get("bad_patterns_found", 0)
         result.format_compliance_score = examples_analysis.get("format_compliance_score", 0.0)
         
+        # Validate metadata expectations
+        tools_used = result.functions_called or []
+        metadata_validation = self.rule_strategy._validate_test_metadata(test_case, full_response, tools_used)
+        
+        # Incorporate metadata validation into scores
+        metadata_weight = 0.3  # 30% weight for metadata compliance
+        base_rule_score = result.rule_based_score
+        metadata_score = (
+            metadata_validation["function_call_score"] * 0.4 +
+            metadata_validation["behavior_score"] * 0.3 +
+            metadata_validation["keyword_score"] * 0.2 +
+            metadata_validation["domain_score"] * 0.1
+        )
+        
+        # Adjust rule-based score with metadata validation
+        result.rule_based_score = (base_rule_score * (1 - metadata_weight)) + (metadata_score * metadata_weight)
+        
+        # Store metadata validation results
+        result.metadata_validation = metadata_validation
+        
         # Run LLM evaluation if available
         if self.llm_strategy and mode != EvaluationMode.RULE_BASED_ONLY:
             try:
@@ -1288,41 +1432,152 @@ class HybridAgentEvaluator:
         """Calculate tool usage efficiency score"""
         return tool_usage.tool_usage_efficiency
     
+    def _extract_textmessage_content(self, raw_output: str) -> str:
+        """Extract TextMessage content from agent output"""
+        import re
+        
+        # Patterns to match agent responses - support both single and double quotes
+        agent_patterns = [
+            r'TextMessage\([^)]*source=\'(?:StreamlinedCarbonAgent|CarbonAgent|AssistantAgent)\'[^)]*content=\'([^\']*)\'' ,
+            r'TextMessage\([^)]*source="(?:StreamlinedCarbonAgent|CarbonAgent|AssistantAgent)"[^)]*content="([^"]*)"',
+            r'TextMessage\([^)]*content=\'([^\']{400,})\'[^)]*source=\'(?:StreamlinedCarbonAgent|CarbonAgent|AssistantAgent)\'',
+            r'TextMessage\([^)]*content="([^"]{200,})"[^)]*source="(?:StreamlinedCarbonAgent|CarbonAgent|AssistantAgent)"',
+            r'content=\'([^\']{300,})\'[^\']*(?:StreamlinedCarbonAgent|CarbonAgent|AssistantAgent)',
+            r'content="([^"]{300,})"[^"]*(?:StreamlinedCarbonAgent|CarbonAgent|AssistantAgent)',
+        ]
+        
+        for pattern in agent_patterns:
+            matches = re.findall(pattern, raw_output, re.DOTALL)
+            if matches:
+                longest_match = max(matches, key=len)
+                if len(longest_match) > 300:
+                    return self._clean_content(longest_match)
+        
+        return ""
+    
+    def _clean_content(self, content: str) -> str:
+        """Clean and format agent response content"""
+        import re
+        if not content:
+            return ""
+        
+        # Clean encoding and escape issues
+        clean_content = content.replace('\\n', '\n').replace("\\'", "'").replace('\\"', '"')
+        clean_content = clean_content.replace('\\t', ' ').replace('\\r', '')
+        
+        # Remove AutoGen-specific artifacts
+        artifacts_to_remove = [
+            r"TextMessage\([^)]*\)",
+            r"created_at=datetime\.datetime\([^)]*\)",
+            r"source='[^']*'",
+            r"id='[^']*'",
+            r"type='[^']*'",
+            r"models_usage=[^,)]*",
+            r"metadata=\{[^}]*\}",
+        ]
+        
+        for artifact in artifacts_to_remove:
+            clean_content = re.sub(artifact, "", clean_content)
+        
+        # Remove trailing artifacts
+        clean_content = re.sub(r"',\s*type='[^']*'\).*$", "", clean_content)
+        clean_content = re.sub(r"'\)\s*,\s*TaskResult.*$", "", clean_content, re.DOTALL)
+        
+        # Clean line by line
+        lines = clean_content.split('\n')
+        cleaned_lines = []
+        
+        for line in lines:
+            line = line.strip()
+            if line:
+                # Remove excessive whitespace
+                line = ' '.join(line.split())
+                # Remove escape characters and artifacts
+                line = line.replace('\\', '')
+                line = re.sub(r'^[,\s\)\]\}]+', '', line)
+                line = re.sub(r'[,\s\(\[\{]+$', '', line)
+                
+                # Keep lines with actual content
+                if len(line) > 3 and not re.match(r'^[,\s\)\]\}\(\[\{]*$', line):
+                    cleaned_lines.append(line)
+        
+        result = '\n'.join(cleaned_lines).strip()
+        
+        # Final cleanup
+        result = re.sub(r'\n\n+', '\n\n', result)
+        result = re.sub(r'^\W+', '', result)
+        
+        # Ensure proper ending
+        if result and not result.endswith(('.', '!', '?')):
+            result += '.'
+        
+        return result
+
     def _extract_clean_response(self, raw_output: str) -> str:
         """Extract the cleanest possible agent response from raw output"""
         if not raw_output:
             return ""
         
-        # Try to use the parser first
-        parser = AgentOutputParser()
-        clean_response = parser._extract_main_response(raw_output)
+        # Strategy 1: Look for TextMessage content extraction first (most reliable)
+        textmessage_content = self._extract_textmessage_content(raw_output)
+        if textmessage_content and len(textmessage_content) > 200:
+            return textmessage_content
+            
+        # Strategy 2: Look for structured carbon responses matching good examples
+        import re
+        carbon_response_patterns = [
+            r'\*\*Best Times to Use Appliances[^!]*!',
+            r'\*\*Optimal EV Charging Schedule[^!]*!',
+            r'🏠\s*\*\*[^*]+\*\*[^🌱]*🌱[^🔥]*🔥[^📊]*📊[^🌍]*🌍[^!]*!',
+            r'🔋\s*\*\*[^*]+\*\*[^🌱]*🌱[^🔥]*🔥[^🌍]*🌍[^!]*!',
+            r'📊\s*\*\*[^*]+\*\*[^🌙]*🌙[^📈]*📈[^🎯]*🎯',
+        ]
         
-        # If that gives us a good response, use it
-        if clean_response and len(clean_response) > 50:
-            return clean_response
+        for pattern in carbon_response_patterns:
+            matches = re.findall(pattern, raw_output, re.DOTALL | re.IGNORECASE)
+            if matches:
+                longest_match = max(matches, key=len)
+                if len(longest_match) > 300:  # Substantial response
+                    return self._clean_content(longest_match)
         
-        # Otherwise, try basic cleaning
+        # Strategy 3: Look for any substantial structured content
+        structured_patterns = [
+            r'(\*\*[^*]+\*\*[^*]{100,})',  # Headers with substantial content
+            r'([🌱⚡🔥📊🏠🔋🌍][^🌱⚡🔥📊🏠🔋🌍]{100,})',  # Emoji-based sections
+            r'(Best Times[^.]{200,})',  # Best times recommendations
+            r'(Optimal[^.]{200,})',  # Optimal recommendations
+        ]
+        
+        for pattern in structured_patterns:
+            matches = re.findall(pattern, raw_output, re.DOTALL | re.IGNORECASE)
+            if matches:
+                longest_match = max(matches, key=len)
+                if len(longest_match) > 200:
+                    return self._clean_content(longest_match)
+        
+        # Fallback to first substantial text block
         lines = raw_output.split('\n')
-        cleaned_lines = []
+        substantial_content = []
         
         for line in lines:
-            line = line.strip()
-            # Skip empty lines and technical artifacts
-            if (line and 
-                not line.startswith('[') and 
-                not line.startswith('TaskResult') and
-                not line.startswith('TextMessage') and
-                'created_at=' not in line and
-                'source=' not in line and
-                len(line) > 10):
-                cleaned_lines.append(line)
+            clean_line = line.strip()
+            if (len(clean_line) > 50 and 
+                not clean_line.startswith('[') and 
+                'TextMessage' not in clean_line and
+                'created_at' not in clean_line):
+                substantial_content.append(clean_line)
+                
+                if len(' '.join(substantial_content)) > 300:
+                    break
         
-        return '\n'.join(cleaned_lines) if cleaned_lines else raw_output
+        if substantial_content:
+            return self._clean_content(' '.join(substantial_content))
+        
+        return raw_output[:1000] if raw_output else "No response extracted"
 
     def _extract_agent_response(self, raw_output: str) -> str:
-        """Extract agent response using parser"""
-        parser = AgentOutputParser()
-        return parser._extract_main_response(raw_output)
+        """Extract agent response using updated parser"""
+        return self._extract_clean_response(raw_output)
 
     async def _run_agent_task(self, agent_instance, query: str):
         """Run agent task with multiple interface support"""
@@ -2040,7 +2295,7 @@ class HybridAgentEvaluator:
             
             # Add evaluation system metadata
             report_dict["evaluation_system_metadata"] = {
-                "evaluation_framework_version": "2.0_with_behavioral_assessment",
+                "evaluation_framework": "hybrid_assessment_system",
                 "behavioral_assessment_enabled": bool(self.behavioral_evaluator),
                 "examples_integration": {
                     "good_examples_loaded": len(self.examples.get('good_examples', [])),

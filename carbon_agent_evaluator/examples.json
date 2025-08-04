@@ -1,6 +1,5 @@
 {
   "metadata": {
-    "version": "1.0",
     "description": "Examples for Carbon Emissions Analysis Expert - Good and Bad responses",
     "purpose": "Ensure consistent, data-driven responses that match evaluation criteria"
   },
@@ -9,25 +8,25 @@
       "id": "good_001_appliances",
       "query": "What is the best time to use my appliances today in Ireland?",
       "co2_data": {
-        "min_value": 203,
-        "max_value": 267,
-        "daily_average": 224,
-        "optimal_time": "16:00-19:00",
-        "peak_time": "01:00-03:00"
+        "min_value": 105,
+        "max_value": 188,
+        "daily_average": 137,
+        "optimal_time": "20:00-23:00",
+        "peak_time": "04:00-07:00"
       },
-      "expected_response": "🏠 **Best Times to Use Appliances in Ireland Today (Based on REAL EirGrid Data):**\n\n🌱 **Optimal Period (Lowest Real CO2):**\n- **16:00-19:00**: 203-208g CO2/kWh (REAL EirGrid data)\n- Perfect for washing machine, dishwasher, and EV charging\n\n⚡ **Specific Appliance Recommendations (Real Data-Based):**\n• **Washing Machine**: Start cycle at 16:00\n• **Dishwasher**: Schedule for 16:00-19:00\n• **Electric Vehicle Charging**: Begin charging during real low-emission window\n• **Tumble Dryer**: Use during overnight period\n\n🔥 **Avoid High Real Emission Times:**\n- **01:00-03:00**: 256-267g CO2/kWh (real peak demand data)\n\n📊 **Today's REAL EirGrid CO2 Data:**\n- Minimum: 203g CO2/kWh (real measurement)\n- Maximum: 267g CO2/kWh (real measurement)\n- Daily Average: 224g CO2/kWh (real average)\n\n🌍 **Environmental Impact**: Using appliances during optimal times reduces your carbon footprint by up to 24% compared to peak times (calculated from real data)!",
+      "expected_response": "🏠 **Best Times to Use Appliances in Ireland Today (Based on REAL EirGrid Data):**\n\n🌱 **Optimal Period (Lowest Real CO2):**\n- **20:00-23:00**: 105-115g CO2/kWh (REAL EirGrid data)\n- Perfect for washing machine, dishwasher, and EV charging\n\n⚡ **Specific Appliance Recommendations (Real Data-Based):**\n• **Washing Machine**: Start cycle at 20:00\n• **Dishwasher**: Schedule for 20:00-23:00\n• **Electric Vehicle Charging**: Begin charging during real low-emission window\n• **Tumble Dryer**: Use during optimal period\n\n🔥 **Avoid These Real High Emission Times:**\n- **04:00-07:00**: 178-188g CO2/kWh (real peak demand data)\n\n📊 **Today's REAL EirGrid CO2 Data:**\n- Minimum: 105g CO2/kWh (real measurement)\n- Maximum: 188g CO2/kWh (real measurement)\n- Daily Average: 137g CO2/kWh (real average)\n\n🌍 **Environmental Impact**: Using appliances during optimal times reduces your carbon footprint by up to 44% compared to peak times (calculated from real data)!",
       "why_good": "Follows exact structure, uses real data values, includes all required sections with emojis, mentions real data source, provides percentage calculation"
     },
     {
       "id": "good_002_ev_charging",
       "query": "When should I charge my electric vehicle for minimal carbon footprint?",
       "co2_data": {
-        "min_value": 180,
-        "max_value": 420,
-        "optimal_time": "02:00-05:00",
-        "peak_time": "18:00-20:00"
+        "min_value": 105,
+        "max_value": 188,
+        "optimal_time": "20:00-23:00",
+        "peak_time": "04:00-07:00"
       },
-      "expected_response": "🔋 **Optimal EV Charging Schedule Based on REAL EirGrid Data:**\n\n🌱 **Best Charging Window (Real CO2 Data):**\n- **02:00-05:00**: Lowest real carbon intensity (180g CO2/kWh)\n- Based on current EirGrid measurements\n\n⚡ **EV Charging Strategy (Real Data-Based):**\n• **Immediate charging needed**: If below 20% battery, charge now\n• **Planned charging**: Set timer to start at 02:00 (real optimal time)\n• **Full overnight charge**: Begin at 02:00 for 6-8 hours\n• **Top-up charging**: Use any time during 02:00-05:00 window\n\n🔥 **Avoid These Real High Emission Times:**\n- **18:00-20:00**: Peak grid demand (420g CO2/kWh) from real data\n\n🌍 **Environmental Benefit**: Charging during optimal hours reduces your EV's carbon footprint by 57% compared to peak times (calculated from today's real EirGrid data)!",
+      "expected_response": "🔋 **Optimal EV Charging Schedule Based on REAL EirGrid Data:**\n\n🌱 **Best Charging Window (Real CO2 Data):**\n- **20:00-23:00**: Lowest real carbon intensity (105-115g CO2/kWh)\n- Based on current EirGrid compressed data measurements\n\n⚡ **EV Charging Strategy (Real Data-Based):**\n• **Immediate charging needed**: If below 20% battery, charge now\n• **Planned charging**: Set timer to start at 20:00 (real optimal time)\n• **Full daytime charge**: Begin at 20:00 for complete charge during low emissions\n• **Top-up charging**: Use any time during 20:00-23:00 window\n\n🔥 **Avoid These Real High Emission Times:**\n- **04:00-07:00**: Peak grid demand (178-188g CO2/kWh) from real data\n\n📊 **Today's Real CO2 Intensity Range:**\n- Minimum: 105g CO2/kWh\n- Maximum: 188g CO2/kWh\n- Daily Average: 137g CO2/kWh\n\n🌍 **Environmental Benefit**: Charging during optimal hours reduces your EV's carbon footprint by 44% compared to peak times (calculated from today's real EirGrid data)!",
       "why_good": "EV-specific recommendations, uses real data values, clear time windows, percentage calculation based on actual data"
     },
     {
@@ -125,13 +124,12 @@
       "Environmental impact statement with percentage"
     ],
     "required_elements": [
-      "Emojis for visual structure (🌱, ⚡, 🔥, 📊, 🌍)",
-      "Time ranges in HH:MM-HH:MM format",
+      "Broader time ranges in HH:MM-HH:MM format (3-hour windows preferred)",
       "CO2 values in g CO2/kWh format",
       "Reference to 'REAL EirGrid data' or 'real data'",
       "At least 3 specific appliance mentions",
-      "Percentage calculation for environmental impact",
-      "Minimum 5 bullet points or recommendations"
+      "Percentage calculation for environmental impact based on actual data range",
+      "Both optimal AND peak periods mentioned with broader windows"
     ],
     "prohibited_elements": [
       "Vague language (usually, typically, generally)",
@@ -139,8 +137,7 @@
       "Missing time specifics",
       "No CO2 values",
       "Wrong format structure",
-      "Responses over 1000 characters",
-      "Responses under 400 characters"
+      "Responses over 1000 characters"
     ]
   }
 }

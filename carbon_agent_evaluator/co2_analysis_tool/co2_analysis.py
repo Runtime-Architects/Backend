@@ -1,13 +1,8 @@
-import os
 from pathlib import Path
 from co2_analysis_tool.co2_analysis_util import (get_emission_data, get_view, calculate_thresholds,
                                                  classify_intensity, format_time_range)
 from co2_analysis_tool.co2_plot import (plot_day_intensity, plot_weekly_intensity,
                       plot_monthly_intensity)
-import json
-
-from scraper_tools.run_eirgrid_downloader import main as eirgrid_main
-
 
 class CO2IntensityAnalyzer:
     """
@@ -159,47 +154,3 @@ class CO2IntensityAnalyzer:
             plot_weekly_intensity(self.data, self.start_date_str, self.end_date_str, self.region, work_dir)
         elif self.view == 'month':
             plot_monthly_intensity(self.data, self.start_date_str, self.end_date_str, self.region, work_dir)
-
-
-
-if __name__ == '__main__':
-
-    # def call_as_cli():
-    # # Simulate command line arguments
-    #     sys.argv = [
-    #         'run_eirgrid_downloader.py',
-    #         '--areas', 'co2_intensity',
-    #         '--start', '2025-07-20',
-    #         '--end', '2025-07-20',
-    #         '--region', 'all',
-    #         '--forecast',
-    #         '--output-dir', './data'
-    #     ]
-    
-    #     # Run the main function
-    #     return eirgrid_main()
-    
-    # call_as_cli()
-
-    try:
-        # Use relative path to data directory
-        data_file = 'data/co2_intensity/co2_intensity_all_2025-07-01_2025-07-14.json'
-        if not os.path.exists(data_file):
-            # Look for any available co2 intensity file
-            import glob
-            available_files = glob.glob('data/co2_intensity/co2_intensity_*.json')
-            if available_files:
-                data_file = available_files[0]
-            else:
-                raise FileNotFoundError("No CO2 intensity data files found in data/co2_intensity/")
-        
-        with open(data_file, 'r') as file:
-            scraper_data = json.load(file)
-    except Exception as e:
-        raise Exception(f"Error loading CO2 data: {e}")
-    
-
-    analyzer = CO2IntensityAnalyzer("2025-07-01", "2025-07-14", "all")
-    intensity_periods = analyzer.get_analysis_by_view()
-
-    print(intensity_periods)

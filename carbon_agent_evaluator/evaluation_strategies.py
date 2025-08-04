@@ -383,6 +383,126 @@ class RuleBasedStrategy(BaseEvaluationStrategy):
             return EvaluationStatus.PASS, "Minor issues but acceptable", issues
         else:
             return EvaluationStatus.FAIL, "; ".join(reasoning_parts) or "Multiple criteria not met", issues
+    
+    def _validate_test_metadata(self, test_case: dict, agent_response: str, tools_used: List[str]) -> dict:
+        """Validate agent response against test case metadata expectations"""
+        validation_results = {
+            "function_calls_correct": True,
+            "behavior_expectations_met": True,
+            "output_keywords_present": True,
+            "domain_context_appropriate": True,
+            "function_call_score": 1.0,
+            "behavior_score": 1.0,
+            "keyword_score": 1.0,
+            "domain_score": 1.0
+        }
+        
+        # Check expected functions
+        expected_functions = test_case.get('expected_functions', [])
+        if expected_functions:
+            functions_matched = sum(1 for func in expected_functions if func in tools_used)
+            validation_results["function_call_score"] = functions_matched / len(expected_functions) if expected_functions else 1.0
+            validation_results["function_calls_correct"] = functions_matched == len(expected_functions)
+            
+            # Special case: if no functions expected (error cases), penalize if functions were called
+            if not expected_functions and tools_used:
+                validation_results["function_call_score"] = 0.0
+                validation_results["function_calls_correct"] = False
+        
+        # Check expected behavior
+        expected_behavior = test_case.get('expected_behavior', [])
+        behavior_score = 0.0
+        if expected_behavior:
+            behavior_checks = {
+                "correct_function_call": lambda: validation_results["function_calls_correct"],
+                "high_quality_response": lambda: len(agent_response) > 300 and self._has_proper_structure(agent_response),
+                "user_friendly": lambda: self._has_visual_elements(agent_response),
+                "domain_expertise": lambda: self._has_carbon_data(agent_response) and self._has_time_recommendations(agent_response),
+                "error_handling": lambda: any(word in agent_response.lower() for word in ["invalid", "error", "issue", "problem"]),
+                "user_friendly_error": lambda: "please" in agent_response.lower() or "would you like" in agent_response.lower(),
+                "date_validation": lambda: "date" in agent_response.lower() and ("invalid" in agent_response.lower() or "doesn't exist" in agent_response.lower()),
+                "domain_awareness": lambda: "specialized" in agent_response.lower() or "carbon emissions" in agent_response.lower(),
+                "polite_redirection": lambda: "recommend" in agent_response.lower() or "help you with" in agent_response.lower(),
+                "professional_response": lambda: len(agent_response) > 50 and not any(word in agent_response.lower() for word in ["lol", "haha", "joke"]),
+                "query_interpretation": lambda: any(word in agent_response.lower() for word in ["appliance", "time", "carbon"]),
+                "helpful_response": lambda: self._has_time_recommendations(agent_response) or "help" in agent_response.lower(),
+                "comparative_analysis": lambda: "compare" in agent_response.lower() or "ireland" in agent_response.lower(),
+                "statistical_analysis": lambda: any(word in agent_response.lower() for word in ["average", "minimum", "maximum", "statistics"]),
+                "historical_data": lambda: "week" in agent_response.lower() or "last" in agent_response.lower(),
+                "data_availability_check": lambda: "data" in agent_response.lower() and ("available" in agent_response.lower() or "forecast" in agent_response.lower())
+            }
+            
+            behaviors_met = 0
+            for behavior in expected_behavior:
+                if behavior in behavior_checks and behavior_checks[behavior]():
+                    behaviors_met += 1
+            
+            behavior_score = behaviors_met / len(expected_behavior) if expected_behavior else 1.0
+            validation_results["behavior_score"] = behavior_score
+            validation_results["behavior_expectations_met"] = behavior_score >= 0.7  # At least 70% of behaviors
+        
+        # Check expected output keywords
+        expected_keywords = test_case.get('expected_output_keywords', [])
+        if expected_keywords:
+            keywords_found = sum(1 for keyword in expected_keywords if keyword.lower() in agent_response.lower())
+            validation_results["keyword_score"] = keywords_found / len(expected_keywords) if expected_keywords else 1.0
+            validation_results["output_keywords_present"] = keywords_found >= len(expected_keywords) * 0.6  # At least 60% of keywords
+        
+        # Check domain context appropriateness
+        domain_context = test_case.get('domain_context', '')
+        if domain_context:
+            domain_keywords = ["carbon", "emissions", "co2", "intensity", "ireland", "eirgrid", "energy"]
+            domain_relevance = sum(1 for keyword in domain_keywords if keyword.lower() in agent_response.lower())
+            validation_results["domain_score"] = min(1.0, domain_relevance / 3.0)  # Normalize to max 1.0
+            validation_results["domain_context_appropriate"] = domain_relevance >= 2  # At least 2 domain keywords
+        
+        return validation_results
+    
+    def _has_proper_structure(self, response: str) -> bool:
+        """Check if response has proper structure"""
+        import re
+        structure_indicators = [
+            len(re.findall(r'\*\*[^*]+\*\*', response)) >= 3,  # At least 3 sections
+            len(re.findall(r'[•\-\*]', response)) >= 3,  # At least 3 bullet points
+            len(response.split('\n')) >= 5,  # Multiple lines
+        ]
+        
+        return sum(structure_indicators) >= 2
+    
+    def _has_visual_elements(self, response: str) -> bool:
+        """Check if response has visual elements (emojis)"""
+        import re
+        visual_patterns = [
+            r'[🌱⚡🔥📊🏠🔋🌍🕐🌙🌅☀️🌆]',
+            r'\*\*.*\*\*',  # Bold headers
+            r'•',  # Bullet points
+        ]
+        
+        return any(re.search(pattern, response) for pattern in visual_patterns)
+    
+    def _has_carbon_data(self, response: str) -> bool:
+        """Check if response includes carbon data"""
+        import re
+        carbon_patterns = [
+            r'\d+g CO2/kWh',
+            r'carbon intensity',
+            r'co2.*intensity',
+            r'emission.*data',
+            r'\d+%.*carbon',
+        ]
+        
+        return any(re.search(pattern, response, re.IGNORECASE) for pattern in carbon_patterns)
+    
+    def _has_time_recommendations(self, response: str) -> bool:
+        """Check if response has specific time recommendations"""
+        import re
+        time_patterns = [
+            r'\d{1,2}:\d{2}',
+            r'\d{1,2}:\d{2}-\d{1,2}:\d{2}',
+            r'(?:morning|afternoon|evening|overnight|night)',
+        ]
+        
+        return any(re.search(pattern, response, re.IGNORECASE) for pattern in time_patterns)
 
 class LLMJudgeStrategy(BaseEvaluationStrategy):
     """LLM-based evaluation strategy with ground truth support"""

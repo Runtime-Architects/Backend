@@ -2,18 +2,15 @@
 import os
 import sys
 from autogen_agentchat.agents import AssistantAgent
-from autogen_ext.models.openai import AzureOpenAIChatCompletionClient
+from azure_client_factory import create_azure_client
 from autogen_ext.code_executors.local import LocalCommandLineCodeExecutor
 from autogen_ext.tools.code_execution import PythonCodeExecutionTool
 from autogen_core.tools import FunctionTool
 from autogen_agentchat.ui import Console
 from datetime import datetime
 import asyncio
-from co2_analysis_tool import (
-    co2_analysis_daily, 
-    co2_analysis_weekly, 
-    co2_analysis_monthly
-)
+from co2_analysis_tool.co2_analysis import CO2IntensityAnalyzer
+from co2_statistics_utils import calculate_co2_statistics
 from scraper_tools.run_eirgrid_downloader import main as eirgrid_main
 import json
 import os
@@ -21,14 +18,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-client = AzureOpenAIChatCompletionClient(
-    azure_deployment=os.environ["AZURE_DEPLOYMENT"],
-    model=os.environ["MODEL"],
-    api_version=os.environ["API_VERSION"],
-    azure_endpoint=os.environ["AZURE_ENDPOINT"],
-    api_key=os.environ["API_KEY"],
-    max_completion_tokens=1024,
-)
+client = create_azure_client(max_completion_tokens=1024)
 
 import time
 
@@ -82,43 +72,22 @@ async def get_emission_analysis(startdate: str, enddate: str, region: str) -> di
                 time_series = data['data']['time_series']
         
         if time_series:
-            # Extract CO2 values and times
-            values = []
-            time_value_pairs = []
+            # Use centralized statistics calculation
+            stats = calculate_co2_statistics(time_series)
             
-            for entry in time_series:
-                if isinstance(entry, dict) and 'value' in entry:
-                    value = entry['value']
-                    time_str = entry.get('time', '')
-                    values.append(value)
-                    if time_str:
-                        time_value_pairs.append((time_str, value))
-            
-            if values:
-                min_value = min(values)
-                max_value = max(values)
-                avg_value = sum(values) / len(values)
-                
-                # Find optimal and peak times
-                min_entries = [entry for entry in time_series if entry.get('value') == min_value]
-                max_entries = [entry for entry in time_series if entry.get('value') == max_value]
-                
-                optimal_times = [entry.get('time', '') for entry in min_entries if entry.get('time')]
-                peak_times = [entry.get('time', '') for entry in max_entries if entry.get('time')]
-                
-                # Add analysis to result
-                analysis_result.update({
-                    "co2_data": {
-                        "min_value": min_value,
-                        "max_value": max_value,
-                        "daily_average": int(avg_value),
-                        "optimal_times": optimal_times[:3],  # First 3 optimal times
-                        "peak_times": peak_times[:3],       # First 3 peak times
-                        "data_points": len(time_series),
-                        "region": region,
-                        "date_range": f"{startdate} to {enddate}"
-                    }
-                })
+            # Add analysis to result
+            analysis_result.update({
+                "co2_data": {
+                    "min_value": stats["min_value"],
+                    "max_value": stats["max_value"],
+                    "daily_average": stats["daily_average"],
+                    "optimal_times": stats["optimal_times"],
+                    "peak_times": stats["peak_times"],
+                    "data_points": len(time_series),
+                    "region": region,
+                    "date_range": f"{startdate} to {enddate}"
+                }
+            })
         
         return analysis_result
     
@@ -160,7 +129,8 @@ async def analyze_daily_co2(startdate: str, enddate: str, region: str = "all") -
         except Exception as e:
             return {"error": f"Failed to retrieve data: {str(e)}", "analysis_type": "daily"}
     
-    analysis = co2_analysis_daily.get_daily_analysis(file_path)
+    analyzer = CO2IntensityAnalyzer(startdate, enddate, region)
+    analysis = analyzer.get_analysis_by_view()
     return analysis
 
 async def analyze_weekly_co2(startdate: str, enddate: str, region: str = "all") -> dict:
@@ -177,7 +147,8 @@ async def analyze_weekly_co2(startdate: str, enddate: str, region: str = "all") 
         except Exception as e:
             return {"error": f"Failed to retrieve data: {str(e)}", "analysis_type": "weekly"}
     
-    analysis = co2_analysis_weekly.get_weekly_analysis(file_path)
+    analyzer = CO2IntensityAnalyzer(startdate, enddate, region)
+    analysis = analyzer.get_analysis_by_view()
     return analysis
 
 async def analyze_monthly_co2(startdate: str, enddate: str, region: str = "all") -> dict:
@@ -194,7 +165,19 @@ async def analyze_monthly_co2(startdate: str, enddate: str, region: str = "all")
         except Exception as e:
             return {"error": f"Failed to retrieve data: {str(e)}", "analysis_type": "monthly"}
     
-    analysis = co2_analysis_monthly.get_monthly_analysis(file_path)
+    analyzer = CO2IntensityAnalyzer(startdate, enddate, region)
+    
+    # Handle the method name mismatch in co2_analysis.py
+    try:
+        # First try the standard method
+        analysis = analyzer.get_analysis_by_view()
+    except AttributeError as e:
+        # If monthly_analysis doesn't exist, try get_monthly_analysis
+        if "monthly_analysis" in str(e):
+            analysis = analyzer.get_monthly_analysis()
+        else:
+            raise e
+    
     return analysis
 
 daily_analyzer_tool = FunctionTool(

@@ -17,6 +17,7 @@ from datetime import datetime, timedelta
 # Import the evaluation framework
 from hybrid_agent_evaluator import HybridAgentEvaluator, HybridEvaluationReport
 from evaluation_strategies import EvaluationMode
+from co2_statistics_utils import calculate_co2_statistics
 
 # Import CO2 processing
 try:
@@ -29,7 +30,7 @@ except ImportError as e:
 
 # Import required libraries for Azure setup
 from autogen_agentchat.agents import AssistantAgent
-from autogen_ext.models.openai import AzureOpenAIChatCompletionClient
+from azure_client_factory import create_azure_client
 from autogen_core.tools import FunctionTool
 from dotenv import load_dotenv
 
@@ -114,7 +115,7 @@ class StreamlinedCarbonAgentEvaluationRunner:
     def validate_environment(self) -> bool:
         """Basic environment validation"""
         # Check Azure environment variables
-        required_vars = ["AZURE_DEPLOYMENT", "AZURE_ENDPOINT", "API_KEY", "API_VERSION"]
+        required_vars = ["AZURE_AI_DEPLOYMENT", "AZURE_AI_ENDPOINT", "AZURE_AI_API_KEY", "AZURE_AI_API_VERSION", "AZURE_AI_MODEL"]
         missing_vars = []
         
         for var in required_vars:
@@ -260,57 +261,79 @@ class StreamlinedCarbonAgentEvaluationRunner:
             return False
         
         try:
-            # Check for existing data first
-            existing_data = self.find_available_data()
+            # Clean up old raw data files before scraping fresh data
+            import glob
+            old_raw_files = []
+            for pattern in ["data/co2_intensity/co2_intensity_*.json", "data/co2_intensity_*.json"]:
+                old_raw_files.extend(glob.glob(pattern))
             
-            # If no data or we want fresh data, run scraper
-            if not existing_data:
-                print(" No existing data found - running scraper based on query...")
-                if not self.run_eirgrid_scraper_for_query(test_query):
-                    print("ERROR: Failed to get data from scraper")
-                    return False
-                
-                existing_data = self.find_available_data()
-                if not existing_data:
-                    print("ERROR: No data available after scraper run")
-                    return False
+            # Filter out compressed files (they'll be cleaned separately)
+            old_raw_files = [f for f in old_raw_files if 'compressed' not in f.lower()]
             
-            print(f" Using EirGrid data: {existing_data}")
+            if old_raw_files:
+                print(f"Cleaning up {len(old_raw_files)} old raw data file(s)...")
+                for old_file in old_raw_files:
+                    try:
+                        os.remove(old_file)
+                        print(f"Removed old raw data: {os.path.basename(old_file)}")
+                    except Exception as e:
+                        print(f"Warning: Could not remove {old_file}: {e}")
             
-            # Look for existing compressed data first
+            # Always scrape fresh data for current evaluation
+            print(" Running scraper to get fresh data based on query...")
+            if not self.run_eirgrid_scraper_for_query(test_query):
+                print("ERROR: Failed to get fresh data from scraper")
+                return False
+            
+            # Verify fresh data is available
+            fresh_data = self.find_available_data()
+            if not fresh_data:
+                print("ERROR: No fresh data available after scraper run")
+                return False
+            
+            print(f" Using fresh EirGrid data: {fresh_data}")
+            
+            # Clean up old compressed data files
             import glob
             compressed_files = glob.glob("data/*compressed*.json")
             if compressed_files:
-                # Use the most recent compressed file
-                self.compressed_data_file = max(compressed_files, key=os.path.getmtime)
-                print(f"Using existing compressed data: {self.compressed_data_file}")
-            else:
-                # Try to compress the data if no compressed files exist
-                print("Compressing EirGrid data for consistency...")
-                try:
-                    self.compressed_data_file = CO2DataCompressor.prepare_for_evaluation("./data")
-                    print(f"SUCCESS: Data compressed: {self.compressed_data_file}")
-                except Exception as e:
-                    print(f"ERROR: Compression failed: {e}")
-                    return False
+                print(f"Cleaning up {len(compressed_files)} old compressed data file(s)...")
+                for old_file in compressed_files:
+                    try:
+                        os.remove(old_file)
+                        print(f"Removed old compressed data: {os.path.basename(old_file)}")
+                    except Exception as e:
+                        print(f"Warning: Could not remove {old_file}: {e}")
             
-            # Check for existing ground truth files
+            # Always compress fresh data for evaluation
+            print("Compressing fresh EirGrid data for evaluation...")
+            try:
+                self.compressed_data_file = CO2DataCompressor.prepare_for_evaluation("./data")
+                print(f"SUCCESS: Fresh data compressed: {self.compressed_data_file}")
+            except Exception as e:
+                print(f"ERROR: Compression failed: {e}")
+                return False
+            
+            # Clean up old ground truth files before generating fresh ones
             gt_files = glob.glob("test_configs/generated_test_cases_with_ground_truth_*.json")
             if gt_files:
-                # Use existing ground truth
-                test_cases_file = max(gt_files, key=os.path.getmtime)
-                print(f"Using existing ground truth: {test_cases_file}")
+                print(f"Cleaning up {len(gt_files)} old ground truth file(s)...")
+                for old_file in gt_files:
+                    try:
+                        os.remove(old_file)
+                        print(f"Removed old ground truth: {os.path.basename(old_file)}")
+                    except Exception as e:
+                        print(f"Warning: Could not remove {old_file}: {e}")
+            
+            # Always generate fresh ground truth with current data
+            print("Generating fresh ground truth from current compressed data...")
+            try:
+                test_cases_file = GroundTruthGenerator.generate_for_evaluation(self.compressed_data_file)
+                print(f"SUCCESS: Fresh ground truth generated: {test_cases_file}")
                 return True
-            else:
-                # Generate ground truth using compressed data
-                print("Generating ground truth from compressed data...")
-                try:
-                    test_cases_file = GroundTruthGenerator.generate_for_evaluation(self.compressed_data_file)
-                    print(f"SUCCESS: Ground truth generated: {test_cases_file}")
-                    return True
-                except Exception as e:
-                    print(f"ERROR: Ground truth generation failed: {e}")
-                    return False
+            except Exception as e:
+                print(f"ERROR: Ground truth generation failed: {e}")
+                return False
                 
         except Exception as e:
             print(f"ERROR: Data preparation failed: {e}")
@@ -320,13 +343,7 @@ class StreamlinedCarbonAgentEvaluationRunner:
         """Create Kamal's Carbon Agent with compressed data awareness"""
         try:
             # Setup Azure client
-            client = AzureOpenAIChatCompletionClient(
-                azure_deployment=os.getenv("AZURE_DEPLOYMENT"),
-                model=os.getenv("MODEL", "gpt-4"),
-                api_version=os.getenv("API_VERSION"),
-                azure_endpoint=os.getenv("AZURE_ENDPOINT"),
-                api_key=os.getenv("API_KEY")
-            )
+            client = create_azure_client()
             
             print(" Setting up Kamal's Carbon Agent...")
             
@@ -362,16 +379,16 @@ class StreamlinedCarbonAgentEvaluationRunner:
                 
                 # Extract key metrics from compressed data
                 data_points = compressed_data['data']
-                values = [point['value'] for point in data_points]
                 
-                if values:
-                    min_val = min(values)
-                    max_val = max(values)
-                    avg_val = sum(values) / len(values)
+                if data_points:
+                    # Use centralized statistics calculation
+                    stats = calculate_co2_statistics(data_points)
                     
-                    # Find optimal and peak times
-                    min_point = min(data_points, key=lambda x: x['value'])
-                    max_point = max(data_points, key=lambda x: x['value'])
+                    min_val = stats["min_value"]
+                    max_val = stats["max_value"]
+                    avg_val = stats["avg_value"]
+                    min_point = stats["min_point"]
+                    max_point = stats["max_point"]
                     
                     return {
                         "result": f"CO2 intensity data retrieved for {region} ({startdate} to {enddate})",
@@ -429,11 +446,13 @@ class StreamlinedCarbonAgentEvaluationRunner:
                     time_series = data['data']['time_series']
                     
                     if time_series:
-                        values = [entry.get('value', 0) for entry in time_series if isinstance(entry, dict)]
-                        if values:
-                            min_val = min(values)
-                            max_val = max(values)
-                            avg_val = sum(values) / len(values)
+                        # Use centralized statistics calculation
+                        stats = calculate_co2_statistics(time_series)
+                        
+                        if stats["min_value"] > 0:  # Check if we got valid data
+                            min_val = stats["min_value"]
+                            max_val = stats["max_value"]
+                            avg_val = stats["avg_value"]
                             
                             return {
                                 "result": f"CO2 intensity data retrieved for {region} ({startdate} to {enddate})",
@@ -481,43 +500,63 @@ TOOL USAGE:
 
 AFTER TOOL EXECUTION:
 - Process the tool results to extract: min_intensity, max_intensity, optimal_time, peak_time, daily_average
+- Create BROADER time windows around optimal/peak times (e.g., if optimal_time is 21:00, use 20:00-23:00 window)
+- For peak times, use broader windows (e.g., if peak_time is 05:30, use 04:00-07:00 window)
 - Use these values to create the structured response format below
 - DO NOT return the raw tool output or mention tool execution
 
 ### Response Guidelines:
 Follow the examples.json format:
 
+### FOR APPLIANCE QUERIES:
 **Best Times to Use Appliances in Ireland Today (Based on REAL EirGrid Data):**
 
 **Optimal Period (Lowest Real CO2):**
-- **[TIME_RANGE]**: [CO2_VALUE]g CO2/kWh (REAL EirGrid data)
+- **[BROADER_TIME_RANGE]**: [CO2_VALUE]g CO2/kWh (REAL EirGrid data)
 - Perfect for washing machine, dishwasher, and EV charging
 
 **Specific Appliance Recommendations (Real Data-Based):**
 - **Washing Machine**: Start cycle at [SPECIFIC_TIME]
-- **Dishwasher**: Schedule for [TIME_RANGE]
+- **Dishwasher**: Schedule for [BROADER_TIME_RANGE]
 - **Electric Vehicle Charging**: Begin charging during real low-emission window
-- **Tumble Dryer**: Use during overnight period
+- **Tumble Dryer**: Use during optimal period
 
-**Avoid High Real Emission Times:**
-- **[TIME_RANGE]**: [CO2_VALUE]g CO2/kWh (real peak demand data)
+### FOR EV CHARGING QUERIES:
+**Optimal EV Charging Schedule Based on REAL EirGrid Data:**
 
-**Today's REAL EirGrid CO2 Data:**
+🌱 **Best Charging Window (Real CO2 Data):**
+- **[BROADER_TIME_RANGE]**: Lowest real carbon intensity ([CO2_VALUE]g CO2/kWh)
+- Based on current EirGrid compressed data measurements
+
+⚡ **EV Charging Strategy (Real Data-Based):**
+• **Immediate charging needed**: If below 20% battery, charge now
+• **Planned charging**: Set timer to start at [OPTIMAL_TIME] (real optimal time)
+• **Full daytime charge**: Begin at [OPTIMAL_TIME] for complete charge during low emissions
+• **Top-up charging**: Use any time during [BROADER_TIME_RANGE] window
+
+🔥 **Avoid These Real High Emission Times:**
+- **[BROADER_PEAK_TIME_RANGE]**: [CO2_VALUE]g CO2/kWh (real peak demand data)
+
+📊 **Today's REAL EirGrid CO2 Data:**
 - Minimum: [VALUE]g CO2/kWh (real measurement)
 - Maximum: [VALUE]g CO2/kWh (real measurement)
 - Daily Average: [VALUE]g CO2/kWh (real average)
 
-**Environmental Impact**: Using appliances during optimal times reduces your carbon footprint by up to [PERCENTAGE]% compared to peak times (calculated from real data)!
+🌍 **Environmental Impact**: Using appliances/charging during optimal times reduces your carbon footprint by up to [PERCENTAGE]% compared to peak times (calculated from real data)!
 
 ### CRITICAL RESPONSE REQUIREMENTS:
 1. **NEVER return raw tool output or debug information**
 2. **ALWAYS format a complete user-friendly response using the data**
 3. Always include specific CO2 intensity values (g CO2/kWh) from the data
-4. Provide specific time recommendations in HH:MM-HH:MM format
-5. Use emojis for clarity as shown above
-6. Calculate environmental impact percentage: ((max-min)/max)*100
-7. Maintain this exact structure for consistency
-8. **Transform tool data into the structured format above - do not show tool execution details**
+4. **Use BROADER time windows** (not single hours):
+   - If optimal_time is 21:00, use 20:00-23:00 (3-hour window)
+   - If peak_time is 05:30, use 04:00-07:00 (3-hour window)
+5. **For EV charging queries**: Include all 4 charging strategies (immediate, planned, full, top-up)
+6. **Always mention both optimal AND peak periods** with broader time ranges
+7. Use emojis for clarity as shown above
+8. Calculate environmental impact percentage: ((max-min)/max)*100
+9. Maintain the exact structure for consistency (choose appliance OR EV format based on query)
+10. **Transform tool data into the structured format above - do not show tool execution details**
 """
         
         agent = AssistantAgent(

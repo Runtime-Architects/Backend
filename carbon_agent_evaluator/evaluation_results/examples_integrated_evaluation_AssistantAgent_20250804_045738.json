@@ -1,0 +1,925 @@
+{
+  "agent_name": "AssistantAgent",
+  "evaluation_date": "2025-08-04T04:57:38.467882",
+  "evaluation_mode": "llm_only_with_examples_integration",
+  "total_tests": 5,
+  "passed_tests": 4,
+  "failed_tests": 1,
+  "error_tests": 0,
+  "timeout_tests": 0,
+  "avg_execution_time": 2.2050744533538817,
+  "rule_based_accuracy": 0.8,
+  "llm_agreement_rate": 0.2,
+  "avg_rule_score": 0.5072857142857143,
+  "avg_llm_score": 1.1539,
+  "avg_combined_score": 1.1539,
+  "consistency_score": 1.0,
+  "detailed_results": [
+    {
+      "test_metadata": {
+        "test_case_id": "carbon_001_real_appliances",
+        "timestamp": "2025-08-04T04:56:52.186195",
+        "execution_time": 3.7221951484680176
+      },
+      "query_and_response": {
+        "test_query": "What is the best time to use my appliances today in Ireland?",
+        "full_agent_response": "Best Times to Use Appliances in Ireland Today (Based on REAL EirGrid Data):**\n**Optimal Period (Lowest Real CO2):**\n- **16:00-19:00**: 114g CO2/kWh (REAL EirGrid data)\n- Perfect for washing machine, dishwasher, and EV charging\n**Specific Appliance Recommendations (Real Data-Based):**\n- **Washing Machine**: Start cycle at 17:00\n- **Dishwasher**: Schedule for 16:00-19:00\n- **Electric Vehicle Charging**: Begin charging during real low-emission window\n- **Tumble Dryer**: Use during optimal period\n🔥 **Avoid These Real High Emission Times:**\n- **04:00-07:00**: 182g CO2/kWh (real peak demand data)\n📊 **Today's REAL EirGrid CO2 Data:**\n- Minimum: 114g CO2/kWh (real measurement)\n- Maximum: 182g CO2/kWh (real measurement)\n- Daily Average: 137g CO2/kWh (real average)\n🌍 **Environmental Impact**: Using appliances during optimal times reduces your carbon footprint by up to **37%** compared to peak times (calculated from real data)!",
+        "response_length": 930,
+        "response_preview": "Best Times to Use Appliances in Ireland Today (Based on REAL EirGrid Data):**\n**Optimal Period (Lowest Real CO2):**\n- **16:00-19:00**: 114g CO2/kWh (REAL EirGrid data)\n- Perfect for washing machine, d..."
+      },
+      "evaluation_results": {
+        "final_status": "PASS",
+        "final_score": 1.7835,
+        "confidence_level": "high",
+        "rule_based": {
+          "status": "FAIL",
+          "score": 0.53,
+          "functions_called": [],
+          "behaviors_observed": [
+            "correct_function_call",
+            "high_quality_response",
+            "user_friendly"
+          ],
+          "keyword_matches": 4
+        },
+        "llm_based": {
+          "status": "PASS",
+          "quality_score": 1.7835,
+          "confidence": 0.95,
+          "reasoning": "The agent output is highly accurate and closely aligns with the reference output. The CO2 values and time recommendations are within the valid range provided by the actual data, and the advice is specific and actionable. However, there are minor discrepancies: the agent suggests starting the washing machine at 17:00 instead of 16:00 as in the reference, which is still within the optimal window but deviates slightly from the reference recommendation. Additionally, the daily average CO2 value is correctly stated as 137g CO2/kWh, but the reference output rounds it to 136g CO2/kWh, which could cause slight confusion. The structure and clarity of the agent's output are excellent, and it provides actionable advice similar to the reference. Overall, the output is very close to the gold standard but not perfect due to the minor differences noted.",
+          "feedback": [
+            "The agent output is highly accurate and closely aligns with the reference output. The CO2 values and time recommendations are within the valid range provided by the actual data, and the advice is specific and actionable. However, there are minor discrepancies: the agent suggests starting the washing machine at 17:00 instead of 16:00 as in the reference, which is still within the optimal window but deviates slightly from the reference recommendation. Additionally, the daily average CO2 value is correctly stated as 137g CO2/kWh, but the reference output rounds it to 136g CO2/kWh, which could cause slight confusion. The structure and clarity of the agent's output are excellent, and it provides actionable advice similar to the reference. Overall, the output is very close to the gold standard but not perfect due to the minor differences noted.",
+            "Matches found: Optimal period (16:00-19:00) matches reference, CO2 values (114g CO2/kWh minimum, 182g CO2/kWh maximum) are accurate, Specific appliance recommendations are mostly aligned with reference",
+            "Missing elements: Washing machine start time (17:00) deviates slightly from reference (16:00), Daily average CO2 value (137g CO2/kWh) is correct but differs from reference rounding (136g CO2/kWh)"
+          ]
+        },
+        "consistency_score": 1.0
+      },
+      "examples_integration_analysis": {
+        "format_compliance_score": 0.7,
+        "matches_good_examples": 7,
+        "matches_bad_examples": 0,
+        "follows_required_structure": true,
+        "avoids_bad_patterns": true
+      },
+      "ground_truth_evaluation": {
+        "used": true,
+        "accuracy_vs_reference": 0.92,
+        "completeness_vs_reference": 0.9,
+        "clarity_score": 0.95,
+        "actionability_score": 0.95,
+        "format_compliance": 4.0,
+        "matches_with_reference": [
+          "Optimal period (16:00-19:00) matches reference",
+          "CO2 values (114g CO2/kWh minimum, 182g CO2/kWh maximum) are accurate",
+          "Specific appliance recommendations are mostly aligned with reference",
+          "Avoidance of high-emission times (04:00-07:00) matches reference",
+          "Environmental impact reduction percentage (37%) matches reference"
+        ],
+        "gaps_vs_reference": [
+          "Washing machine start time (17:00) deviates slightly from reference (16:00)",
+          "Daily average CO2 value (137g CO2/kWh) is correct but differs from reference rounding (136g CO2/kWh)"
+        ],
+        "structured_penalties_applied": []
+      },
+      "agent_interaction": {
+        "conversation_summary": {
+          "total_user_messages": 1,
+          "total_tool_calls": 1,
+          "total_agent_responses": 1,
+          "total_errors": 0,
+          "tools_used": [
+            "get_emission_analysis"
+          ],
+          "has_errors": false,
+          "response_length": 930,
+          "conversation_turns": 3,
+          "quality_indicators": {
+            "has_time_recommendations": true,
+            "has_carbon_data": true,
+            "has_visual_elements": true,
+            "has_structure": true,
+            "matches_required_format": true,
+            "avoids_bad_patterns": true
+          },
+          "examples_compliance": {
+            "good_patterns_matched": 7,
+            "bad_patterns_found": 0,
+            "matches_good_format": true,
+            "avoids_bad_patterns": true,
+            "format_compliance_score": 0.7
+          }
+        },
+        "conversation_flow": [
+          {
+            "step": 1,
+            "type": "user_input",
+            "content": "User query"
+          },
+          {
+            "step": 2,
+            "type": "tool_call",
+            "function": "get_emission_analysis",
+            "status": "success"
+          },
+          {
+            "step": 3,
+            "type": "agent_response",
+            "response_id": "Response01"
+          }
+        ],
+        "tool_interactions": [
+          {
+            "interaction_id": "tool_1",
+            "function_name": "get_emission_analysis",
+            "arguments": "startdate, enddate, region",
+            "type": "tool_call",
+            "result": {
+              "content": "CO2 intensity data retrieved using get_emission_analysis",
+              "is_error": false,
+              "status": "success"
+            }
+          }
+        ],
+        "agent_responses": [
+          "Best Times to Use Appliances in Ireland Today (Based on REAL EirGrid Data):**\n**Optimal Period (Lowest Real CO2):**\n- **16:00-19:00**: 114g CO2/kWh (REAL EirGrid data)\n- Perfect for washing machine, dishwasher, and EV charging\n**Specific Appliance Recommendations (Real Data-Based):**\n- **Washing Machine**: Start cycle at 17:00\n- **Dishwasher**: Schedule for 16:00-19:00\n- **Electric Vehicle Charging**: Begin charging during real low-emission window\n- **Tumble Dryer**: Use during optimal period\n🔥 **Avoid These Real High Emission Times:**\n- **04:00-07:00**: 182g CO2/kWh (real peak demand data)\n📊 **Today's REAL EirGrid CO2 Data:**\n- Minimum: 114g CO2/kWh (real measurement)\n- Maximum: 182g CO2/kWh (real measurement)\n- Daily Average: 137g CO2/kWh (real average)\n🌍 **Environmental Impact**: Using appliances during optimal times reduces your carbon footprint by up to **37%** compared to peak times (calculated from real data)!"
+        ],
+        "errors": []
+      },
+      "improvement_guidance": {
+        "detailed_feedback": [
+          "LLM evaluation: PASS",
+          "Quality score: 1.78",
+          "Final score (with adjustments): 1.78",
+          "LLM confidence: 0.95",
+          "The agent output is highly accurate and closely aligns with the reference output. The CO2 values and time recommendations are within the valid range provided by the actual data, and the advice is specific and actionable. However, there are minor discrepancies: the agent suggests starting the washing machine at 17:00 instead of 16:00 as in the reference, which is still within the optimal window but deviates slightly from the reference recommendation. Additionally, the daily average CO2 value is correctly stated as 137g CO2/kWh, but the reference output rounds it to 136g CO2/kWh, which could cause slight confusion. The structure and clarity of the agent's output are excellent, and it provides actionable advice similar to the reference. Overall, the output is very close to the gold standard but not perfect due to the minor differences noted.",
+          "The agent output is highly accurate and closely aligns with the reference output. The CO2 values and time recommendations are within the valid range provided by the actual data, and the advice is specific and actionable. However, there are minor discrepancies: the agent suggests starting the washing machine at 17:00 instead of 16:00 as in the reference, which is still within the optimal window but deviates slightly from the reference recommendation. Additionally, the daily average CO2 value is correctly stated as 137g CO2/kWh, but the reference output rounds it to 136g CO2/kWh, which could cause slight confusion. The structure and clarity of the agent's output are excellent, and it provides actionable advice similar to the reference. Overall, the output is very close to the gold standard but not perfect due to the minor differences noted.",
+          "Matches found: Optimal period (16:00-19:00) matches reference, CO2 values (114g CO2/kWh minimum, 182g CO2/kWh maximum) are accurate, Specific appliance recommendations are mostly aligned with reference",
+          "Missing elements: Washing machine start time (17:00) deviates slightly from reference (16:00), Daily average CO2 value (137g CO2/kWh) is correct but differs from reference rounding (136g CO2/kWh)"
+        ],
+        "improvement_suggestions": []
+      },
+      "raw_data": {
+        "raw_output_full": "[TextMessage(id='774dbfc3-da83-4cd9-be48-a17c93d514bf', source='user', models_usage=None, metadata={}, created_at=datetime.datetime(2025, 8, 4, 3, 56, 48, 460999, tzinfo=datetime.timezone.utc), content='What is the best time to use my appliances today in Ireland?', type='TextMessage'), ToolCallRequestEvent(id='8a13f986-7054-40d1-b7f1-59f5946d17d5', source='StreamlinedCarbonAgent', models_usage=RequestUsage(prompt_tokens=1052, completion_tokens=37), metadata={}, created_at=datetime.datetime(2025, 8, 4, 3, 56, 50, 40909, tzinfo=datetime.timezone.utc), content=[FunctionCall(id='call_uMHB3PfciDX81JwqvuYAXn4t', arguments='{\"startdate\":\"2025-08-04\",\"enddate\":\"2025-08-04\",\"region\":\"all\"}', name='get_emission_analysis')], type='ToolCallRequestEvent'), ToolCallExecutionEvent(id='f4055159-29f5-4463-a4bd-522b337ff2fc', source='StreamlinedCarbonAgent', models_usage=None, metadata={}, created_at=datetime.datetime(2025, 8, 4, 3, 56, 50, 42013, tzinfo=datetime.timezone.utc), content=[FunctionExecutionResult(content=\"{'result': 'CO2 intensity data retrieved for all (2025-08-04 to 2025-08-04)', 'source': 'compressed_eirgrid_data', 'data_points': 46, 'co2_range': '114-182g CO2/kWh', 'daily_average': '137g CO2/kWh', 'min_intensity': 114.0, 'max_intensity': 182.0, 'optimal_time': '17:00', 'peak_time': '05:00', 'file_type': 'compressed'}\", name='get_emission_analysis', call_id='call_uMHB3PfciDX81JwqvuYAXn4t', is_error=False)], type='ToolCallExecutionEvent'), TextMessage(id='745b1e7c-46a9-4cb3-a71d-9365f20603b0', source='StreamlinedCarbonAgent', models_usage=RequestUsage(prompt_tokens=1214, completion_tokens=263), metadata={}, created_at=datetime.datetime(2025, 8, 4, 3, 56, 52, 182192, tzinfo=datetime.timezone.utc), content=\"**Best Times to Use Appliances in Ireland Today (Based on REAL EirGrid Data):**\\n\\n**Optimal Period (Lowest Real CO2):**\\n- **16:00-19:00**: 114g CO2/kWh (REAL EirGrid data)\\n- Perfect for washing machine, dishwasher, and EV charging\\n\\n**Specific Appliance Recommendations (Real Data-Based):**\\n- **Washing Machine**: Start cycle at 17:00\\n- **Dishwasher**: Schedule for 16:00-19:00\\n- **Electric Vehicle Charging**: Begin charging during real low-emission window\\n- **Tumble Dryer**: Use during optimal period\\n\\n🔥 **Avoid These Real High Emission Times:**\\n- **04:00-07:00**: 182g CO2/kWh (real peak demand data)\\n\\n📊 **Today's REAL EirGrid CO2 Data:**\\n- Minimum: 114g CO2/kWh (real measurement)\\n- Maximum: 182g CO2/kWh (real measurement)\\n- Daily Average: 137g CO2/kWh (real average)\\n\\n🌍 **Environmental Impact**: Using appliances during optimal times reduces your carbon footprint by up to **37%** compared to peak times (calculated from real data)!\", type='TextMessage'), TaskResult(messages=[TextMessage(id='774dbfc3-da83-4cd9-be48-a17c93d514bf', source='user', models_usage=None, metadata={}, created_at=datetime.datetime(2025, 8, 4, 3, 56, 48, 460999, tzinfo=datetime.timezone.utc), content='What is the best time to use my appliances today in Ireland?', type='TextMessage'), ToolCallRequestEvent(id='8a13f986-7054-40d1-b7f1-59f5946d17d5', source='StreamlinedCarbonAgent', models_usage=RequestUsage(prompt_tokens=1052, completion_tokens=37), metadata={}, created_at=datetime.datetime(2025, 8, 4, 3, 56, 50, 40909, tzinfo=datetime.timezone.utc), content=[FunctionCall(id='call_uMHB3PfciDX81JwqvuYAXn4t', arguments='{\"startdate\":\"2025-08-04\",\"enddate\":\"2025-08-04\",\"region\":\"all\"}', name='get_emission_analysis')], type='ToolCallRequestEvent'), ToolCallExecutionEvent(id='f4055159-29f5-4463-a4bd-522b337ff2fc', source='StreamlinedCarbonAgent', models_usage=None, metadata={}, created_at=datetime.datetime(2025, 8, 4, 3, 56, 50, 42013, tzinfo=datetime.timezone.utc), content=[FunctionExecutionResult(content=\"{'result': 'CO2 intensity data retrieved for all (2025-08-04 to 2025-08-04)', 'source': 'compressed_eirgrid_data', 'data_points': 46, 'co2_range': '114-182g CO2/kWh', 'daily_average': '137g CO2/kWh', 'min_intensity': 114.0, 'max_intensity': 182.0, 'optimal_time': '17:00', 'peak_time': '05:00', 'file_type': 'compressed'}\", name='get_emission_analysis', call_id='call_uMHB3PfciDX81JwqvuYAXn4t', is_error=False)], type='ToolCallExecutionEvent'), TextMessage(id='745b1e7c-46a9-4cb3-a71d-9365f20603b0', source='StreamlinedCarbonAgent', models_usage=RequestUsage(prompt_tokens=1214, completion_tokens=263), metadata={}, created_at=datetime.datetime(2025, 8, 4, 3, 56, 52, 182192, tzinfo=datetime.timezone.utc), content=\"**Best Times to Use Appliances in Ireland Today (Based on REAL EirGrid Data):**\\n\\n**Optimal Period (Lowest Real CO2):**\\n- **16:00-19:00**: 114g CO2/kWh (REAL EirGrid data)\\n- Perfect for washing machine, dishwasher, and EV charging\\n\\n**Specific Appliance Recommendations (Real Data-Based):**\\n- **Washing Machine**: Start cycle at 17:00\\n- **Dishwasher**: Schedule for 16:00-19:00\\n- **Electric Vehicle Charging**: Begin charging during real low-emission window\\n- **Tumble Dryer**: Use during optimal period\\n\\n🔥 **Avoid These Real High Emission Times:**\\n- **04:00-07:00**: 182g CO2/kWh (real peak demand data)\\n\\n📊 **Today's REAL EirGrid CO2 Data:**\\n- Minimum: 114g CO2/kWh (real measurement)\\n- Maximum: 182g CO2/kWh (real measurement)\\n- Daily Average: 137g CO2/kWh (real average)\\n\\n🌍 **Environmental Impact**: Using appliances during optimal times reduces your carbon footprint by up to **37%** compared to peak times (calculated from real data)!\", type='TextMessage')], stop_reason=None)]",
+        "raw_output_length": 5467,
+        "error_message": null
+      },
+      "behavioral_assessment_summary": {
+        "performance_score": 0.0,
+        "decision_making_score": 0.0,
+        "error_recovery_score": 0.0,
+        "communication_score": 0.0,
+        "tool_efficiency_score": 0.0,
+        "behavioral_strengths": [],
+        "behavioral_weaknesses": [],
+        "behavioral_recommendations": []
+      }
+    },
+    {
+      "test_metadata": {
+        "test_case_id": "carbon_002_real_ev_charging",
+        "timestamp": "2025-08-04T04:57:04.721123",
+        "execution_time": 3.0233054161071777
+      },
+      "query_and_response": {
+        "test_query": "When should I charge my electric vehicle for minimal carbon footprint using current data?",
+        "full_agent_response": "Optimal EV Charging Schedule Based on REAL EirGrid Data:**\n🌱 **Best Charging Window (Real CO2 Data):**\n- **16:00-19:00**: Lowest real carbon intensity (114g CO2/kWh)\n- Based on current EirGrid compressed data measurements\n⚡ **EV Charging Strategy (Real Data-Based):**\n• **Immediate charging needed**: If below 20% battery, charge now\n• **Planned charging**: Set timer to start at 17:00 (real optimal time)\n• **Full daytime charge**: Begin at 17:00 for complete charge during low emissions\n• **Top-up charging**: Use any time during **16:00-19:00** window\n🔥 **Avoid These Real High Emission Times:**\n- **04:00-07:00**: 182g CO2/kWh (real peak demand data)\n📊 **Today's REAL EirGrid CO2 Data:**\n- Minimum: 114g CO2/kWh (real measurement)\n- Maximum: 182g CO2/kWh (real measurement)\n- Daily Average: 137g CO2/kWh (real average)\n🌍 **Environmental Impact**: Charging your EV during optimal times reduces your carbon footprint by up to **37%** compared to peak times (calculated from real data)!",
+        "response_length": 987,
+        "response_preview": "Optimal EV Charging Schedule Based on REAL EirGrid Data:**\n🌱 **Best Charging Window (Real CO2 Data):**\n- **16:00-19:00**: Lowest real carbon intensity (114g CO2/kWh)\n- Based on current EirGrid compres..."
+      },
+      "evaluation_results": {
+        "final_status": "PASS",
+        "final_score": 1.721,
+        "confidence_level": "high",
+        "rule_based": {
+          "status": "FAIL",
+          "score": 0.5414285714285714,
+          "functions_called": [],
+          "behaviors_observed": [
+            "correct_function_call",
+            "high_quality_response",
+            "domain_expertise"
+          ],
+          "keyword_matches": 6
+        },
+        "llm_based": {
+          "status": "PASS",
+          "quality_score": 1.721,
+          "confidence": 0.95,
+          "reasoning": "The agent output is mostly accurate but contains a minor discrepancy in the recommended charging start time (17:00 instead of 16:00 as per the reference). This affects accuracy and actionability slightly. Completeness is high as the agent includes all major points from the reference, though the environmental benefit calculation lacks explicit detail. Clarity is strong, with well-structured and readable content. Semantic similarity is high, as the core message and recommendations align closely with the reference output.",
+          "feedback": [
+            "The agent output is mostly accurate but contains a minor discrepancy in the recommended charging start time (17:00 instead of 16:00 as per the reference). This affects accuracy and actionability slightly. Completeness is high as the agent includes all major points from the reference, though the environmental benefit calculation lacks explicit detail. Clarity is strong, with well-structured and readable content. Semantic similarity is high, as the core message and recommendations align closely with the reference output.",
+            "Matches found: Correct identification of the optimal charging window (16:00-19:00)., Accurate CO2 intensity range (114-182g CO2/kWh)., Inclusion of immediate charging advice for low battery levels.",
+            "Missing elements: Recommended charging start time is 17:00 instead of 16:00, which deviates from the reference., Environmental benefit calculation lacks explicit detail compared to the reference."
+          ]
+        },
+        "consistency_score": 1.0
+      },
+      "examples_integration_analysis": {
+        "format_compliance_score": 0.9,
+        "matches_good_examples": 9,
+        "matches_bad_examples": 0,
+        "follows_required_structure": true,
+        "avoids_bad_patterns": true
+      },
+      "ground_truth_evaluation": {
+        "used": true,
+        "accuracy_vs_reference": 0.8200000000000001,
+        "completeness_vs_reference": 0.9,
+        "clarity_score": 0.9,
+        "actionability_score": 0.8,
+        "format_compliance": 3.5,
+        "matches_with_reference": [
+          "Correct identification of the optimal charging window (16:00-19:00).",
+          "Accurate CO2 intensity range (114-182g CO2/kWh).",
+          "Inclusion of immediate charging advice for low battery levels.",
+          "Avoidance of high emission times (04:00-07:00).",
+          "Environmental impact reduction percentage (37%)."
+        ],
+        "gaps_vs_reference": [
+          "Recommended charging start time is 17:00 instead of 16:00, which deviates from the reference.",
+          "Environmental benefit calculation lacks explicit detail compared to the reference."
+        ],
+        "structured_penalties_applied": []
+      },
+      "agent_interaction": {
+        "conversation_summary": {
+          "total_user_messages": 1,
+          "total_tool_calls": 1,
+          "total_agent_responses": 1,
+          "total_errors": 0,
+          "tools_used": [
+            "get_emission_analysis"
+          ],
+          "has_errors": false,
+          "response_length": 987,
+          "conversation_turns": 3,
+          "quality_indicators": {
+            "has_time_recommendations": true,
+            "has_carbon_data": true,
+            "has_visual_elements": true,
+            "has_structure": true,
+            "matches_required_format": true,
+            "avoids_bad_patterns": true
+          },
+          "examples_compliance": {
+            "good_patterns_matched": 9,
+            "bad_patterns_found": 0,
+            "matches_good_format": true,
+            "avoids_bad_patterns": true,
+            "format_compliance_score": 0.9
+          }
+        },
+        "conversation_flow": [
+          {
+            "step": 1,
+            "type": "user_input",
+            "content": "User query"
+          },
+          {
+            "step": 2,
+            "type": "tool_call",
+            "function": "get_emission_analysis",
+            "status": "success"
+          },
+          {
+            "step": 3,
+            "type": "agent_response",
+            "response_id": "Response01"
+          }
+        ],
+        "tool_interactions": [
+          {
+            "interaction_id": "tool_1",
+            "function_name": "get_emission_analysis",
+            "arguments": "startdate, enddate, region",
+            "type": "tool_call",
+            "result": {
+              "content": "CO2 intensity data retrieved using get_emission_analysis",
+              "is_error": false,
+              "status": "success"
+            }
+          }
+        ],
+        "agent_responses": [
+          "Optimal EV Charging Schedule Based on REAL EirGrid Data:**\n🌱 **Best Charging Window (Real CO2 Data):**\n- **16:00-19:00**: Lowest real carbon intensity (114g CO2/kWh)\n- Based on current EirGrid compressed data measurements\n⚡ **EV Charging Strategy (Real Data-Based):**\n• **Immediate charging needed**: If below 20% battery, charge now\n• **Planned charging**: Set timer to start at 17:00 (real optimal time)\n• **Full daytime charge**: Begin at 17:00 for complete charge during low emissions\n• **Top-up charging**: Use any time during **16:00-19:00** window\n🔥 **Avoid These Real High Emission Times:**\n- **04:00-07:00**: 182g CO2/kWh (real peak demand data)\n📊 **Today's REAL EirGrid CO2 Data:**\n- Minimum: 114g CO2/kWh (real measurement)\n- Maximum: 182g CO2/kWh (real measurement)\n- Daily Average: 137g CO2/kWh (real average)\n🌍 **Environmental Impact**: Charging your EV during optimal times reduces your carbon footprint by up to **37%** compared to peak times (calculated from real data)!"
+        ],
+        "errors": []
+      },
+      "improvement_guidance": {
+        "detailed_feedback": [
+          "LLM evaluation: PASS",
+          "Quality score: 1.72",
+          "Final score (with adjustments): 1.72",
+          "LLM confidence: 0.95",
+          "The agent output is mostly accurate but contains a minor discrepancy in the recommended charging start time (17:00 instead of 16:00 as per the reference). This affects accuracy and actionability slightly. Completeness is high as the agent includes all major points from the reference, though the environmental benefit calculation lacks explicit detail. Clarity is strong, with well-structured and readable content. Semantic similarity is high, as the core message and recommendations align closely with the reference output.",
+          "The agent output is mostly accurate but contains a minor discrepancy in the recommended charging start time (17:00 instead of 16:00 as per the reference). This affects accuracy and actionability slightly. Completeness is high as the agent includes all major points from the reference, though the environmental benefit calculation lacks explicit detail. Clarity is strong, with well-structured and readable content. Semantic similarity is high, as the core message and recommendations align closely with the reference output.",
+          "Matches found: Correct identification of the optimal charging window (16:00-19:00)., Accurate CO2 intensity range (114-182g CO2/kWh)., Inclusion of immediate charging advice for low battery levels.",
+          "Missing elements: Recommended charging start time is 17:00 instead of 16:00, which deviates from the reference., Environmental benefit calculation lacks explicit detail compared to the reference."
+        ],
+        "improvement_suggestions": []
+      },
+      "raw_data": {
+        "raw_output_full": "[TextMessage(id='0ca42eda-ede0-46e9-b18f-3217b1bb4b3a', source='user', models_usage=None, metadata={}, created_at=datetime.datetime(2025, 8, 4, 3, 57, 1, 696813, tzinfo=datetime.timezone.utc), content='When should I charge my electric vehicle for minimal carbon footprint using current data?', type='TextMessage'), TextMessage(id='6ed0d118-8901-4ca6-8413-6f9a281d331d', source='StreamlinedCarbonAgent', models_usage=RequestUsage(prompt_tokens=1499, completion_tokens=284), metadata={}, created_at=datetime.datetime(2025, 8, 4, 3, 57, 4, 720118, tzinfo=datetime.timezone.utc), content=\"**Optimal EV Charging Schedule Based on REAL EirGrid Data:**\\n\\n🌱 **Best Charging Window (Real CO2 Data):**\\n- **16:00-19:00**: Lowest real carbon intensity (114g CO2/kWh)\\n- Based on current EirGrid compressed data measurements\\n\\n⚡ **EV Charging Strategy (Real Data-Based):**\\n• **Immediate charging needed**: If below 20% battery, charge now  \\n• **Planned charging**: Set timer to start at 17:00 (real optimal time)  \\n• **Full daytime charge**: Begin at 17:00 for complete charge during low emissions  \\n• **Top-up charging**: Use any time during **16:00-19:00** window  \\n\\n🔥 **Avoid These Real High Emission Times:**\\n- **04:00-07:00**: 182g CO2/kWh (real peak demand data)\\n\\n📊 **Today's REAL EirGrid CO2 Data:**\\n- Minimum: 114g CO2/kWh (real measurement)  \\n- Maximum: 182g CO2/kWh (real measurement)  \\n- Daily Average: 137g CO2/kWh (real average)\\n\\n🌍 **Environmental Impact**: Charging your EV during optimal times reduces your carbon footprint by up to **37%** compared to peak times (calculated from real data)!\", type='TextMessage'), TaskResult(messages=[TextMessage(id='0ca42eda-ede0-46e9-b18f-3217b1bb4b3a', source='user', models_usage=None, metadata={}, created_at=datetime.datetime(2025, 8, 4, 3, 57, 1, 696813, tzinfo=datetime.timezone.utc), content='When should I charge my electric vehicle for minimal carbon footprint using current data?', type='TextMessage'), TextMessage(id='6ed0d118-8901-4ca6-8413-6f9a281d331d', source='StreamlinedCarbonAgent', models_usage=RequestUsage(prompt_tokens=1499, completion_tokens=284), metadata={}, created_at=datetime.datetime(2025, 8, 4, 3, 57, 4, 720118, tzinfo=datetime.timezone.utc), content=\"**Optimal EV Charging Schedule Based on REAL EirGrid Data:**\\n\\n🌱 **Best Charging Window (Real CO2 Data):**\\n- **16:00-19:00**: Lowest real carbon intensity (114g CO2/kWh)\\n- Based on current EirGrid compressed data measurements\\n\\n⚡ **EV Charging Strategy (Real Data-Based):**\\n• **Immediate charging needed**: If below 20% battery, charge now  \\n• **Planned charging**: Set timer to start at 17:00 (real optimal time)  \\n• **Full daytime charge**: Begin at 17:00 for complete charge during low emissions  \\n• **Top-up charging**: Use any time during **16:00-19:00** window  \\n\\n🔥 **Avoid These Real High Emission Times:**\\n- **04:00-07:00**: 182g CO2/kWh (real peak demand data)\\n\\n📊 **Today's REAL EirGrid CO2 Data:**\\n- Minimum: 114g CO2/kWh (real measurement)  \\n- Maximum: 182g CO2/kWh (real measurement)  \\n- Daily Average: 137g CO2/kWh (real average)\\n\\n🌍 **Environmental Impact**: Charging your EV during optimal times reduces your carbon footprint by up to **37%** compared to peak times (calculated from real data)!\", type='TextMessage')], stop_reason=None)]",
+        "raw_output_length": 3309,
+        "error_message": null
+      },
+      "behavioral_assessment_summary": {
+        "performance_score": 0.0,
+        "decision_making_score": 0.0,
+        "error_recovery_score": 0.0,
+        "communication_score": 0.0,
+        "tool_efficiency_score": 0.0,
+        "behavioral_strengths": [],
+        "behavioral_weaknesses": [],
+        "behavioral_recommendations": []
+      }
+    },
+    {
+      "test_metadata": {
+        "test_case_id": "carbon_003_real_data_request",
+        "timestamp": "2025-08-04T04:57:15.513454",
+        "execution_time": 2.531543016433716
+      },
+      "query_and_response": {
+        "test_query": "Show me real CO2 intensity data for the next 24 hours in Ireland",
+        "full_agent_response": "result': 'CO2 intensity data retrieved for all (2025-08-04 to 2025-08-05)', 'source': 'compressed_eirgrid_data', 'data_points': 46, 'co2_range': '114-182g CO2/kWh', 'daily_average': '137g CO2/kWh', 'min_intensity': 114.0, 'max_intensity': 182.0, 'optimal_time': '17:00', 'peak_time': '05:00', 'file_type': 'compressed'}.",
+        "response_length": 320,
+        "response_preview": "result': 'CO2 intensity data retrieved for all (2025-08-04 to 2025-08-05)', 'source': 'compressed_eirgrid_data', 'data_points': 46, 'co2_range': '114-182g CO2/kWh', 'daily_average': '137g CO2/kWh', 'm..."
+      },
+      "evaluation_results": {
+        "final_status": "PASS",
+        "final_score": 1.331,
+        "confidence_level": "high",
+        "rule_based": {
+          "status": "FAIL",
+          "score": 0.41,
+          "functions_called": [],
+          "behaviors_observed": [
+            "correct_function_call",
+            "high_quality_response"
+          ],
+          "keyword_matches": 3
+        },
+        "llm_based": {
+          "status": "PASS",
+          "quality_score": 1.331,
+          "confidence": 0.85,
+          "reasoning": "The agent output aligns with the actual CO2 data range (114.0-182.0g CO2/kWh) and correctly identifies the daily average (137g CO2/kWh). However, it provides a generic optimal time recommendation ('17:00') without specifying a range or aligning with the reference's detailed breakdown of optimal windows (16:00-19:00). The peak time ('05:00') is also inconsistent with the reference data, which does not explicitly identify this as a peak period. The agent output lacks the structured breakdown of CO2 intensity by time periods and omits key contextual details, such as the cleanest and highest emission periods. While the agent output is factually correct in some areas, its lack of detail and specificity reduces its completeness, clarity, and actionability compared to the reference.",
+          "feedback": [
+            "The agent output aligns with the actual CO2 data range (114.0-182.0g CO2/kWh) and correctly identifies the daily average (137g CO2/kWh). However, it provides a generic optimal time recommendation ('17:00') without specifying a range or aligning with the reference's detailed breakdown of optimal windows (16:00-19:00). The peak time ('05:00') is also inconsistent with the reference data, which does not explicitly identify this as a peak period. The agent output lacks the structured breakdown of CO2 intensity by time periods and omits key contextual details, such as the cleanest and highest emission periods. While the agent output is factually correct in some areas, its lack of detail and specificity reduces its completeness, clarity, and actionability compared to the reference.",
+            "Matches found: CO2 range matches actual data (114.0-182.0g CO2/kWh)., Daily average (137g CO2/kWh) is correct.",
+            "Missing elements: Optimal time ('17:00') is generic and does not align with the reference's detailed breakdown (16:00-19:00)., Peak time ('05:00') is inconsistent with reference data., Missing structured breakdown of CO2 intensity by time periods."
+          ]
+        },
+        "consistency_score": 1.0
+      },
+      "examples_integration_analysis": {
+        "format_compliance_score": 0.1,
+        "matches_good_examples": 1,
+        "matches_bad_examples": 0,
+        "follows_required_structure": false,
+        "avoids_bad_patterns": true
+      },
+      "ground_truth_evaluation": {
+        "used": true,
+        "accuracy_vs_reference": 0.8200000000000001,
+        "completeness_vs_reference": 0.7,
+        "clarity_score": 0.6,
+        "actionability_score": 0.6,
+        "format_compliance": 2.0,
+        "matches_with_reference": [
+          "CO2 range matches actual data (114.0-182.0g CO2/kWh).",
+          "Daily average (137g CO2/kWh) is correct."
+        ],
+        "gaps_vs_reference": [
+          "Optimal time ('17:00') is generic and does not align with the reference's detailed breakdown (16:00-19:00).",
+          "Peak time ('05:00') is inconsistent with reference data.",
+          "Missing structured breakdown of CO2 intensity by time periods.",
+          "Omitted cleanest and highest emission periods."
+        ],
+        "structured_penalties_applied": []
+      },
+      "agent_interaction": {
+        "conversation_summary": {
+          "total_user_messages": 1,
+          "total_tool_calls": 1,
+          "total_agent_responses": 1,
+          "total_errors": 0,
+          "tools_used": [
+            "get_emission_analysis"
+          ],
+          "has_errors": false,
+          "response_length": 320,
+          "conversation_turns": 3,
+          "quality_indicators": {
+            "has_time_recommendations": true,
+            "has_carbon_data": true,
+            "has_visual_elements": false,
+            "has_structure": false,
+            "matches_required_format": false,
+            "avoids_bad_patterns": true
+          },
+          "examples_compliance": {
+            "good_patterns_matched": 1,
+            "bad_patterns_found": 0,
+            "matches_good_format": false,
+            "avoids_bad_patterns": true,
+            "format_compliance_score": 0.1
+          }
+        },
+        "conversation_flow": [
+          {
+            "step": 1,
+            "type": "user_input",
+            "content": "User query"
+          },
+          {
+            "step": 2,
+            "type": "tool_call",
+            "function": "get_emission_analysis",
+            "status": "success"
+          },
+          {
+            "step": 3,
+            "type": "agent_response",
+            "response_id": "Response01"
+          }
+        ],
+        "tool_interactions": [
+          {
+            "interaction_id": "tool_1",
+            "function_name": "get_emission_analysis",
+            "arguments": "startdate, enddate, region",
+            "type": "tool_call",
+            "result": {
+              "content": "CO2 intensity data retrieved using get_emission_analysis",
+              "is_error": false,
+              "status": "success"
+            }
+          }
+        ],
+        "agent_responses": [
+          "result': 'CO2 intensity data retrieved for all (2025-08-04 to 2025-08-05)', 'source': 'compressed_eirgrid_data', 'data_points': 46, 'co2_range': '114-182g CO2/kWh', 'daily_average': '137g CO2/kWh', 'min_intensity': 114.0, 'max_intensity': 182.0, 'optimal_time': '17:00', 'peak_time': '05:00', 'file_type': 'compressed'}."
+        ],
+        "errors": []
+      },
+      "improvement_guidance": {
+        "detailed_feedback": [
+          "LLM evaluation: PASS",
+          "Quality score: 1.33",
+          "Final score (with adjustments): 1.33",
+          "LLM confidence: 0.85",
+          "The agent output aligns with the actual CO2 data range (114.0-182.0g CO2/kWh) and correctly identifies the daily average (137g CO2/kWh). However, it provides a generic optimal time recommendation ('17:00') without specifying a range or aligning with the reference's detailed breakdown of optimal windows (16:00-19:00). The peak time ('05:00') is also inconsistent with the reference data, which does not explicitly identify this as a peak period. The agent output lacks the structured breakdown of CO2 intensity by time periods and omits key contextual details, such as the cleanest and highest emission periods. While the agent output is factually correct in some areas, its lack of detail and specificity reduces its completeness, clarity, and actionability compared to the reference.",
+          "The agent output aligns with the actual CO2 data range (114.0-182.0g CO2/kWh) and correctly identifies the daily average (137g CO2/kWh). However, it provides a generic optimal time recommendation ('17:00') without specifying a range or aligning with the reference's detailed breakdown of optimal windows (16:00-19:00). The peak time ('05:00') is also inconsistent with the reference data, which does not explicitly identify this as a peak period. The agent output lacks the structured breakdown of CO2 intensity by time periods and omits key contextual details, such as the cleanest and highest emission periods. While the agent output is factually correct in some areas, its lack of detail and specificity reduces its completeness, clarity, and actionability compared to the reference.",
+          "Matches found: CO2 range matches actual data (114.0-182.0g CO2/kWh)., Daily average (137g CO2/kWh) is correct.",
+          "Missing elements: Optimal time ('17:00') is generic and does not align with the reference's detailed breakdown (16:00-19:00)., Peak time ('05:00') is inconsistent with reference data., Missing structured breakdown of CO2 intensity by time periods."
+        ],
+        "improvement_suggestions": []
+      },
+      "raw_data": {
+        "raw_output_full": "[TextMessage(id='1f7bf52d-d473-40c1-bb72-0a5aee7b323b', source='user', models_usage=None, metadata={}, created_at=datetime.datetime(2025, 8, 4, 3, 57, 12, 980901, tzinfo=datetime.timezone.utc), content='Show me real CO2 intensity data for the next 24 hours in Ireland', type='TextMessage'), ToolCallRequestEvent(id='4e3d7614-bb0d-4aad-9b55-6bd7aead9093', source='StreamlinedCarbonAgent', models_usage=RequestUsage(prompt_tokens=1805, completion_tokens=37), metadata={}, created_at=datetime.datetime(2025, 8, 4, 3, 57, 13, 714878, tzinfo=datetime.timezone.utc), content=[FunctionCall(id='call_aIsUIGxd3fg4or8El95NBiIG', arguments='{\"startdate\":\"2025-08-04\",\"enddate\":\"2025-08-05\",\"region\":\"all\"}', name='get_emission_analysis')], type='ToolCallRequestEvent'), ToolCallExecutionEvent(id='2b876330-6df9-4248-9b21-cb2e4701abef', source='StreamlinedCarbonAgent', models_usage=None, metadata={}, created_at=datetime.datetime(2025, 8, 4, 3, 57, 13, 715904, tzinfo=datetime.timezone.utc), content=[FunctionExecutionResult(content=\"{'result': 'CO2 intensity data retrieved for all (2025-08-04 to 2025-08-05)', 'source': 'compressed_eirgrid_data', 'data_points': 46, 'co2_range': '114-182g CO2/kWh', 'daily_average': '137g CO2/kWh', 'min_intensity': 114.0, 'max_intensity': 182.0, 'optimal_time': '17:00', 'peak_time': '05:00', 'file_type': 'compressed'}\", name='get_emission_analysis', call_id='call_aIsUIGxd3fg4or8El95NBiIG', is_error=False)], type='ToolCallExecutionEvent'), TextMessage(id='88ff596d-2bf9-4d11-9d24-f493087f9986', source='StreamlinedCarbonAgent', models_usage=RequestUsage(prompt_tokens=1967, completion_tokens=223), metadata={}, created_at=datetime.datetime(2025, 8, 4, 3, 57, 15, 511063, tzinfo=datetime.timezone.utc), content='📊 **REAL CO2 Intensity Data for the Next 24 Hours in Ireland (Based on EirGrid Data):**\\n- **CO2 Intensity Range**: 114g CO2/kWh (minimum) to 182g CO2/kWh (maximum)  \\n- **Daily Average Intensity**: 137g CO2/kWh  \\n\\n🌱 **Lowest Carbon Intensity Periods**:\\n- **Optimal Time**: 17:00 (114g CO2/kWh)  \\n- **Broader Optimal Window**: 16:00-19:00  \\n\\n🔥 **Highest Carbon Intensity Periods**:\\n- **Peak Time**: 05:00 (182g CO2/kWh)  \\n- **Broader Peak Window**: 04:00-07:00  \\n\\n🌍 **Environmental Impact**:\\nCharging, appliances, or other energy usage during the **optimal period** (16:00-19:00) reduces your carbon footprint by up to **37%** compared to peak emissions periods (04:00-07:00).', type='TextMessage'), TaskResult(messages=[TextMessage(id='1f7bf52d-d473-40c1-bb72-0a5aee7b323b', source='user', models_usage=None, metadata={}, created_at=datetime.datetime(2025, 8, 4, 3, 57, 12, 980901, tzinfo=datetime.timezone.utc), content='Show me real CO2 intensity data for the next 24 hours in Ireland', type='TextMessage'), ToolCallRequestEvent(id='4e3d7614-bb0d-4aad-9b55-6bd7aead9093', source='StreamlinedCarbonAgent', models_usage=RequestUsage(prompt_tokens=1805, completion_tokens=37), metadata={}, created_at=datetime.datetime(2025, 8, 4, 3, 57, 13, 714878, tzinfo=datetime.timezone.utc), content=[FunctionCall(id='call_aIsUIGxd3fg4or8El95NBiIG', arguments='{\"startdate\":\"2025-08-04\",\"enddate\":\"2025-08-05\",\"region\":\"all\"}', name='get_emission_analysis')], type='ToolCallRequestEvent'), ToolCallExecutionEvent(id='2b876330-6df9-4248-9b21-cb2e4701abef', source='StreamlinedCarbonAgent', models_usage=None, metadata={}, created_at=datetime.datetime(2025, 8, 4, 3, 57, 13, 715904, tzinfo=datetime.timezone.utc), content=[FunctionExecutionResult(content=\"{'result': 'CO2 intensity data retrieved for all (2025-08-04 to 2025-08-05)', 'source': 'compressed_eirgrid_data', 'data_points': 46, 'co2_range': '114-182g CO2/kWh', 'daily_average': '137g CO2/kWh', 'min_intensity': 114.0, 'max_intensity': 182.0, 'optimal_time': '17:00', 'peak_time': '05:00', 'file_type': 'compressed'}\", name='get_emission_analysis', call_id='call_aIsUIGxd3fg4or8El95NBiIG', is_error=False)], type='ToolCallExecutionEvent'), TextMessage(id='88ff596d-2bf9-4d11-9d24-f493087f9986', source='StreamlinedCarbonAgent', models_usage=RequestUsage(prompt_tokens=1967, completion_tokens=223), metadata={}, created_at=datetime.datetime(2025, 8, 4, 3, 57, 15, 511063, tzinfo=datetime.timezone.utc), content='📊 **REAL CO2 Intensity Data for the Next 24 Hours in Ireland (Based on EirGrid Data):**\\n- **CO2 Intensity Range**: 114g CO2/kWh (minimum) to 182g CO2/kWh (maximum)  \\n- **Daily Average Intensity**: 137g CO2/kWh  \\n\\n🌱 **Lowest Carbon Intensity Periods**:\\n- **Optimal Time**: 17:00 (114g CO2/kWh)  \\n- **Broader Optimal Window**: 16:00-19:00  \\n\\n🔥 **Highest Carbon Intensity Periods**:\\n- **Peak Time**: 05:00 (182g CO2/kWh)  \\n- **Broader Peak Window**: 04:00-07:00  \\n\\n🌍 **Environmental Impact**:\\nCharging, appliances, or other energy usage during the **optimal period** (16:00-19:00) reduces your carbon footprint by up to **37%** compared to peak emissions periods (04:00-07:00).', type='TextMessage')], stop_reason=None)]",
+        "raw_output_length": 4939,
+        "error_message": null
+      },
+      "behavioral_assessment_summary": {
+        "performance_score": 0.0,
+        "decision_making_score": 0.0,
+        "error_recovery_score": 0.0,
+        "communication_score": 0.0,
+        "tool_efficiency_score": 0.0,
+        "behavioral_strengths": [],
+        "behavioral_weaknesses": [],
+        "behavioral_recommendations": []
+      }
+    },
+    {
+      "test_metadata": {
+        "test_case_id": "carbon_004_invalid_date_format",
+        "timestamp": "2025-08-04T04:57:25.406262",
+        "execution_time": 0.9371085166931152
+      },
+      "query_and_response": {
+        "test_query": "What's the best time for appliances on 2025-13-45?",
+        "full_agent_response": "2025-13-45**, is not valid as there is no 13th month or 45th day in any month. Could you please clarify the correct date you are asking about?\", ), TaskResult(messages=[, content=\"What's the best time for appliances on 2025-13-45?\", ), , , , content=\"The date you've provided.",
+        "response_length": 276,
+        "response_preview": "2025-13-45**, is not valid as there is no 13th month or 45th day in any month. Could you please clarify the correct date you are asking about?\", ), TaskResult(messages=[, content=\"What's the best time..."
+      },
+      "evaluation_results": {
+        "final_status": "FAIL",
+        "final_score": 0.35100000000000003,
+        "confidence_level": "medium",
+        "rule_based": {
+          "status": "FAIL",
+          "score": 0.495,
+          "functions_called": [],
+          "behaviors_observed": [],
+          "keyword_matches": 1
+        },
+        "llm_based": {
+          "status": "FAIL",
+          "quality_score": 0.35100000000000003,
+          "confidence": 0.85,
+          "reasoning": "The agent output correctly identifies that the date '2025-13-45' is invalid due to the non-existent 13th month and 45th day. However, it fails to provide the user with clear guidance on valid date formats, which the reference output does effectively. The agent's response is less structured and lacks actionable advice, such as asking the user to provide a corrected date. Additionally, the agent output includes extraneous and unclear formatting (e.g., '**' and misplaced punctuation), which detracts from clarity. The reference output is more complete, actionable, and clear, providing specific examples of valid date formats and inviting the user to try again. The agent output does not address CO2 data or time recommendations, which are critical for actionability. Applied penalties: 0.03 for missing requirements, but maintained base quality assessment.",
+          "feedback": [
+            "The agent output correctly identifies that the date '2025-13-45' is invalid due to the non-existent 13th month and 45th day. However, it fails to provide the user with clear guidance on valid date formats, which the reference output does effectively. The agent's response is less structured and lacks actionable advice, such as asking the user to provide a corrected date. Additionally, the agent output includes extraneous and unclear formatting (e.g., '**' and misplaced punctuation), which detracts from clarity. The reference output is more complete, actionable, and clear, providing specific examples of valid date formats and inviting the user to try again. The agent output does not address CO2 data or time recommendations, which are critical for actionability. Applied penalties: 0.03 for missing requirements, but maintained base quality assessment.",
+            "Matches found: Correct identification of invalid date format (month '13' and day '45').",
+            "Missing elements: Missing clear guidance on valid date formats., Does not invite the user to provide a corrected date., Lacks actionable advice related to CO2 data or appliance usage.",
+            "Missing should-have requirements: -0.03"
+          ]
+        },
+        "consistency_score": 1.0
+      },
+      "examples_integration_analysis": {
+        "format_compliance_score": 0.0,
+        "matches_good_examples": 0,
+        "matches_bad_examples": 1,
+        "follows_required_structure": false,
+        "avoids_bad_patterns": false
+      },
+      "ground_truth_evaluation": {
+        "used": true,
+        "accuracy_vs_reference": 0.32,
+        "completeness_vs_reference": 0.4,
+        "clarity_score": 0.5,
+        "actionability_score": 0.2,
+        "format_compliance": 0.5,
+        "matches_with_reference": [
+          "Correct identification of invalid date format (month '13' and day '45')."
+        ],
+        "gaps_vs_reference": [
+          "Missing clear guidance on valid date formats.",
+          "Does not invite the user to provide a corrected date.",
+          "Lacks actionable advice related to CO2 data or appliance usage.",
+          "Includes unclear formatting and extraneous punctuation."
+        ],
+        "structured_penalties_applied": [
+          "Missing should-have requirements: -0.03"
+        ]
+      },
+      "agent_interaction": {
+        "conversation_summary": {
+          "total_user_messages": 1,
+          "total_tool_calls": 0,
+          "total_agent_responses": 1,
+          "total_errors": 0,
+          "tools_used": [],
+          "has_errors": false,
+          "response_length": 276,
+          "conversation_turns": 2,
+          "quality_indicators": {
+            "has_time_recommendations": false,
+            "has_carbon_data": false,
+            "has_visual_elements": false,
+            "has_structure": false,
+            "matches_required_format": false,
+            "avoids_bad_patterns": false
+          },
+          "examples_compliance": {
+            "good_patterns_matched": 0,
+            "bad_patterns_found": 1,
+            "matches_good_format": false,
+            "avoids_bad_patterns": false,
+            "format_compliance_score": 0.0
+          }
+        },
+        "conversation_flow": [
+          {
+            "step": 1,
+            "type": "user_input",
+            "content": "User query"
+          },
+          {
+            "step": 2,
+            "type": "agent_response",
+            "response_id": "Response01"
+          }
+        ],
+        "tool_interactions": [],
+        "agent_responses": [
+          "2025-13-45**, is not valid as there is no 13th month or 45th day in any month. Could you please clarify the correct date you are asking about?\", ), TaskResult(messages=[, content=\"What's the best time for appliances on 2025-13-45?\", ), , , , content=\"The date you've provided."
+        ],
+        "errors": []
+      },
+      "improvement_guidance": {
+        "detailed_feedback": [
+          "LLM evaluation: FAIL",
+          "Quality score: 0.35",
+          "Final score (with adjustments): 0.35",
+          "LLM confidence: 0.85",
+          "The agent output correctly identifies that the date '2025-13-45' is invalid due to the non-existent 13th month and 45th day. However, it fails to provide the user with clear guidance on valid date formats, which the reference output does effectively. The agent's response is less structured and lacks actionable advice, such as asking the user to provide a corrected date. Additionally, the agent output includes extraneous and unclear formatting (e.g., '**' and misplaced punctuation), which detracts from clarity. The reference output is more complete, actionable, and clear, providing specific examples of valid date formats and inviting the user to try again. The agent output does not address CO2 data or time recommendations, which are critical for actionability. Applied penalties: 0.03 for missing requirements, but maintained base quality assessment.",
+          "The agent output correctly identifies that the date '2025-13-45' is invalid due to the non-existent 13th month and 45th day. However, it fails to provide the user with clear guidance on valid date formats, which the reference output does effectively. The agent's response is less structured and lacks actionable advice, such as asking the user to provide a corrected date. Additionally, the agent output includes extraneous and unclear formatting (e.g., '**' and misplaced punctuation), which detracts from clarity. The reference output is more complete, actionable, and clear, providing specific examples of valid date formats and inviting the user to try again. The agent output does not address CO2 data or time recommendations, which are critical for actionability. Applied penalties: 0.03 for missing requirements, but maintained base quality assessment.",
+          "Matches found: Correct identification of invalid date format (month '13' and day '45').",
+          "Missing elements: Missing clear guidance on valid date formats., Does not invite the user to provide a corrected date., Lacks actionable advice related to CO2 data or appliance usage.",
+          "Missing should-have requirements: -0.03"
+        ],
+        "improvement_suggestions": []
+      },
+      "raw_data": {
+        "raw_output_full": "[TextMessage(id='3ee1fa89-26df-428a-a962-4486c84a76e9', source='user', models_usage=None, metadata={}, created_at=datetime.datetime(2025, 8, 4, 3, 57, 24, 466207, tzinfo=datetime.timezone.utc), content=\"What's the best time for appliances on 2025-13-45?\", type='TextMessage'), TextMessage(id='0961988f-8db5-4689-92c5-f75d8f0c3d4b', source='StreamlinedCarbonAgent', models_usage=RequestUsage(prompt_tokens=2212, completion_tokens=47), metadata={}, created_at=datetime.datetime(2025, 8, 4, 3, 57, 25, 403315, tzinfo=datetime.timezone.utc), content=\"The date you've provided, **2025-13-45**, is not valid as there is no 13th month or 45th day in any month. Could you please clarify the correct date you are asking about?\", type='TextMessage'), TaskResult(messages=[TextMessage(id='3ee1fa89-26df-428a-a962-4486c84a76e9', source='user', models_usage=None, metadata={}, created_at=datetime.datetime(2025, 8, 4, 3, 57, 24, 466207, tzinfo=datetime.timezone.utc), content=\"What's the best time for appliances on 2025-13-45?\", type='TextMessage'), TextMessage(id='0961988f-8db5-4689-92c5-f75d8f0c3d4b', source='StreamlinedCarbonAgent', models_usage=RequestUsage(prompt_tokens=2212, completion_tokens=47), metadata={}, created_at=datetime.datetime(2025, 8, 4, 3, 57, 25, 403315, tzinfo=datetime.timezone.utc), content=\"The date you've provided, **2025-13-45**, is not valid as there is no 13th month or 45th day in any month. Could you please clarify the correct date you are asking about?\", type='TextMessage')], stop_reason=None)]",
+        "raw_output_length": 1521,
+        "error_message": null
+      },
+      "behavioral_assessment_summary": {
+        "performance_score": 0.0,
+        "decision_making_score": 0.0,
+        "error_recovery_score": 0.0,
+        "communication_score": 0.0,
+        "tool_efficiency_score": 0.0,
+        "behavioral_strengths": [],
+        "behavioral_weaknesses": [],
+        "behavioral_recommendations": []
+      }
+    },
+    {
+      "test_metadata": {
+        "test_case_id": "carbon_006_impossible_date",
+        "timestamp": "2025-08-04T04:57:32.215200",
+        "execution_time": 0.8112201690673828
+      },
+      "query_and_response": {
+        "test_query": "Show me CO2 data for February 30th, 2025",
+        "full_agent_response": "February 30th, 2025** does not exist. If you'd like data for February 28th, 2025, or another correct date, let me know!\", ), TaskResult(messages=[, content='Show me CO2 data for February 30th, 2025', ), , , , content=\"February only has 28 days (or 29 days in a leap year). Unfortunately.",
+        "response_length": 287,
+        "response_preview": "February 30th, 2025** does not exist. If you'd like data for February 28th, 2025, or another correct date, let me know!\", ), TaskResult(messages=[, content='Show me CO2 data for February 30th, 2025', ..."
+      },
+      "evaluation_results": {
+        "final_status": "PASS",
+        "final_score": 0.5829999999999999,
+        "confidence_level": "medium",
+        "rule_based": {
+          "status": "FAIL",
+          "score": 0.56,
+          "functions_called": [],
+          "behaviors_observed": [],
+          "keyword_matches": 3
+        },
+        "llm_based": {
+          "status": "PASS",
+          "quality_score": 0.5829999999999999,
+          "confidence": 0.85,
+          "reasoning": "The agent correctly identifies that February 30th does not exist, which aligns with the reference output. However, the agent's explanation lacks the detailed breakdown of why the date is invalid (e.g., February only has 28 or 29 days). The reference output provides a more thorough explanation of the issue and suggests valid date formats, which the agent does not do. Additionally, the agent's response includes redundant and unclear phrasing ('Unfortunately.'), which detracts from clarity. The agent does not provide actionable advice on how to correct the query, unlike the reference output. While the core message is similar, the agent's response is less complete and actionable. Applied penalties: 0.03 for missing requirements, but maintained base quality assessment.",
+          "feedback": [
+            "The agent correctly identifies that February 30th does not exist, which aligns with the reference output. However, the agent's explanation lacks the detailed breakdown of why the date is invalid (e.g., February only has 28 or 29 days). The reference output provides a more thorough explanation of the issue and suggests valid date formats, which the agent does not do. Additionally, the agent's response includes redundant and unclear phrasing ('Unfortunately.'), which detracts from clarity. The agent does not provide actionable advice on how to correct the query, unlike the reference output. While the core message is similar, the agent's response is less complete and actionable. Applied penalties: 0.03 for missing requirements, but maintained base quality assessment.",
+            "Matches found: Correctly identifies February 30th as an invalid date., Offers alternative valid dates (e.g., February 28th).",
+            "Missing elements: Does not explain why February 30th is invalid in detail (e.g., February only has 28 or 29 days)., Fails to suggest valid date formats for correction., Includes unclear and redundant phrasing ('Unfortunately.').",
+            "Missing should-have requirements: -0.03"
+          ]
+        },
+        "consistency_score": 1.0
+      },
+      "examples_integration_analysis": {
+        "format_compliance_score": 0.0,
+        "matches_good_examples": 0,
+        "matches_bad_examples": 0,
+        "follows_required_structure": false,
+        "avoids_bad_patterns": true
+      },
+      "ground_truth_evaluation": {
+        "used": true,
+        "accuracy_vs_reference": 0.62,
+        "completeness_vs_reference": 0.5,
+        "clarity_score": 0.7,
+        "actionability_score": 0.6,
+        "format_compliance": 0.67,
+        "matches_with_reference": [
+          "Correctly identifies February 30th as an invalid date.",
+          "Offers alternative valid dates (e.g., February 28th)."
+        ],
+        "gaps_vs_reference": [
+          "Does not explain why February 30th is invalid in detail (e.g., February only has 28 or 29 days).",
+          "Fails to suggest valid date formats for correction.",
+          "Includes unclear and redundant phrasing ('Unfortunately.').",
+          "Does not provide actionable advice on how to correct the query."
+        ],
+        "structured_penalties_applied": [
+          "Missing should-have requirements: -0.03"
+        ]
+      },
+      "agent_interaction": {
+        "conversation_summary": {
+          "total_user_messages": 1,
+          "total_tool_calls": 1,
+          "total_agent_responses": 1,
+          "total_errors": 0,
+          "tools_used": [
+            "get_emission_analysis"
+          ],
+          "has_errors": false,
+          "response_length": 287,
+          "conversation_turns": 3,
+          "quality_indicators": {
+            "has_time_recommendations": false,
+            "has_carbon_data": true,
+            "has_visual_elements": false,
+            "has_structure": false,
+            "matches_required_format": false,
+            "avoids_bad_patterns": true
+          },
+          "examples_compliance": {
+            "good_patterns_matched": 0,
+            "bad_patterns_found": 0,
+            "matches_good_format": false,
+            "avoids_bad_patterns": true,
+            "format_compliance_score": 0.0
+          }
+        },
+        "conversation_flow": [
+          {
+            "step": 1,
+            "type": "user_input",
+            "content": "User query"
+          },
+          {
+            "step": 2,
+            "type": "tool_call",
+            "function": "get_emission_analysis",
+            "status": "success"
+          },
+          {
+            "step": 3,
+            "type": "agent_response",
+            "response_id": "Response01"
+          }
+        ],
+        "tool_interactions": [
+          {
+            "interaction_id": "tool_1",
+            "function_name": "get_emission_analysis",
+            "arguments": "startdate, enddate, region",
+            "type": "tool_call",
+            "result": {
+              "content": "CO2 intensity data retrieved using get_emission_analysis",
+              "is_error": false,
+              "status": "success"
+            }
+          }
+        ],
+        "agent_responses": [
+          "February 30th, 2025** does not exist. If you'd like data for February 28th, 2025, or another correct date, let me know!\", ), TaskResult(messages=[, content='Show me CO2 data for February 30th, 2025', ), , , , content=\"February only has 28 days (or 29 days in a leap year). Unfortunately."
+        ],
+        "errors": []
+      },
+      "improvement_guidance": {
+        "detailed_feedback": [
+          "LLM evaluation: PASS",
+          "Quality score: 0.58",
+          "Final score (with adjustments): 0.58",
+          "LLM confidence: 0.85",
+          "The agent correctly identifies that February 30th does not exist, which aligns with the reference output. However, the agent's explanation lacks the detailed breakdown of why the date is invalid (e.g., February only has 28 or 29 days). The reference output provides a more thorough explanation of the issue and suggests valid date formats, which the agent does not do. Additionally, the agent's response includes redundant and unclear phrasing ('Unfortunately.'), which detracts from clarity. The agent does not provide actionable advice on how to correct the query, unlike the reference output. While the core message is similar, the agent's response is less complete and actionable. Applied penalties: 0.03 for missing requirements, but maintained base quality assessment.",
+          "The agent correctly identifies that February 30th does not exist, which aligns with the reference output. However, the agent's explanation lacks the detailed breakdown of why the date is invalid (e.g., February only has 28 or 29 days). The reference output provides a more thorough explanation of the issue and suggests valid date formats, which the agent does not do. Additionally, the agent's response includes redundant and unclear phrasing ('Unfortunately.'), which detracts from clarity. The agent does not provide actionable advice on how to correct the query, unlike the reference output. While the core message is similar, the agent's response is less complete and actionable. Applied penalties: 0.03 for missing requirements, but maintained base quality assessment.",
+          "Matches found: Correctly identifies February 30th as an invalid date., Offers alternative valid dates (e.g., February 28th).",
+          "Missing elements: Does not explain why February 30th is invalid in detail (e.g., February only has 28 or 29 days)., Fails to suggest valid date formats for correction., Includes unclear and redundant phrasing ('Unfortunately.').",
+          "Missing should-have requirements: -0.03",
+          "Note: Semantic equivalence bonus applied for valid alternative responses"
+        ],
+        "improvement_suggestions": []
+      },
+      "raw_data": {
+        "raw_output_full": "[TextMessage(id='ca63322e-2c94-4f4b-930b-411ab485fc65', source='user', models_usage=None, metadata={}, created_at=datetime.datetime(2025, 8, 4, 3, 57, 31, 403980, tzinfo=datetime.timezone.utc), content='Show me CO2 data for February 30th, 2025', type='TextMessage'), TextMessage(id='fd4009b8-6c07-41ae-9fc0-d916970b7e51', source='StreamlinedCarbonAgent', models_usage=RequestUsage(prompt_tokens=2280, completion_tokens=57), metadata={}, created_at=datetime.datetime(2025, 8, 4, 3, 57, 32, 215200, tzinfo=datetime.timezone.utc), content=\"February only has 28 days (or 29 days in a leap year). Unfortunately, **February 30th, 2025** does not exist. If you'd like data for February 28th, 2025, or another correct date, let me know!\", type='TextMessage'), TaskResult(messages=[TextMessage(id='ca63322e-2c94-4f4b-930b-411ab485fc65', source='user', models_usage=None, metadata={}, created_at=datetime.datetime(2025, 8, 4, 3, 57, 31, 403980, tzinfo=datetime.timezone.utc), content='Show me CO2 data for February 30th, 2025', type='TextMessage'), TextMessage(id='fd4009b8-6c07-41ae-9fc0-d916970b7e51', source='StreamlinedCarbonAgent', models_usage=RequestUsage(prompt_tokens=2280, completion_tokens=57), metadata={}, created_at=datetime.datetime(2025, 8, 4, 3, 57, 32, 215200, tzinfo=datetime.timezone.utc), content=\"February only has 28 days (or 29 days in a leap year). Unfortunately, **February 30th, 2025** does not exist. If you'd like data for February 28th, 2025, or another correct date, let me know!\", type='TextMessage')], stop_reason=None)]",
+        "raw_output_length": 1543,
+        "error_message": null
+      },
+      "behavioral_assessment_summary": {
+        "performance_score": 0.0,
+        "decision_making_score": 0.0,
+        "error_recovery_score": 0.0,
+        "communication_score": 0.0,
+        "tool_efficiency_score": 0.0,
+        "behavioral_strengths": [],
+        "behavioral_weaknesses": [],
+        "behavioral_recommendations": []
+      }
+    }
+  ],
+  "recommendations": [
+    "Poor format compliance (56.7%). Update system prompt to match examples.json structure.",
+    "Low good example pattern matches. Align agent output with examples.json good patterns."
+  ],
+  "llm_insights": [
+    "Ground truth with examples integration used in 5/5 tests",
+    "Average format compliance: 0.57 (examples.json integration)",
+    "Average good pattern matches: 3.4/10 (examples.json compliance)",
+    "Bad patterns detected: 0.2 per response (needs improvement)"
+  ],
+  "performance_bottlenecks": [
+    "1 ground truth comparison failures"
+  ],
+  "avg_format_compliance": 0.5666666666666667,
+  "good_examples_match_rate": 0.33999999999999997,
+  "bad_examples_avoidance_rate": 0.96,
+  "ground_truth_coverage": 1.0,
+  "avg_accuracy_score": 0.7000000000000001,
+  "avg_completeness_score": 0.68,
+  "avg_clarity_score": 0.73,
+  "co2_data_source": "examples_integrated_evaluation",
+  "co2_analysis_summary": {
+    "optimal": {
+      "time_range": "16:00-19:00",
+      "min_intensity": 114,
+      "max_intensity": 124,
+      "intensity_range": "114-124g CO2/kWh"
+    },
+    "peak": {
+      "time_range": "04:00-07:00",
+      "intensity_range": "172-182g CO2/kWh",
+      "max_intensity": 182
+    },
+    "morning_avg": 138,
+    "afternoon_avg": 123,
+    "evening_avg": 121,
+    "overnight_avg": 156,
+    "current_intensity": 123,
+    "absolute_min": 114,
+    "absolute_max": 182,
+    "daily_average": 136,
+    "data_source": "compressed_eirgrid_data",
+    "data_points": 46,
+    "analysis_timestamp": "2025-08-04T04:56:48.106413"
+  },
+  "avg_performance_score": 0.0,
+  "avg_decision_making_score": 0.0,
+  "avg_error_recovery_score": 0.0,
+  "avg_communication_score": 0.0,
+  "avg_tool_efficiency_score": 0.0,
+  "behavioral_consistency_score": 1.0,
+  "avg_memory_usage_mb": 0.0,
+  "avg_cpu_usage_percent": 0.0,
+  "total_api_calls": 0,
+  "behavioral_insights": [],
+  "optimization_opportunities": [],
+  "test_case_statistics": {},
+  "category_statistics": {
+    "basic_query": {
+      "test_cases": 1,
+      "total_instances": 1,
+      "successful_instances": 1,
+      "success_rate": 1.0,
+      "avg_final_score": 1.7835,
+      "avg_execution_time": 3.7221951484680176
+    },
+    "ev_charging": {
+      "test_cases": 1,
+      "total_instances": 1,
+      "successful_instances": 1,
+      "success_rate": 1.0,
+      "avg_final_score": 1.721,
+      "avg_execution_time": 3.0233054161071777
+    },
+    "data_request": {
+      "test_cases": 1,
+      "total_instances": 1,
+      "successful_instances": 1,
+      "success_rate": 1.0,
+      "avg_final_score": 1.331,
+      "avg_execution_time": 2.531543016433716
+    },
+    "error_handling": {
+      "test_cases": 2,
+      "total_instances": 2,
+      "successful_instances": 1,
+      "success_rate": 0.5,
+      "avg_final_score": 0.46699999999999997,
+      "avg_execution_time": 0.874164342880249
+    }
+  },
+  "instance_consistency_scores": {
+    "carbon_001_real_appliances": 1.0,
+    "carbon_002_real_ev_charging": 1.0,
+    "carbon_003_real_data_request": 1.0,
+    "carbon_004_invalid_date_format": 1.0,
+    "carbon_006_impossible_date": 1.0
+  },
+  "common_behavioral_patterns": [],
+  "evaluation_system_metadata": {
+    "evaluation_framework": "hybrid_assessment_system",
+    "behavioral_assessment_enabled": false,
+    "examples_integration": {
+      "good_examples_loaded": 6,
+      "bad_examples_loaded": 6,
+      "format_requirements_integrated": true,
+      "parsing_enabled": true,
+      "format_compliance_scoring": true
+    },
+    "behavioral_features": {
+      "performance_monitoring": false,
+      "action_tracking": false,
+      "resource_utilization_tracking": true,
+      "error_recovery_assessment": true,
+      "communication_quality_analysis": true,
+      "tool_efficiency_evaluation": true
+    },
+    "evaluation_capabilities": [
+      "Rule-based evaluation with function and behavior tracking",
+      "LLM-based evaluation with ground truth comparison",
+      "Examples-based format compliance scoring",
+      "Comprehensive behavioral assessment",
+      "Performance and resource monitoring",
+      "Action sequence and decision pattern analysis",
+      "Error handling and recovery evaluation",
+      "Communication quality assessment",
+      "Tool usage efficiency analysis"
+    ],
+    "report_generation_date": "2025-08-04T04:57:38.468902"
+  }
+}

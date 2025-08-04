@@ -1,4 +1,4 @@
-# Hybrid Agent Evaluation System
+# Carbon Agent Evaluation System
 
 A evaluation framework for testing AI agents that provide carbon emission recommendations based on real EirGrid data. The system uses a **hybrid approach** combining rule-based validation with LLM-as-Judge evaluation to ensure accurate, helpful, and well-formatted agent responses.
 
@@ -14,7 +14,6 @@ A evaluation framework for testing AI agents that provide carbon emission recomm
 - [Quick Start](#quick-start)
 - [Understanding Results](#understanding-results)
 - [Advanced Usage](#advanced-usage)
-- [Recent Updates](#recent-updates)
 
 ## Overview
 
@@ -171,14 +170,16 @@ final_score = (rule_weight * rule_score) + (llm_weight * llm_score)
 | File | Purpose |
 |------|---------|
 | `kamal_agent_integration.py` | Integration wrapper for external agent implementations |
+| `azure_client_factory.py` | Centralized Azure OpenAI client factory |
 
 ### CO2 Analysis Tools
 | Directory/File | Purpose |
 |----------------|---------|
 | `co2_analysis_tool/` | Package for CO2 data analysis and visualization |
-| `co2_analysis_tool/co2_analysis.py` | Core CO2 emission analysis functions with dynamic data loading |
+| `co2_analysis_tool/co2_analysis.py` | Unified CO2IntensityAnalyzer class with daily/weekly/monthly analysis |
 | `co2_analysis_tool/co2_analysis_util.py` | Utility functions for CO2 data processing |
 | `co2_analysis_tool/co2_plot.py` | Visualization tools for CO2 emission patterns |
+| `co2_statistics_utils.py` | Centralized CO2 statistics calculations to eliminate duplicate code |
 
 ### Web Scraping Tools
 | Directory/File | Purpose |
@@ -357,10 +358,11 @@ final_score >= 0.6  # Consistent across all modes
 pip install -r requirements.txt
 
 # Set environment variables
-export AZURE_DEPLOYMENT="your-deployment"
-export AZURE_ENDPOINT="your-endpoint"  
-export API_KEY="your-api-key"
-export API_VERSION="2024-02-01"
+export AZURE_AI_ENDPOINT="your-endpoint"
+export AZURE_AI_MODEL="gpt-4o"
+export AZURE_AI_DEPLOYMENT="gpt-4o"
+export AZURE_AI_API_KEY="your-api-key"
+export AZURE_AI_API_VERSION="2024-12-01-preview"
 ```
 
 ### 2. Run Evaluation
@@ -410,7 +412,7 @@ Results are saved to `evaluation_results/` with detailed JSON reports:
   "avg_final_score": 0.72,              // Balanced scoring
   "avg_rule_score": 0.68,               // Fixed function detection
   "avg_llm_score": 0.78,                // Semantic equivalence support
-  "calibration_notes": "v7.0 - Balanced evaluation",
+  "calibration_notes": "Balanced evaluation system",
   "detailed_results": [...]
 }
 ```
@@ -563,6 +565,64 @@ class CustomEvaluationStrategy(BaseEvaluationStrategy):
   "enforce_scoring_consistency": true   // Strict scoring validation
 }
 ```
+
+## Architecture Improvements
+
+### Centralized CO2 Statistics (`co2_statistics_utils.py`)
+
+The centralized statistics utility provides a single source of truth for CO2 data calculations:
+
+```python
+from co2_statistics_utils import calculate_co2_statistics
+
+# Calculate statistics from CO2 data points
+stats = calculate_co2_statistics(data_points)
+
+# Returns consistent format:
+{
+    "min_value": 150,           # Minimum CO2 value
+    "max_value": 250,           # Maximum CO2 value  
+    "avg_value": 187.5,         # Average CO2 value (float)
+    "daily_average": 187,       # Average CO2 value (integer)
+    "min_point": {...},         # Data point with minimum value
+    "max_point": {...},         # Data point with maximum value
+    "optimal_times": [...],     # Times with minimum value (up to 3)
+    "peak_times": [...]         # Times with maximum value (up to 3)
+}
+```
+
+### Unified CO2 Analysis Architecture
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                     CO2 Analysis Flow                            │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌─────────────────┐    ┌──────────────────┐    ┌─────────────┐  │
+│  │  Raw CO2 Data   │    │ CO2IntensityA-   │    │ Centralized │  │
+│  │  (EirGrid JSON) │──▶│ nalyzer (Unified)│───▶│ Statistics  │  │
+│  │                 │    │                  │    │             │  │
+│  └─────────────────┘    └──────────────────┘    └─────────────┘  │
+│                                   │                      │       │
+│                                   ▼                      │       │
+│                          ┌──────────────────┐            │       │
+│                          │   View-Based     │            │       │
+│                          │   Analysis       │            │       │
+│                          │ • Day (≤6 days)  │            │       │
+│                          │ • Week (7-21d)   │◀───────────┘      │
+│                          │ • Month (≥22d)   │                    │
+│                          └──────────────────┘                    │
+│                                   │                              │
+│                                   ▼                              │
+│  ┌─────────────────────────────────────────────────────────────┐ │
+│  │              Agent Tools & Evaluation System                │ │
+│  │  • analyze_daily_co2() with error handling                  │ │
+│  │  • analyze_weekly_co2() with unified backend                │ │
+│  │  • analyze_monthly_co2() with fallback support              │ │
+│  └─────────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────┘
+```
+
 
 ## License
 

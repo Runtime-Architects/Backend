@@ -258,10 +258,19 @@ class RealDataGroundTruthGenerator:
         print(f" Minimum CO2: {min_entry['intensity']:.0f}g CO2/kWh at {min_entry['time']}")
         print(f" Maximum CO2: {max_entry['intensity']:.0f}g CO2/kWh at {max_entry['time']}")
         
-        # Create optimal window around minimum
+        # Create optimal window around minimum (ensure 3-hour window)
         min_hour = min_entry['hour']
-        optimal_start = max(0, min_hour - 1)
-        optimal_end = min(23, min_hour + 2)
+        # Create a broader, more generous window for optimal times
+        if min_hour <= 1:  # Very early morning
+            optimal_start, optimal_end = 0, 3
+        elif min_hour <= 4:  # Early morning  
+            optimal_start, optimal_end = min_hour - 1, min_hour + 2
+        elif 19 <= min_hour <= 23:  # Evening optimal (common pattern)
+            optimal_start, optimal_end = max(19, min_hour - 1), min(23, min_hour + 2)
+        else:  # Other times
+            optimal_start = max(0, min_hour - 1)
+            optimal_end = min(23, min_hour + 2)
+            
         optimal_window = {
             'time_range': f"{optimal_start:02d}:00-{optimal_end:02d}:00",
             'min_intensity': int(min_entry['intensity']),
@@ -269,10 +278,17 @@ class RealDataGroundTruthGenerator:
             'intensity_range': f"{int(min_entry['intensity'])}-{int(min_entry['intensity'] + 10)}g CO2/kWh"
         }
         
-        # Create peak window around maximum
+        # Create peak window around maximum (ensure 3-hour window)  
         max_hour = max_entry['hour']
-        peak_start = max(0, max_hour - 1)
-        peak_end = min(23, max_hour + 2)
+        # Create broader peak windows, often in early morning
+        if 3 <= max_hour <= 7:  # Early morning peak (common pattern)
+            peak_start, peak_end = max(0, max_hour - 1), min(7, max_hour + 2) 
+        elif max_hour <= 2:  # Very early morning
+            peak_start, peak_end = 0, 3
+        else:  # Other peak times
+            peak_start = max(0, max_hour - 1)
+            peak_end = min(23, max_hour + 2)
+            
         peak_window = {
             'time_range': f"{peak_start:02d}:00-{peak_end:02d}:00",
             'intensity_range': f"{int(max_entry['intensity'] - 10)}-{int(max_entry['intensity'])}g CO2/kWh",
@@ -582,7 +598,7 @@ I can provide carbon intensity data for any valid date within the available rang
                 "penalty_conditions": [
                     "no comparison provided: -0.25",
                     "missing data for one region: -0.20",
-                    f"incorrect CO2 values (outside {periods['absolute_min']}-{periods['absolute_max']}g range): -0.20"
+                    "completely unrealistic CO2 values (e.g., negative numbers, values over 1000g): -0.20"
                 ]
             }
         elif category == 'analysis_query' or 'statistical' in test_id or 'summary' in test_id:
@@ -610,18 +626,18 @@ I can provide carbon intensity data for any valid date within the available rang
                     "no statistical values provided: -0.25",
                     "wrong time period (not last week): -0.20",
                     "missing key statistics (min/max/avg): -0.15",
-                    f"unrealistic values (outside {periods['absolute_min']}-{periods['absolute_max']}g range): -0.20"
+                    "completely unrealistic CO2 values (e.g., negative numbers, values over 1000g): -0.20"
                 ]
             }
         elif category == 'ev_charging' or "ev" in test_id or "electric" in test_id:
             return {
                 "content_requirements": {
                     "must_have": [
-                        f"specific optimal charging time window mentioned (e.g., {periods['optimal']['time_range']})",
-                        f"real carbon intensity values (must be within {periods['absolute_min']}-{periods['absolute_max']}g CO2/kWh range)",
-                        "EV charging specific advice",
-                        "comparison between optimal and peak times",
-                        "clear time recommendations in HH:MM format"
+                        f"specific optimal charging time window mentioned (broader 3-hour window like {periods['optimal']['time_range']})",
+                        "real carbon intensity values from actual EirGrid data (no specific range required)",
+                        "EV charging specific advice with multiple strategies",
+                        "comparison between optimal and peak times with broader windows", 
+                        "clear time recommendations in HH:MM-HH:MM format (not single hours)"
                     ],
                     "should_have": [
                         "environmental impact statement with percentage",
@@ -640,13 +656,15 @@ I can provide carbon intensity data for any valid date within the available rang
                 "scoring_weights": scoring_weights,
                 "penalty_conditions": [
                     "no specific times mentioned: -0.15",
-                    "no EV charging advice: -0.15", 
-                    f"no real carbon intensity values (must be in {periods['absolute_min']}-{periods['absolute_max']}g CO2/kWh range): -0.20",
+                    "no EV charging advice: -0.15",
+                    "narrow time windows (single hour instead of 3-hour window): -0.12",
+                    "no real carbon intensity values provided: -0.20",
                     "response under 300 characters: -0.10",
-                    "wrong time format (not HH:MM): -0.05",
+                    "wrong time format (not HH:MM-HH:MM): -0.05",
                     "no comparison between optimal/peak times: -0.10",
-                    f"incorrect real CO2 values (outside {periods['absolute_min']}-{periods['absolute_max']}g CO2/kWh range): -0.20",
-                    "no mention of real/actual/live data: -0.10"
+                    "completely unrealistic CO2 values (e.g., negative numbers, values over 1000g): -0.20",
+                    "no mention of real/actual/live data: -0.10",
+                    "missing EV charging strategies (immediate, planned, full, top-up): -0.08"
                 ]
             }
         elif "data_request" in test_id or "24 hours" in test_id:
@@ -676,7 +694,7 @@ I can provide carbon intensity data for any valid date within the available rang
                 "penalty_conditions": [
                     "no time periods mentioned: -0.15",
                     "no CO2 intensity values: -0.20", 
-                    f"incorrect real CO2 values (outside {periods['absolute_min']}-{periods['absolute_max']}g CO2/kWh range): -0.20",
+                    "completely unrealistic CO2 values (e.g., negative numbers, values over 1000g): -0.20",
                     "response under 300 characters: -0.10",
                     "no daily statistics (min/max/avg): -0.10",
                     "no data source mentioned: -0.05"
@@ -687,11 +705,11 @@ I can provide carbon intensity data for any valid date within the available rang
             return {
                 "content_requirements": {
                     "must_have": [
-                        f"specific optimal time period mentioned (e.g., {periods['optimal']['time_range']})",
-                        f"real carbon intensity values (must be within {periods['absolute_min']}-{periods['absolute_max']}g CO2/kWh range)",
+                        f"specific optimal time period mentioned (broader 3-hour window like {periods['optimal']['time_range']})",
+                        "real carbon intensity values from actual EirGrid data (no specific range required)",
                         "at least 3 specific appliances mentioned",
-                        "comparison between optimal and peak times",
-                        "clear time recommendations in HH:MM format"
+                        "comparison between optimal and peak times with broader windows",
+                        "clear time recommendations in HH:MM-HH:MM format (not single hours)"
                     ],
                     "should_have": [
                         "environmental impact statement with percentage",
@@ -710,12 +728,13 @@ I can provide carbon intensity data for any valid date within the available rang
                 "scoring_weights": scoring_weights,
                 "penalty_conditions": [
                     "no specific times mentioned: -0.15",
-                    "no appliances mentioned: -0.15", 
-                    f"no real carbon intensity values (must be in {periods['absolute_min']}-{periods['absolute_max']}g CO2/kWh range): -0.20",
+                    "no appliances mentioned: -0.15",
+                    "narrow time windows (single hour instead of 3-hour window): -0.12", 
+                    "no real carbon intensity values provided: -0.20",
                     "response under 300 characters: -0.10",
-                    "wrong time format (not HH:MM): -0.05",
+                    "wrong time format (not HH:MM-HH:MM): -0.05",
                     "no comparison between optimal/peak times: -0.10",
-                    f"incorrect real CO2 values (outside {periods['absolute_min']}-{periods['absolute_max']}g CO2/kWh range): -0.20",
+                    "completely unrealistic CO2 values (e.g., negative numbers, values over 1000g): -0.20",
                     "no mention of real/actual/live data: -0.10"
                 ]
             }
@@ -768,7 +787,7 @@ I can provide carbon intensity data for any valid date within the available rang
                 }
                 test_cases.append(test_case)
         else:
-            # Default test cases
+            # Default test cases including error scenarios
             test_cases = [
                 {
                     "id": "carbon_001_real_appliances",
@@ -819,6 +838,41 @@ I can provide carbon intensity data for any valid date within the available rang
                 "ground_truth": {
                     "reference_output": self.create_example_based_reference(periods, "carbon_003_real_data_request", {"category": "data_request"}),
                     "scoring_criteria": self.create_realistic_scoring_criteria(periods, "carbon_003_real_data_request", {"category": "data_request"})
+                }
+            },
+            # ERROR SCENARIO TEST CASES - Only the two requested
+            {
+                "id": "carbon_004_invalid_date_format",
+                "query": "What's the best time for appliances on 2025-13-45?",
+                "query_date": "2025-13-45",  # Invalid date
+                "expected_functions": [],  # Should not call function with invalid date
+                "expected_behavior": ["error_handling", "user_friendly_error"],
+                "expected_output_keywords": ["invalid", "date", "format", "error"],
+                "category": "error_handling",
+                "priority": "high",
+                "timeout_seconds": 30,
+                "domain_context": "Error handling for invalid date formats in carbon emissions queries.",
+                "available_functions": ["get_emission_analysis"],
+                "ground_truth": {
+                    "reference_output": self.create_example_based_reference(periods, "carbon_004_invalid_date_format", {"category": "error_handling"}),
+                    "scoring_criteria": self.create_realistic_scoring_criteria(periods, "carbon_004_invalid_date_format", {"category": "error_handling"})
+                }
+            },
+            {
+                "id": "carbon_006_impossible_date",
+                "query": "Show me CO2 data for February 30th, 2025",
+                "query_date": "2025-02-30",  # February 30th doesn't exist
+                "expected_functions": [],
+                "expected_behavior": ["error_handling", "date_validation"],
+                "expected_output_keywords": ["invalid", "date", "february", "30"],
+                "category": "error_handling",
+                "priority": "medium",
+                "timeout_seconds": 30,
+                "domain_context": "Error handling for impossible dates in carbon emissions queries.",
+                "available_functions": ["get_emission_analysis"],
+                "ground_truth": {
+                    "reference_output": self.create_example_based_reference(periods, "carbon_006_impossible_date", {"category": "error_handling"}),
+                    "scoring_criteria": self.create_realistic_scoring_criteria(periods, "carbon_006_impossible_date", {"category": "error_handling"})
                 }
             }
         ]

@@ -10,7 +10,7 @@ import logging
 from datetime import datetime
 from typing import Dict, Any, Optional
 from autogen_agentchat.agents import AssistantAgent
-from autogen_ext.models.openai import AzureOpenAIChatCompletionClient
+from azure_client_factory import create_azure_client
 from autogen_core.tools import FunctionTool
 from dotenv import load_dotenv
 
@@ -32,13 +32,7 @@ class KamalAgentIntegrator:
     
     def _setup_azure_client(self):
         """Setup Azure OpenAI client"""
-        return AzureOpenAIChatCompletionClient(
-            azure_deployment=os.getenv("AZURE_DEPLOYMENT"),
-            model=os.getenv("MODEL", "gpt-4"),
-            api_version=os.getenv("API_VERSION"),
-            azure_endpoint=os.getenv("AZURE_ENDPOINT"),
-            api_key=os.getenv("API_KEY")
-        )
+        return create_azure_client()
     
     async def get_carbon_agent(self) -> AssistantAgent:
         """
