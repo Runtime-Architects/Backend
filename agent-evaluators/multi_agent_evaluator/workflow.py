@@ -1,21 +1,21 @@
-import time
 from datetime import datetime
-import asyncio
 import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from autogen_agentchat.agents import AssistantAgent, UserProxyAgent, MessageFilterAgent, MessageFilterConfig, PerSourceFilter
 from autogen_agentchat.teams import DiGraphBuilder, GraphFlow
-from autogen_agentchat.ui import Console
 from autogen_ext.models.openai import AzureOpenAIChatCompletionClient
 from autogen_ext.tools.code_execution import PythonCodeExecutionTool
 from autogen_ext.code_executors.local import LocalCommandLineCodeExecutor
 from autogen_core.tools import FunctionTool
-from co2_analysis_tool.co2_analysis import CO2IntensityAnalyzer
+from utility_tools.co2_analysis_tool.co2_analysis import CO2IntensityAnalyzer
 import subprocess
 import json
-import csv
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load .env from Backend root directory (two levels up from current file)
+env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), '.env')
+load_dotenv(env_path)
 
 scopes = os.getenv("SCOPES")
 search_index_name = os.getenv("SEARCH_INDEX_NAME")
