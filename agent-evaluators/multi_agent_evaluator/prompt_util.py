@@ -8,6 +8,10 @@ import logging
 import time
 from autogen_agentchat.base import TaskResult
 import workflow 
+from logging_config import setup_logging, get_logger
+
+# Configure logging first
+setup_logging(level=logging.INFO)
 
 # Configure Azure OpenAI client
 client = AzureOpenAI(
@@ -16,13 +20,8 @@ client = AzureOpenAI(
     api_key=os.getenv("API_KEY")
 )
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
-logger = logging.getLogger(__name__)
+# Get logger
+logger = get_logger(__name__)
 
 
 def get_user_input(display: str) -> str:

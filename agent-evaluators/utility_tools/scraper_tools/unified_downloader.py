@@ -13,20 +13,36 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 import logging
 
+# Try to import centralized logging configuration
+try:
+    import sys
+    current_dir = Path(__file__).parent.parent
+    sys.path.insert(0, str(current_dir))
+    from logging_config import get_logger
+    use_central_logging = True
+except ImportError:
+    use_central_logging = False
+
 # Import the updated CSV downloader
 try:
-    from .csv_downloader import CSVDataDownloader
+    from utility_tools.scraper_tools.csv_downloader import CSVDataDownloader
     csv_downloader_available = True
 except ImportError:
     csv_downloader_available = False
-    logging.warning("CSV downloader not available")
+    if use_central_logging:
+        get_logger(__name__).warning("CSV downloader not available")
+    else:
+        logging.warning("CSV downloader not available")
 
 
 class UnifiedEirGridDownloader:
     """Unified downloader with organized file structure by metric and date range"""
     
     def __init__(self, data_dir: Optional[str] = None, headless: bool = True):
-        self.logger = logging.getLogger(__name__)
+        if use_central_logging:
+            self.logger = get_logger(__name__)
+        else:
+            self.logger = logging.getLogger(__name__)
         
         # Set up data directory
         if data_dir is None:

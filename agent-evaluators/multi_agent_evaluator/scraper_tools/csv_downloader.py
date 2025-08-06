@@ -14,6 +14,16 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 import logging
 
+# Try to import centralized logging configuration
+try:
+    import sys
+    current_dir = Path(__file__).parent.parent
+    sys.path.insert(0, str(current_dir))
+    from logging_config import get_logger
+    use_central_logging = True
+except ImportError:
+    use_central_logging = False
+
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -29,7 +39,10 @@ class CSVDataDownloader:
     """Enhanced CSV downloader that handles multiple data areas and pages with demand fixes"""
     
     def __init__(self, data_dir: Optional[str] = None, headless: bool = True):
-        self.logger = logging.getLogger(__name__)
+        if use_central_logging:
+            self.logger = get_logger(__name__)
+        else:
+            self.logger = logging.getLogger(__name__)
         
         # Set up directories - now consistent with organized structure
         if data_dir is None:

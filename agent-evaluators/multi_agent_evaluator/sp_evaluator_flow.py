@@ -12,17 +12,14 @@ import logging
 from datetime import datetime
 import json
 import os
+from logging_config import setup_logging, get_logger
 from prompt_util import (log_generator, prompt_helper, get_user_input, create_log_folder,
                          generate_suggestion)
 import glob
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
-logger = logging.getLogger(__name__)
+setup_logging(level=logging.INFO)
+logger = get_logger(__name__)
 
 async def main():
     """

@@ -10,7 +10,8 @@ import sys
 import os
 
 # Add parent directory to path to access utility_tools
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, parent_dir)
 import subprocess
 from pathlib import Path
 from typing import Optional
@@ -21,6 +22,9 @@ from datetime import datetime, timedelta
 from hybrid_agent_evaluator import HybridAgentEvaluator, HybridEvaluationReport
 from evaluation_strategies import EvaluationMode
 from co2_statistics_utils import calculate_co2_statistics
+
+# Import scraper tools at module level
+from utility_tools.scraper_tools.run_eirgrid_downloader import main as eirgrid_main
 
 # Import CO2 processing
 try:
@@ -180,8 +184,7 @@ class StreamlinedCarbonAgentEvaluationRunner:
         print(f" Scraping data from {start_date} to {end_date} for region: {region}")
         
         try:
-            # Import and run the scraper
-            from utility_tools.scraper_tools.run_eirgrid_downloader import main as eirgrid_main
+            # Run the scraper
             
             # Set up arguments
             original_argv = sys.argv.copy()
@@ -211,7 +214,7 @@ class StreamlinedCarbonAgentEvaluationRunner:
             try:
                 cmd = [
                     sys.executable, 
-                    "scraper_tools/run_eirgrid_downloader.py",
+                    "../utility_tools/scraper_tools/run_eirgrid_downloader.py",
                     "--areas", "co2_intensity",
                     "--start", start_date,
                     "--end", end_date,
@@ -417,7 +420,6 @@ class StreamlinedCarbonAgentEvaluationRunner:
                 
                 # Run the scraper for the requested dates
                 try:
-                    from utility_tools.scraper_tools.run_eirgrid_downloader import main as eirgrid_main
                     
                     original_argv = sys.argv.copy()
                     try:

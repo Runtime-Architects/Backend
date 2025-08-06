@@ -1,0 +1,248 @@
+{
+  "date": "2025-08-06",
+  "region": "all",
+  "interval_minutes": 30,
+  "total_points": 46,
+  "data": [
+    {
+      "time": "00:00",
+      "value": 171.0,
+      "original_time": "2025-08-06 00:00:00"
+    },
+    {
+      "time": "00:30",
+      "value": 172.0,
+      "original_time": "2025-08-06 00:30:00"
+    },
+    {
+      "time": "01:00",
+      "value": 191.0,
+      "original_time": "2025-08-06 01:00:00"
+    },
+    {
+      "time": "01:30",
+      "value": 191.0,
+      "original_time": "2025-08-06 01:30:00"
+    },
+    {
+      "time": "02:00",
+      "value": 176.0,
+      "original_time": "2025-08-06 02:00:00"
+    },
+    {
+      "time": "02:30",
+      "value": 174.0,
+      "original_time": "2025-08-06 02:30:00"
+    },
+    {
+      "time": "03:00",
+      "value": 174.0,
+      "original_time": "2025-08-06 03:00:00"
+    },
+    {
+      "time": "03:30",
+      "value": 177.0,
+      "original_time": "2025-08-06 03:30:00"
+    },
+    {
+      "time": "04:00",
+      "value": 183.0,
+      "original_time": "2025-08-06 04:00:00"
+    },
+    {
+      "time": "04:30",
+      "value": 188.0,
+      "original_time": "2025-08-06 04:30:00"
+    },
+    {
+      "time": "05:00",
+      "value": 189.0,
+      "original_time": "2025-08-06 05:00:00"
+    },
+    {
+      "time": "05:30",
+      "value": 189.0,
+      "original_time": "2025-08-06 05:30:00"
+    },
+    {
+      "time": "06:00",
+      "value": 179.0,
+      "original_time": "2025-08-06 06:00:00"
+    },
+    {
+      "time": "06:30",
+      "value": 182.0,
+      "original_time": "2025-08-06 06:30:00"
+    },
+    {
+      "time": "07:00",
+      "value": 194.0,
+      "original_time": "2025-08-06 07:00:00"
+    },
+    {
+      "time": "07:30",
+      "value": 197.0,
+      "original_time": "2025-08-06 07:30:00"
+    },
+    {
+      "time": "08:00",
+      "value": 196.0,
+      "original_time": "2025-08-06 08:00:00"
+    },
+    {
+      "time": "08:30",
+      "value": 191.0,
+      "original_time": "2025-08-06 08:30:00"
+    },
+    {
+      "time": "09:00",
+      "value": 184.0,
+      "original_time": "2025-08-06 09:00:00"
+    },
+    {
+      "time": "09:30",
+      "value": 181.0,
+      "original_time": "2025-08-06 09:30:00"
+    },
+    {
+      "time": "10:00",
+      "value": 179.0,
+      "original_time": "2025-08-06 10:00:00"
+    },
+    {
+      "time": "10:30",
+      "value": 182.0,
+      "original_time": "2025-08-06 10:30:00"
+    },
+    {
+      "time": "11:00",
+      "value": 176.0,
+      "original_time": "2025-08-06 11:00:00"
+    },
+    {
+      "time": "11:30",
+      "value": 165.0,
+      "original_time": "2025-08-06 11:30:00"
+    },
+    {
+      "time": "12:00",
+      "value": 166.0,
+      "original_time": "2025-08-06 12:00:00"
+    },
+    {
+      "time": "12:30",
+      "value": 165.0,
+      "original_time": "2025-08-06 12:30:00"
+    },
+    {
+      "time": "13:00",
+      "value": 163.0,
+      "original_time": "2025-08-06 13:00:00"
+    },
+    {
+      "time": "13:30",
+      "value": 156.0,
+      "original_time": "2025-08-06 13:30:00"
+    },
+    {
+      "time": "14:00",
+      "value": 152.0,
+      "original_time": "2025-08-06 14:00:00"
+    },
+    {
+      "time": "14:30",
+      "value": 165.0,
+      "original_time": "2025-08-06 14:30:00"
+    },
+    {
+      "time": "15:00",
+      "value": 163.0,
+      "original_time": "2025-08-06 15:00:00"
+    },
+    {
+      "time": "15:30",
+      "value": 160.0,
+      "original_time": "2025-08-06 15:30:00"
+    },
+    {
+      "time": "16:00",
+      "value": 176.0,
+      "original_time": "2025-08-06 16:00:00"
+    },
+    {
+      "time": "16:30",
+      "value": 192.0,
+      "original_time": "2025-08-06 16:30:00"
+    },
+    {
+      "time": "17:00",
+      "value": 185.0,
+      "original_time": "2025-08-06 17:00:00"
+    },
+    {
+      "time": "17:30",
+      "value": 180.0,
+      "original_time": "2025-08-06 17:30:00"
+    },
+    {
+      "time": "18:00",
+      "value": 201.0,
+      "original_time": "2025-08-06 18:00:00"
+    },
+    {
+      "time": "18:30",
+      "value": 214.0,
+      "original_time": "2025-08-06 18:30:00"
+    },
+    {
+      "time": "19:00",
+      "value": 218.0,
+      "original_time": "2025-08-06 19:00:00"
+    },
+    {
+      "time": "19:30",
+      "value": 221.0,
+      "original_time": "2025-08-06 19:30:00"
+    },
+    {
+      "time": "20:00",
+      "value": 223.0,
+      "original_time": "2025-08-06 20:00:00"
+    },
+    {
+      "time": "20:30",
+      "value": 221.0,
+      "original_time": "2025-08-06 20:30:00"
+    },
+    {
+      "time": "21:00",
+      "value": 219.0,
+      "original_time": "2025-08-06 21:00:00"
+    },
+    {
+      "time": "21:30",
+      "value": 220.0,
+      "original_time": "2025-08-06 21:30:00"
+    },
+    {
+      "time": "22:00",
+      "value": 219.0,
+      "original_time": "2025-08-06 22:00:00"
+    },
+    {
+      "time": "22:30",
+      "value": 220.0,
+      "original_time": "2025-08-06 22:30:00"
+    }
+  ],
+  "metadata": {
+    "original_file": "data/co2_intensity\\co2_intensity_all_2025-08-06_2025-08-06.json",
+    "compressed_at": "2025-08-06T19:40:11.965601",
+    "date_from": "2025-08-06",
+    "date_to": "2025-08-06",
+    "original_entries": 82,
+    "source": "real_eirgrid_scraper",
+    "data_validation": "passed_real_data_checks",
+    "co2_range": "152-223g CO2/kWh"
+  }
+}

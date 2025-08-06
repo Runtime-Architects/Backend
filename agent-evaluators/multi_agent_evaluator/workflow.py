@@ -2,6 +2,11 @@ from datetime import datetime
 import os
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Import and configure logging before other imports
+from logging_config import setup_logging
+setup_logging()
+
 from autogen_agentchat.agents import AssistantAgent, UserProxyAgent, MessageFilterAgent, MessageFilterConfig, PerSourceFilter
 from autogen_agentchat.teams import DiGraphBuilder, GraphFlow
 from autogen_ext.models.openai import AzureOpenAIChatCompletionClient
