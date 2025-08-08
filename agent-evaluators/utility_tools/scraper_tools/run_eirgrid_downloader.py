@@ -12,44 +12,59 @@ import logging
 import json
 import time
 
-from .unified_downloader import UnifiedEirGridDownloader
+from utility_tools.scraper_tools.unified_downloader import UnifiedEirGridDownloader
 
 
 def setup_logging(debug: bool = False, log_file: Optional[str] = None):
-    """Set up professional logging configuration"""
+    """Set up logging using centralized configuration when available"""
     
-    # Clear any existing handlers to prevent duplicates
-    logger = logging.getLogger()
-    for handler in logger.handlers[:]:
-        logger.removeHandler(handler)
-    
-    # Base configuration
-    log_format = '%(asctime)s [%(levelname)s] %(message)s'
-    date_format = '%Y-%m-%d %H:%M:%S'
-    
-    handlers = []
-    
-    # Console handler
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(logging.Formatter(log_format, date_format))
-    handlers.append(console_handler)
-    
-    # File handler if specified
-    if log_file:
-        file_handler = logging.FileHandler(log_file)
-        file_handler.setFormatter(logging.Formatter(log_format, date_format))
-        handlers.append(file_handler)
-    
-    logging.basicConfig(
-        level=logging.DEBUG if debug else logging.INFO,
-        handlers=handlers,
-        force=True
-    )
-    
-    # Suppress verbose libraries
-    logging.getLogger('selenium').setLevel(logging.WARNING)
-    logging.getLogger('urllib3').setLevel(logging.WARNING)
-    logging.getLogger('webdriver_manager').setLevel(logging.WARNING)
+    # Try to import centralized logging configuration
+    try:
+        import os
+        current_dir = Path(__file__).parent.parent
+        sys.path.insert(0, str(current_dir))
+        from logging_config import setup_logging as central_setup_logging
+        
+        # Use centralized logging
+        central_setup_logging(
+            level=logging.DEBUG if debug else logging.INFO,
+            log_file=log_file
+        )
+        
+    except ImportError:
+        # Fallback to local configuration if centralized config not available
+        # Clear any existing handlers to prevent duplicates
+        logger = logging.getLogger()
+        for handler in logger.handlers[:]:
+            logger.removeHandler(handler)
+        
+        # Use consistent format matching the central configuration
+        log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        date_format = '%Y-%m-%d %H:%M:%S'
+        
+        handlers = []
+        
+        # Console handler
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setFormatter(logging.Formatter(log_format, date_format))
+        handlers.append(console_handler)
+        
+        # File handler if specified
+        if log_file:
+            file_handler = logging.FileHandler(log_file)
+            file_handler.setFormatter(logging.Formatter(log_format, date_format))
+            handlers.append(file_handler)
+        
+        logging.basicConfig(
+            level=logging.DEBUG if debug else logging.INFO,
+            handlers=handlers,
+            force=True
+        )
+        
+        # Suppress verbose libraries
+        logging.getLogger('selenium').setLevel(logging.WARNING)
+        logging.getLogger('urllib3').setLevel(logging.WARNING)
+        logging.getLogger('webdriver_manager').setLevel(logging.WARNING)
 
 
 def validate_date(date_str: str) -> str:

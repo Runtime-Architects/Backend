@@ -1,0 +1,31 @@
+{
+  "date": "2025-08-06",
+  "region": "all",
+  "data": [
+    {
+      "time": "2025-",
+      "value": 171.0
+    },
+    {
+      "time": "2025-",
+      "value": 172.0
+    },
+    {
+      "time": "2025-",
+      "value": 172.0
+    },
+    {
+      "time": "2025-",
+      "value": 175.0
+    },
+    {
+      "time": "2025-",
+      "value": 191.0
+    }
+  ],
+  "total_points": 5,
+  "metadata": {
+    "source": "eirgrid",
+    "co2_range": "100-400g"
+  }
+}
