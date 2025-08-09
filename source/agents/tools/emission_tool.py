@@ -11,7 +11,7 @@ async def get_emission_analysis(startdate: str, enddate: str, region: str) -> fl
         return intensity_periods
     except Exception as e:
         # Return detailed error info
-        return {
+        raise {
             "error": str(e),
             "input_params": {
                 "startdate": startdate,
@@ -19,3 +19,5 @@ async def get_emission_analysis(startdate: str, enddate: str, region: str) -> fl
                 "region": region,
             },
         }
+    
+    

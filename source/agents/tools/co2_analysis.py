@@ -104,7 +104,7 @@ class CO2IntensityAnalyzer:
 
         return "Error processing data"
 
-    def get_monthly_analysis(self):
+    def monthly_analysis(self):
         """
         Returns CO2 monthly intensity periods with dates and emissions.
 
