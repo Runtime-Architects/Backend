@@ -89,7 +89,7 @@ def plot_day_intensity(df_, start_date_str, end_date_str, region, workdir):
 
     # Save plot
     plt.savefig(
-        f"{workdir}/co2plot_day_{region}_{start_date_str}_{end_date_str}.png",
+        f"{workdir}/co2plot_day_all_{start_date_str}_{end_date_str}.png",
         bbox_inches="tight",
     )
     plt.close()
@@ -184,7 +184,7 @@ def plot_weekly_intensity(df_, start_date_str, end_date_str, region, workdir):
 
     # Save plot
     plt.savefig(
-        f"{workdir}/co2plot_week_{region}_{start_date_str}_{end_date_str}.png",
+        f"{workdir}/co2plot_week_all_{start_date_str}_{end_date_str}.png",
         bbox_inches="tight",
     )
     plt.close()
@@ -256,7 +256,7 @@ def plot_monthly_intensity(df_, start_date_str, end_date_str, region, work_dir):
 
     # Save plot
     plt.savefig(
-        f"{work_dir}/co2plot_month_{region}_{start_date_str}_{end_date_str}.png",
+        f"{work_dir}/co2plot_all_{region}_{start_date_str}_{end_date_str}.png",
         bbox_inches="tight",
     )
     plt.close()
