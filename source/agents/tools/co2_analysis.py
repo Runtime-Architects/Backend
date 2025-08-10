@@ -12,6 +12,7 @@ from agents.tools.co2_plot import (
     plot_monthly_intensity,
 )
 
+
 class CO2IntensityAnalyzer:
     """
     Analyzer that categorizes CO2 intensity periods into {low: [], med: [], high: []}

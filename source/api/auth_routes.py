@@ -61,14 +61,14 @@ challenges = {}
 # Configuration
 import os
 from dotenv import load_dotenv
-dotenv_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+
+dotenv_path = os.path.join(os.path.dirname(__file__), "..", ".env")
 load_dotenv(dotenv_path)
 
 
 RP_ID = os.getenv("WEBAUTHN_RP_ID", "localhost")
 RP_NAME = os.getenv("WEBAUTHN_RP_NAME", "Sustainable Development")
 ORIGIN = os.getenv("WEBAUTHN_ORIGIN", "http://localhost:3000")
- 
 
 
 @router.post("/register/begin")

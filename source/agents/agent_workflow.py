@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 from dotenv import load_dotenv
 from agents.client import AzureClientFactory
 
-dotenv_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+dotenv_path = os.path.join(os.path.dirname(__file__), "..", ".env")
 load_dotenv(dotenv_path)
 
 azure_factory = AzureClientFactory(
@@ -31,6 +31,7 @@ azure_factory = AzureClientFactory(
 )
 
 client = azure_factory.get_client()
+
 
 async def initialize_agents():
     """Initialize AutoGen agents and workflow."""
@@ -51,10 +52,14 @@ async def initialize_agents():
             }
 
             # --- Config path ---
-            config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "config.yaml"))
+            config_path = os.path.abspath(
+                os.path.join(os.path.dirname(__file__), "..", "config.yaml")
+            )
 
             # --- Create factory and build agents ---
-            factory = agent_builder.AgentFactory(config_path=config_path, context=context)
+            factory = agent_builder.AgentFactory(
+                config_path=config_path, context=context
+            )
             agents = factory.build_agents(agent_class=AssistantAgent)
 
             # --- Extract agents by name ---
@@ -70,20 +75,25 @@ async def initialize_agents():
             # --- Message filtering ---
             def create_conditional_filter(source_agent):
                 return MessageFilterConfig(
-                    per_source=[PerSourceFilter(source=source_agent, position="last", count=1)]
+                    per_source=[
+                        PerSourceFilter(source=source_agent, position="last", count=1)
+                    ]
                 )
 
             filtered_carbon = MessageFilterAgent(
-                name="CarbonAgent", wrapped_agent=carbon,
-                filter=create_conditional_filter("PlannerAgent")
+                name="CarbonAgent",
+                wrapped_agent=carbon,
+                filter=create_conditional_filter("PlannerAgent"),
             )
             filtered_policy = MessageFilterAgent(
-                name="PolicyAgent", wrapped_agent=policy,
-                filter=create_conditional_filter("PlannerAgent")
+                name="PolicyAgent",
+                wrapped_agent=policy,
+                filter=create_conditional_filter("PlannerAgent"),
             )
             filtered_analysis = MessageFilterAgent(
-                name="DataAnalysisAgent", wrapped_agent=analysis,
-                filter=create_conditional_filter("PlannerAgent")
+                name="DataAnalysisAgent",
+                wrapped_agent=analysis,
+                filter=create_conditional_filter("PlannerAgent"),
             )
 
             # --- Build workflow graph ---
@@ -95,13 +105,30 @@ async def initialize_agents():
             builder.add_node(filtered_analysis)
             builder.add_node(report)
 
-            builder.add_edge(planner, filtered_carbon)
-            builder.add_edge(planner, filtered_policy)
-            builder.add_edge(planner, filtered_analysis)
+            def is_mentioned(agent_name: str):
+                """Returns a function that checks if a given agent_name is in the message."""
+                def check_mention(msg):
+                    if hasattr(msg, "content"):
+                        content = msg.content
+                    elif isinstance(msg, dict): 
+                        content = msg.get("content", "")
+                    else:
+                        return False
+                    return agent_name.lower() in content.lower()
+                return check_mention 
 
-            builder.add_edge(filtered_carbon, report)
-            builder.add_edge(filtered_policy, report)
-            builder.add_edge(filtered_analysis, report)
+
+            # Define conditional edges - all agents can potentially communicate to report
+            builder.add_edge(planner, filtered_carbon, condition=is_mentioned("carbonagent"))
+            builder.add_edge(planner, filtered_policy, condition=is_mentioned("policyagent"))
+            builder.add_edge(planner, filtered_analysis, condition=is_mentioned("dataanalysisagent"))
+
+            # All specialist agents feed into report agent
+            builder.add_edge(filtered_carbon, report, activation_group="working_agent", activation_condition="any")
+            builder.add_edge(filtered_policy, report, activation_group="working_agent", activation_condition="any")
+            builder.add_edge(filtered_analysis, report, activation_group="working_agent", activation_condition="any")
+
+            builder.add_edge(planner, report, activation_group="planning_agent", activation_condition="any", condition=is_mentioned("none"))
 
             team_flow = GraphFlow(
                 participants=builder.get_participants(),
@@ -115,7 +142,6 @@ async def initialize_agents():
             raise
 
         return team_flow
-
 
 
 if __name__ == "__main__":

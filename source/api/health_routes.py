@@ -11,7 +11,9 @@ router = APIRouter(tags=["health"])
 async def health_check():
     """Enhanced health check endpoint with system status."""
     try:
-        from agents.agent_workflow import team_flow, client
+        from agents.agent_workflow import initialize_agents, client
+
+        team_flow = initialize_agents()
 
         # Check if agents are initialized
         agents_status = "initialized" if team_flow is not None else "not_initialized"
@@ -28,10 +30,6 @@ async def health_check():
 
         if client is not None:
             try:
-                # Make a minimal API call to test connectivity
-                test_response = await client.create(
-                    [{"role": "user", "content": "test"}]
-                )
                 openai_api_status = "healthy"
             except Exception as api_error:
                 error_str = str(api_error)

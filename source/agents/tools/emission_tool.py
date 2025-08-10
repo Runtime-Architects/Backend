@@ -1,5 +1,6 @@
 from agents.tools.co2_analysis import CO2IntensityAnalyzer
 
+
 async def get_emission_analysis(startdate: str, enddate: str, region: str) -> float:
     # Check if the file exists
 
@@ -19,5 +20,3 @@ async def get_emission_analysis(startdate: str, enddate: str, region: str) -> fl
                 "region": region,
             },
         }
-    
-    

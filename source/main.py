@@ -21,6 +21,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events."""

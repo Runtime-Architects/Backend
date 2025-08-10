@@ -7,6 +7,7 @@ import os
 import sys
 from eirgridscraper.run_eirgrid_downloader import main as eirgrid_main
 
+
 def get_emission_data(startdate: str, enddate: str, region: str) -> float:
     # Check if the file exists
     file_path = f"data/co2_intensity/co2_intensity_{region}_{startdate}_{enddate}.json"

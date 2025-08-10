@@ -43,7 +43,7 @@ async def ask_endpoint(request: QuestionRequest):
 async def ask_stream_endpoint(
     request_body: QuestionRequest,
     request: Request,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Streaming endpoint that provides real-time updates during agent processing
@@ -59,7 +59,7 @@ async def ask_stream_endpoint(
             request_body.question,
             current_user.id,
             request_body.conversation_id,
-            team_flow
+            team_flow,
         ):
             yield chunk
 
@@ -68,6 +68,7 @@ async def ask_stream_endpoint(
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
     )
+
 
 @router.get("/images/{image_name}")
 async def get_image(image_name: str):
@@ -101,8 +102,7 @@ async def add_message_to_conversation(
     conversation = (
         session.query(Conversation)
         .filter(
-            Conversation.id == conversation_id,
-            Conversation.user_id == current_user.id
+            Conversation.id == conversation_id, Conversation.user_id == current_user.id
         )
         .first()
     )
@@ -121,7 +121,7 @@ async def add_message_to_conversation(
             request_body.question,
             current_user.id,
             conversation_id,
-            team_flow
+            team_flow,
         ):
             yield chunk
 

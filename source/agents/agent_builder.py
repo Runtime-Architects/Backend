@@ -2,6 +2,7 @@ import os
 import yaml
 import inspect
 
+
 class AgentFactory:
     def __init__(self, config_path, context=None):
         self.context = context or {}
@@ -18,7 +19,9 @@ class AgentFactory:
                 var_name = value[2:-1]
                 resolved = self.context.get(var_name) or os.environ.get(var_name)
                 if resolved is None:
-                    raise ValueError(f"Missing value for '{var_name}' in context or environment.")
+                    raise ValueError(
+                        f"Missing value for '{var_name}' in context or environment."
+                    )
                 return resolved
             # Handle tool name as string
             elif value in self.context:

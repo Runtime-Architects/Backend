@@ -1,7 +1,17 @@
 from autogen_ext.models.openai import AzureOpenAIChatCompletionClient
 
+
 class AzureClientFactory:
-    def __init__(self, *, azure_deployment, model, api_version, azure_endpoint, api_key, max_completion_tokens=1024):
+    def __init__(
+        self,
+        *,
+        azure_deployment,
+        model,
+        api_version,
+        azure_endpoint,
+        api_key,
+        max_completion_tokens=1024
+    ):
         self.azure_deployment = azure_deployment
         self.model = model
         self.api_version = api_version

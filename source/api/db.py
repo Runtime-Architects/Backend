@@ -18,17 +18,19 @@ if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
 print("Using DB URL:", DATABASE_URL)
 
 engine = create_engine(
-    DATABASE_URL, 
+    DATABASE_URL,
     echo=False,  # Set to True for SQL query debugging
     pool_pre_ping=True,  # Verify connections before use
-    pool_recycle=300,    # Recycle connections every 5 minutes
+    pool_recycle=300,  # Recycle connections every 5 minutes
 )
+
 
 def create_db_and_tables():
     """Create database and tables"""
     # Create all tables in the database
     SQLModel.metadata.create_all(engine)
     print(f"Database created at: COSMOSDB")
+
 
 def get_session() -> Generator[Session, None, None]:
     with Session(engine) as session:
