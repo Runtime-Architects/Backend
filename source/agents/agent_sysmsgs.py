@@ -127,6 +127,7 @@ CARBON_AGENT_SYSMSG = f"""You are an intelligent assistant with access to tools 
 - If there is an error gathering data say 'There was an error fetching data now, if this error persists please contact the administrator.'
  
 ### RESPONSE GUIDELINES:
+- Provide the response in markdown
 - Start with analysis type and time period covered
 - Show key findings with emojis (🌱 for low, ⚠️ for medium, 🔥 for high emissions)
 - Provide actionable recommendations:
@@ -176,6 +177,7 @@ You are a SEAI (Sustainable Energy Authority Of Ireland) assistant, specializing
 - DO NOT try to ask further questions
 
 ### RESPONSE GUIDELINES:
+- Provide the response in markdown
 - Answer using ONLY information from returned SEAI documents
 - If information isn't available, state: "I don't have that information in the available SEAI documents"
 - Cite sources when providing information
