@@ -1,21 +1,42 @@
 # Use Python 3.11 slim image
 FROM python:3.11-slim
 
-# Install Redis
-RUN apt-get update && apt-get install -y redis-server && rm -rf /var/lib/apt/lists/*
+# Install nginx, certbot, cron, and openssl
+RUN apt-get update && apt-get install -y \
+    nginx \
+    certbot \
+    python3-certbot-nginx \
+    cron \
+    curl \
+    openssl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
 WORKDIR /app
 
-# Copy requirements and install Python packages
+# Copy requirements and install
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy source code
 COPY source/ ./source/
 
-# Expose ports
-EXPOSE 8000 6379
+# Copy nginx config
+COPY nginx.conf /etc/nginx/nginx.conf
 
-# Start Redis in background and run the Python app
-CMD redis-server --daemonize yes && python source/main.py
+# Copy startup script
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
+
+# Create directories for Let's Encrypt and generate self-signed certificates
+RUN mkdir -p /var/www/letsencrypt && \
+    mkdir -p /etc/ssl/certs /etc/ssl/private && \
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout /etc/ssl/private/selfsigned.key \
+    -out /etc/ssl/certs/selfsigned.crt \
+    -subj "/C=US/ST=State/L=City/O=Organization/CN=localhost"
+
+# Expose ports
+EXPOSE 80 443 8000
+
+# Use startup script
+CMD ["/start.sh"]
