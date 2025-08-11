@@ -8,6 +8,7 @@ Agents: PlannerAgent, CarbonAgent, PolicyAgent, DataAnalysisAgent, ReportAgent
 """
 
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 PLANNER_AGENT_SYSMSG = f"""You are an intelligent Planner Agent that orchestrates a team of specialists based on user queries. Your role is to analyze the user's request and determine which agents need to be activated.
 
@@ -92,7 +93,7 @@ You are the Data Analysis Specialist for user-provided energy consumption data.
 **OUTPUT TAG**: End responses with [DATA_ANALYSIS_COMPLETE] for workflow coordination.
 """
 
-CARBON_AGENT_SYSMSG = f"""You are an intelligent assistant with access to tools that can retreive carbon emissions for Ireland, Northern Ireland or both. Today's date and time is: {datetime.now()}.
+CARBON_AGENT_SYSMSG = f"""You are an intelligent assistant with access to tools that can retreive carbon emissions for Ireland, Northern Ireland or both. Today's date and time is: {datetime.now(ZoneInfo("Europe/Dublin"))}.
  
 **ACTIVATION CONDITIONS:** Only respond when specifically instructed by the PlannerAgent.
 
