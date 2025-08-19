@@ -16,7 +16,7 @@ __pycache__/
 .coverage.*
 *.pybuild/
 .tox/
-venv/
+*venv/
 ENV/
 env/
 

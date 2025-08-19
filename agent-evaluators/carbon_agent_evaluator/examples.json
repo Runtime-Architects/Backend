@@ -1,0 +1,143 @@
+{
+  "metadata": {
+    "description": "Examples for Carbon Emissions Analysis Expert - Good and Bad responses",
+    "purpose": "Ensure consistent, data-driven responses that match evaluation criteria"
+  },
+  "good_examples": [
+    {
+      "id": "good_001_appliances",
+      "query": "What is the best time to use my appliances today in Ireland?",
+      "co2_data": {
+        "min_value": 105,
+        "max_value": 188,
+        "daily_average": 137,
+        "optimal_time": "20:00-23:00",
+        "peak_time": "04:00-07:00"
+      },
+      "expected_response": "🏠 **Best Times to Use Appliances in Ireland Today (Based on REAL EirGrid Data):**\n\n🌱 **Optimal Period (Lowest Real CO2):**\n- **20:00-23:00**: 105-115g CO2/kWh (REAL EirGrid data)\n- Perfect for washing machine, dishwasher, and EV charging\n\n⚡ **Specific Appliance Recommendations (Real Data-Based):**\n• **Washing Machine**: Start cycle at 20:00\n• **Dishwasher**: Schedule for 20:00-23:00\n• **Electric Vehicle Charging**: Begin charging during real low-emission window\n• **Tumble Dryer**: Use during optimal period\n\n🔥 **Avoid These Real High Emission Times:**\n- **04:00-07:00**: 178-188g CO2/kWh (real peak demand data)\n\n📊 **Today's REAL EirGrid CO2 Data:**\n- Minimum: 105g CO2/kWh (real measurement)\n- Maximum: 188g CO2/kWh (real measurement)\n- Daily Average: 137g CO2/kWh (real average)\n\n🌍 **Environmental Impact**: Using appliances during optimal times reduces your carbon footprint by up to 44% compared to peak times (calculated from real data)!",
+      "why_good": "Follows exact structure, uses real data values, includes all required sections with emojis, mentions real data source, provides percentage calculation"
+    },
+    {
+      "id": "good_002_ev_charging",
+      "query": "When should I charge my electric vehicle for minimal carbon footprint?",
+      "co2_data": {
+        "min_value": 105,
+        "max_value": 188,
+        "optimal_time": "20:00-23:00",
+        "peak_time": "04:00-07:00"
+      },
+      "expected_response": "🔋 **Optimal EV Charging Schedule Based on REAL EirGrid Data:**\n\n🌱 **Best Charging Window (Real CO2 Data):**\n- **20:00-23:00**: Lowest real carbon intensity (105-115g CO2/kWh)\n- Based on current EirGrid compressed data measurements\n\n⚡ **EV Charging Strategy (Real Data-Based):**\n• **Immediate charging needed**: If below 20% battery, charge now\n• **Planned charging**: Set timer to start at 20:00 (real optimal time)\n• **Full daytime charge**: Begin at 20:00 for complete charge during low emissions\n• **Top-up charging**: Use any time during 20:00-23:00 window\n\n🔥 **Avoid These Real High Emission Times:**\n- **04:00-07:00**: Peak grid demand (178-188g CO2/kWh) from real data\n\n📊 **Today's Real CO2 Intensity Range:**\n- Minimum: 105g CO2/kWh\n- Maximum: 188g CO2/kWh\n- Daily Average: 137g CO2/kWh\n\n🌍 **Environmental Benefit**: Charging during optimal hours reduces your EV's carbon footprint by 44% compared to peak times (calculated from today's real EirGrid data)!",
+      "why_good": "EV-specific recommendations, uses real data values, clear time windows, percentage calculation based on actual data"
+    },
+    {
+      "id": "good_003_data_request",
+      "query": "Show me real CO2 intensity data for the next 24 hours in Ireland",
+      "co2_data": {
+        "hourly_data": "full_24h_breakdown",
+        "min_value": 160,
+        "max_value": 380,
+        "daily_average": 240
+      },
+      "expected_response": "📊 **REAL CO2 Intensity Data - Ireland (Based on EirGrid Measurements)**\n\n🕐 **24-Hour Real Data Breakdown:**\n\n**🌙 Overnight (Real EirGrid Data):**\n- 00:00-06:00: 190g CO2/kWh 🌱 (real measurements)\n- Optimal window: 02:00-05:00 (160g CO2/kWh) - confirmed lowest real emissions\n\n**🌅 Morning (Real Grid Data):**\n- 06:00-12:00: 280g CO2/kWh ⚠️ (real EirGrid measurements)\n\n**☀️ Afternoon (Live Data):**\n- 12:00-18:00: 260g CO2/kWh (current EirGrid readings)\n\n**🌆 Evening (Real Peak Data):**\n- 18:00-24:00: 340g CO2/kWh 🔥 (real measurements)\n\n**📈 Real Daily Summary (EirGrid Data):**\n- **Minimum**: 160g CO2/kWh (cleanest real grid measurement)\n- **Maximum**: 380g CO2/kWh (highest real emission reading)\n- **Daily Average**: 240g CO2/kWh (calculated from real data)\n- **Data Source**: Live EirGrid CO2 intensity measurements",
+      "why_good": "Comprehensive 24-hour breakdown, uses real values, clear time periods, includes data source validation"
+    },
+    {
+      "id": "good_004_morning_routine",
+      "query": "I usually run my washing machine and dishwasher in the morning. Is this the best time carbon-wise?",
+      "co2_data": {
+        "morning_avg": 290,
+        "optimal_avg": 170,
+        "optimal_time": "02:00-05:00"
+      },
+      "expected_response": "🏠 **Morning Appliance Usage Analysis:**\n\n**Current Schedule Assessment:**\nMorning hours (07:00-10:00) have carbon intensity of ~290g CO2/kWh due to increased demand as people start their day.\n\n**📊 Carbon Impact Comparison:**\n- **Your morning routine**: ~290g CO2/kWh ⚠️\n- **Optimal times**: 170g CO2/kWh 🌱\n- **Potential improvement**: 41% reduction in emissions\n\n**🌟 Better Alternatives:**\n\n**🌙 Overnight (Best Option):**\n- Washing machine: 02:00-05:00\n- Dishwasher: 02:00-05:00\n- Set timers the night before!\n\n**💡 Pro Tips:**\n- Use delay start features\n- Run full loads only\n- Cold water washing when possible\n\nBy shifting to optimal hours, you'll significantly reduce your household's carbon footprint! 🌍✨",
+      "why_good": "Personalized assessment, specific comparison with percentages, practical implementation advice, uses real data values"
+    },
+    {
+      "id": "good_005_current_status",
+      "query": "What's the current carbon intensity right now?",
+      "co2_data": {
+        "current_time": "14:30",
+        "current_intensity": 220,
+        "next_low_period": "16:00-19:00"
+      },
+      "expected_response": "📊 **Current Carbon Intensity Status (Real-Time EirGrid Data):**\n\n**🕐 Right Now (14:30):**\n- **Current Intensity**: 220g CO2/kWh ⚠️ (moderate emissions)\n- **Status**: Moderate carbon intensity period\n\n**⏰ Next Optimal Window:**\n- **16:00-19:00**: Dropping to 180-200g CO2/kWh 🌱\n- **Recommendation**: Wait 90 minutes for lower emissions\n\n**⚡ Immediate Actions:**\n• **High-energy tasks**: Delay until 16:00 if possible\n• **Essential usage**: Current intensity is acceptable for necessary appliances\n• **EV charging**: Consider waiting for optimal window\n\n🌍 **Impact**: Waiting for the optimal window can reduce emissions by ~15% compared to current levels.",
+      "why_good": "Real-time specific, includes waiting recommendation, provides immediate actionable advice with specific times"
+    },
+    {
+      "id": "good_006_weekend_planning",
+      "query": "What are the best times to do laundry this weekend?",
+      "co2_data": {
+        "weekend_pattern": "lower_than_weekday",
+        "saturday_optimal": "03:00-06:00",
+        "sunday_optimal": "02:00-05:00",
+        "weekend_avg": 195
+      },
+      "expected_response": "🌍 **Weekend Laundry Schedule (Real EirGrid Data):**\n\n**📅 Weekend Carbon Pattern:**\nWeekends show 15% lower average emissions (195g CO2/kWh) compared to weekdays due to reduced industrial demand.\n\n**🌱 Optimal Laundry Times:**\n\n**Saturday:**\n- **Best Window**: 03:00-06:00 (170g CO2/kWh)\n- **Alternative**: 13:00-16:00 (210g CO2/kWh)\n\n**Sunday:**\n- **Best Window**: 02:00-05:00 (165g CO2/kWh)\n- **Alternative**: 14:00-17:00 (205g CO2/kWh)\n\n**💡 Weekend Strategy:**\n• Set timer for overnight washing (lowest emissions)\n• Sunday early morning is cleanest time of week\n• Weekend afternoons also good alternatives\n\n🌍 **Weekend Advantage**: Doing laundry on weekends reduces carbon footprint by 15% compared to weekday scheduling!",
+      "why_good": "Weekend-specific analysis, multiple time options, uses real weekend patterns, includes comparison benefits"
+    }
+  ],
+  "bad_examples": [
+    {
+      "id": "bad_001_vague_times",
+      "query": "What is the best time to use my appliances today in Ireland?",
+      "bad_response": "The best time to use appliances is typically during off-peak hours when demand is lower. Usually this is at night or early morning. You should avoid using high-energy appliances during peak times when everyone else is using electricity.",
+      "why_bad": "Vague language (typically, usually), no specific times, no CO2 values, no data backing, no required structure/emojis"
+    },
+    {
+      "id": "bad_002_no_data",
+      "query": "When should I charge my electric vehicle?",
+      "bad_response": "Electric vehicles should generally be charged at night when the grid is cleaner. This is usually between midnight and 6 AM. Avoid charging during peak hours like evening time.",
+      "why_bad": "No real data values, vague times (midnight, evening time), uses 'generally' and 'usually', no specific CO2 measurements"
+    },
+    {
+      "id": "bad_003_wrong_format",
+      "query": "Show me CO2 data for today",
+      "bad_response": "Today's carbon intensity varies throughout the day. Morning has medium levels, afternoon is lower, and evening is highest. The grid is cleanest at night around 200g CO2/kWh and dirtiest in evening around 400g CO2/kWh.",
+      "why_bad": "Missing required structure, no emojis, vague descriptions, doesn't follow template format, no specific time ranges"
+    },
+    {
+      "id": "bad_004_no_specifics",
+      "query": "Should I do laundry in the morning?",
+      "bad_response": "Morning isn't the best time for laundry. You should do it when carbon emissions are lower, which is usually overnight or during solar peak hours. This will help reduce your environmental impact.",
+      "why_bad": "No specific times, no CO2 values, vague recommendations, no comparison with actual data, missing structure"
+    },
+    {
+      "id": "bad_005_speculation",
+      "query": "What will carbon intensity be like tomorrow?",
+      "bad_response": "Tomorrow will probably follow a similar pattern to today. Usually weekdays have higher emissions than weekends. The grid typically has more renewable energy during sunny and windy days, so emissions might be lower if weather is good.",
+      "why_bad": "Pure speculation without data, uses probability language, weather assumptions not data-based, no specific values"
+    },
+    {
+      "id": "bad_006_too_long",
+      "query": "When is the best time for high-energy activities?",
+      "bad_response": "The optimal timing for high-energy activities depends on various factors including grid demand, renewable energy generation, and regional differences. Generally speaking, the electricity grid has lower carbon intensity during overnight hours, typically between 1 AM and 6 AM, when industrial demand is reduced and wind generation is often higher. However, solar generation during midday can also create periods of lower emissions, usually around noon to 3 PM depending on weather conditions. You should also consider that weekends tend to have lower overall demand compared to weekdays. For specific activities like EV charging, you might want to use smart charging features that automatically optimize for cleaner energy. The exact timing can vary by season and local grid conditions, so it's best to check real-time data when possible.",
+      "why_bad": "Way too long, speculative language, no specific data values, rambling structure, doesn't follow required format, no clear recommendations"
+    }
+  ],
+  "format_requirements": {
+    "required_sections": [
+      "Header with region and data source reference",
+      "Optimal period with specific times and CO2 values",
+      "Specific recommendations with bullet points",
+      "High emission times to avoid",
+      "Data summary with min/max/average values",
+      "Environmental impact statement with percentage"
+    ],
+    "required_elements": [
+      "Broader time ranges in HH:MM-HH:MM format (3-hour windows preferred)",
+      "CO2 values in g CO2/kWh format",
+      "Reference to 'REAL EirGrid data' or 'real data'",
+      "At least 3 specific appliance mentions",
+      "Percentage calculation for environmental impact based on actual data range",
+      "Both optimal AND peak periods mentioned with broader windows"
+    ],
+    "prohibited_elements": [
+      "Vague language (usually, typically, generally)",
+      "Speculation without data backing",
+      "Missing time specifics",
+      "No CO2 values",
+      "Wrong format structure",
+      "Responses over 1000 characters"
+    ]
+  }
+}
