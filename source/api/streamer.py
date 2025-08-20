@@ -1,16 +1,41 @@
-from fastapi.responses import StreamingResponse
-from typing import AsyncGenerator, Callable, Any, Dict
+"""
+streamer.py
+
+This module contains the implementation of SSE and the Pydantic Models used by it
+"""
+
 import asyncio
 import logging
+import sys
 from datetime import datetime
 from enum import Enum
+from typing import Any, AsyncGenerator, Callable, Dict
+
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+
+
+# Logging Config
+logging.basicConfig(
+    level=logging.INFO,
+    stream=sys.stdout,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
 
 logger = logging.getLogger(__name__)
 
 
 class StreamEventType(str, Enum):
-    """Enumeration of different stream event types for agent communication."""
+    """Enum class representing the different types of stream events.
+
+    Attributes:
+        STARTED (str): Indicates that the stream has started.
+        AGENT_THINKING (str): Indicates that the agent is currently thinking.
+        AGENT_RESPONSE (str): Indicates that the agent has provided a response.
+        TOOL_EXECUTION (str): Indicates that a tool is being executed.
+        ERROR (str): Indicates that an error has occurred.
+        COMPLETED (str): Indicates that the stream has completed.
+    """
 
     STARTED = "started"
     AGENT_THINKING = "agent_thinking"
@@ -21,7 +46,15 @@ class StreamEventType(str, Enum):
 
 
 class StreamEvent(BaseModel):
-    """Pydantic model representing a streaming event with metadata."""
+    """A class representing a stream event.
+
+    Attributes:
+        event_type (StreamEventType): The type of the stream event.
+        timestamp (str): The timestamp of the event.
+        agent_name (str, optional): The name of the agent associated with the event. Defaults to an empty string.
+        message (str, optional): A message related to the event. Defaults to an empty string.
+        data (Dict[str, Any], optional): Additional data associated with the event. Defaults to an empty dictionary.
+    """
 
     event_type: StreamEventType
     timestamp: str
@@ -31,7 +64,23 @@ class StreamEvent(BaseModel):
 
 
 class StreamEventManager:
-    """Manages streaming events and progress tracking for agent communication."""
+    """StreamEventManager is a class that manages streaming events and tracks progress.
+
+    Attributes:
+        events (list): A list to store emitted events.
+        current_step (int): The current step in the progress tracking.
+        total_steps (int): The total number of steps for progress tracking.
+
+    Methods:
+        emit_event(event_type, agent_name="", message="", data=None):
+            Create and emit a new streaming event.
+
+        get_progress_percentage():
+            Calculate the current progress percentage.
+
+        increment_step():
+            Increment the current step counter for progress tracking.
+    """
 
     def __init__(self):
         """Initialize the event manager with empty events list and progress tracking."""

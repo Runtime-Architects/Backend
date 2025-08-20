@@ -1,3 +1,9 @@
+"""
+seai_policy_search.py
+
+This module consists of the HTTP request made to Azure AI search to fetch SEAI Policy Data
+"""
+
 import os
 import httpx
 import yaml
@@ -9,10 +15,19 @@ import yaml
 
 
 async def run_curl_search(query: str) -> str:
-    """
-    Sends a search query to Azure AI Search using httpx.
-    Reads config from environment variables.
-    Returns raw JSON string of the response.
+    """Run a search query against a specified search index using an asynchronous HTTP request.
+
+    This function constructs a search request to a configured search endpoint using the provided query string. It retrieves necessary configuration values from environment variables and raises an error if any are missing. The function sends a POST request to the search API and returns the response as a string.
+
+    Args:
+        query (str): The search query string to be executed.
+
+    Returns:
+        str: The response from the search API as a string.
+
+    Raises:
+        ValueError: If any required environment variables are missing.
+        httpx.HTTPStatusError: If the HTTP request returns an unsuccessful status code.
     """
     search_index_name = os.getenv("POLICY_SEARCH_INDEX_NAME")
     search_api_key = os.getenv("POLICY_SEARCH_API_KEY")
@@ -21,7 +36,7 @@ async def run_curl_search(query: str) -> str:
 
     # config = load_config()
     # top_n = config.get("azure_search", {}).get("top", 5)
-    top_n=5
+    top_n = 5
 
     if not all(
         [search_index_name, search_api_key, search_api_version, search_endpoint]

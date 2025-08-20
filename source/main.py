@@ -1,20 +1,34 @@
-import os
+"""
+main.py
+
+Main FastAPI application entry point.
+Sets up middleware, routes, and initializes database and agents.
+"""
+
 import logging
+import os
+import sys
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-from api.db import create_db_and_tables
-from api.auth_routes import router as auth_router
-from api.conversation_routes import router as conversation_router
-from api.chat_routes import router as chat_router
-from api.health_routes import router as health_router
 from agents.agent_workflow import initialize_agents
+from api.auth_routes import router as auth_router
+from api.chat_routes import router as chat_router
+from api.conversation_routes import router as conversation_router
+from api.db import create_db_and_tables
+from api.health_routes import router as health_router
 
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Logging Config
+logging.basicConfig(
+    level=logging.INFO,
+    stream=sys.stdout,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+
 logger = logging.getLogger(__name__)
 
 from dotenv import load_dotenv
@@ -24,7 +38,19 @@ load_dotenv()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup and shutdown events."""
+    """Lifespan for the FastAPI application.
+
+    This asynchronous function manages the startup and shutdown processes of the FastAPI application. It initializes the database and tables, sets up the agent factory, and logs the status of the application during these phases.
+
+    Args:
+        app (FastAPI): The FastAPI application instance.
+
+    Yields:
+        None: This function yields control back to the FastAPI application.
+
+    Raises:
+        Exception: If there is an error during the startup process, it logs the error and raises the exception.
+    """
     # Startup
     logger.info("Starting AutoGen Business Insights API...")
     create_db_and_tables()
@@ -67,9 +93,18 @@ app.include_router(health_router)
 
 @app.get("/")
 async def root():
-    """Root endpoint"""
+    """Returns a dictionary containing information about the Sustainable City AI.
+
+    This asynchronous function provides a message and links to documentation and client resources.
+
+    Returns:
+        dict: A dictionary with the following keys:
+            - message (str): A message indicating the purpose of the service.
+            - docs (str): The URL path to the documentation.
+            - client (str): The URL path to the client interface.
+    """
     return {
-        "message": "AutoGen Business Insights API",
+        "message": "Sustainable City AI",
         "docs": "/docs",
         "client": "/client",
     }

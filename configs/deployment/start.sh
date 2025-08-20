@@ -15,7 +15,7 @@ sleep 5
 nginx
 
 # Wait a bit more for nginx to be ready
-sleep 5
+sleep 10
 
 # Check if Let's Encrypt certificate already exists
 if [ ! -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
@@ -25,7 +25,7 @@ if [ ! -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
     certbot certonly \
         --webroot \
         --webroot-path=/var/www/letsencrypt \
-        --email adityabhargav203@gmail.com.com \
+        --email email_id@gmail.com \ ### Update Email Here
         --agree-tos \
         --no-eff-email \
         --non-interactive \

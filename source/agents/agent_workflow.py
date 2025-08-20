@@ -1,8 +1,20 @@
+"""
+agent_workflow.py
+
+This module initializes Autogen Agents and the GraphFlow used for agent workflows.
+"""
+
+import asyncio
+import logging
 import os
+import sys
+
+from dotenv import load_dotenv
+
 from agents import agent_builder, agent_sysmsgs
 from agents.agent_tools import emission_tool, policy_search_tool
-from autogen_ext.tools.code_execution import PythonCodeExecutionTool
-from autogen_ext.code_executors.local import LocalCommandLineCodeExecutor
+from agents.client import AzureClientFactory
+
 from autogen_agentchat.agents import (
     AssistantAgent,
     MessageFilterAgent,
@@ -10,16 +22,22 @@ from autogen_agentchat.agents import (
     PerSourceFilter,
 )
 from autogen_agentchat.teams import DiGraphBuilder, GraphFlow
-import logging
-import asyncio
+from autogen_ext.tools.code_execution import PythonCodeExecutionTool
+from autogen_ext.code_executors.local import LocalCommandLineCodeExecutor
+
+# Logging Config
+logging.basicConfig(
+    level=logging.INFO,
+    stream=sys.stdout,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
 
 logger = logging.getLogger(__name__)
 
-from dotenv import load_dotenv
-from agents.client import AzureClientFactory
-
+# Load environment variables
 dotenv_path = os.path.join(os.path.dirname(__file__), "..", ".env")
 load_dotenv(dotenv_path)
+
 
 azure_factory = AzureClientFactory(
     azure_deployment=os.environ["AZURE_AI_DEPLOYMENT"],
@@ -34,7 +52,25 @@ client = azure_factory.get_client()
 
 
 async def initialize_agents():
-    """Initialize AutoGen agents and workflow."""
+    """Initialize the agents for the workflow.
+
+    This asynchronous function sets up various agents required for the system's operation. It creates a context with necessary tools and configurations, builds the agents, and establishes a workflow graph that defines the interactions between the agents.
+
+    The function performs the following steps:
+    1. Initializes a command line executor for code execution.
+    2. Constructs a context with model clients and emission tools.
+    3. Loads the agent configuration from a YAML file.
+    4. Builds the agents using the specified agent class.
+    5. Creates message filters for specific agents based on their interactions.
+    6. Constructs a directed graph representing the workflow and the relationships between agents.
+    7. Logs the successful initialization of agents or any errors encountered during the process.
+
+    Returns:
+        GraphFlow: An object representing the workflow graph with all initialized agents and their interactions.
+
+    Raises:
+        Exception: If there is an error during the initialization process, an exception is raised and logged.
+    """
     async with LocalCommandLineCodeExecutor(work_dir="coding") as executor:
         tool = PythonCodeExecutionTool(executor)
 
@@ -107,28 +143,56 @@ async def initialize_agents():
 
             def is_mentioned(agent_name: str):
                 """Returns a function that checks if a given agent_name is in the message."""
+
                 def check_mention(msg):
                     if hasattr(msg, "content"):
                         content = msg.content
-                    elif isinstance(msg, dict): 
+                    elif isinstance(msg, dict):
                         content = msg.get("content", "")
                     else:
                         return False
                     return agent_name.lower() in content.lower()
-                return check_mention 
 
+                return check_mention
 
             # Define conditional edges - all agents can potentially communicate to report
-            builder.add_edge(planner, filtered_carbon, condition=is_mentioned("carbonagent"))
-            builder.add_edge(planner, filtered_policy, condition=is_mentioned("policyagent"))
-            builder.add_edge(planner, filtered_analysis, condition=is_mentioned("dataanalysisagent"))
+            builder.add_edge(
+                planner, filtered_carbon, condition=is_mentioned("carbonagent")
+            )
+            builder.add_edge(
+                planner, filtered_policy, condition=is_mentioned("policyagent")
+            )
+            builder.add_edge(
+                planner, filtered_analysis, condition=is_mentioned("dataanalysisagent")
+            )
 
             # All specialist agents feed into report agent
-            builder.add_edge(filtered_carbon, report, activation_group="working_agent", activation_condition="any")
-            builder.add_edge(filtered_policy, report, activation_group="working_agent", activation_condition="any")
-            builder.add_edge(filtered_analysis, report, activation_group="working_agent", activation_condition="any")
+            builder.add_edge(
+                filtered_carbon,
+                report,
+                activation_group="working_agent",
+                activation_condition="any",
+            )
+            builder.add_edge(
+                filtered_policy,
+                report,
+                activation_group="working_agent",
+                activation_condition="any",
+            )
+            builder.add_edge(
+                filtered_analysis,
+                report,
+                activation_group="working_agent",
+                activation_condition="any",
+            )
 
-            builder.add_edge(planner, report, activation_group="planning_agent", activation_condition="any", condition=is_mentioned("none"))
+            builder.add_edge(
+                planner,
+                report,
+                activation_group="planning_agent",
+                activation_condition="any",
+                condition=is_mentioned("none"),
+            )
 
             team_flow = GraphFlow(
                 participants=builder.get_participants(),

@@ -1,7 +1,15 @@
+"""
+agent_tools.py
+
+This module provides function calls used by Agents, encapsulated as
+Autogen FunctionTool instances for easy integration into agent workflows.
+"""
+
+from autogen_core.tools import FunctionTool
+
 from agents.tools.emission_tool import get_emission_analysis
 from agents.tools.seai_policy_search import run_curl_search
 
-from autogen_core.tools import FunctionTool
 
 emission_tool = FunctionTool(
     func=get_emission_analysis,

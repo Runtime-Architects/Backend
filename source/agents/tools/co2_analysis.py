@@ -1,10 +1,17 @@
+"""
+co2_analysis.py
+
+This module consists of the implementation of CO2IntensityAnalyzer class used for analyzing CO2 intensity data
+"""
+
 from pathlib import Path
+
 from agents.tools.co2_analysis_util import (
-    get_emission_data,
-    get_view,
     calculate_thresholds,
     classify_intensity,
     format_time_range,
+    get_emission_data,
+    get_view,
 )
 from agents.tools.co2_plot import (
     plot_day_intensity,
@@ -14,9 +21,30 @@ from agents.tools.co2_plot import (
 
 
 class CO2IntensityAnalyzer:
-    """
-    Analyzer that categorizes CO2 intensity periods into {low: [], med: [], high: []}
-    with date formatting as dd-mmm-yy for multi-day data.
+    """CO2IntensityAnalyzer is a class for analyzing CO2 intensity data over specified time periods and regions.
+
+    Attributes:
+        data (DataFrame): The emission data retrieved for the specified date range and region.
+        region (str): The region for which the CO2 intensity data is analyzed.
+        start_date_str (str): The start date of the analysis period in string format.
+        end_date_str (str): The end date of the analysis period in string format.
+        view (str): The view type for analysis, which can be "day", "week", or "month".
+
+    Methods:
+        get_analysis_by_view():
+            Analyzes the CO2 intensity data based on the specified view type and returns the results.
+
+        day_weekly_analysis():
+            Performs analysis on the data for daily or weekly views and returns the results.
+
+        monthly_analysis():
+            Performs analysis on the data for monthly view and returns the results.
+
+        generate_plot():
+            Generates and saves a plot of the CO2 intensity data based on the specified view type.
+
+        __init__(startdate: str, enddate: str, region: str):
+            Initializes the CO2IntensityAnalyzer with the specified date range and region, and retrieves the emission data.
     """
 
     def __init__(self, startdate: str, enddate: str, region: str):
@@ -27,9 +55,6 @@ class CO2IntensityAnalyzer:
         self.view = get_view(self.start_date_str, self.end_date_str)
 
     def get_analysis_by_view(self):
-        """
-        Returns CO2 daily intensity periods with time ranges and their average emissions.
-        """
 
         if self.view == "week" or self.view == "day":
             return self.day_weekly_analysis()
@@ -106,10 +131,6 @@ class CO2IntensityAnalyzer:
         return "Error processing data"
 
     def monthly_analysis(self):
-        """
-        Returns CO2 monthly intensity periods with dates and emissions.
-
-        """
 
         combined = {"low": {}, "medium": {}, "high": {}}
 

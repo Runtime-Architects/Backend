@@ -1,18 +1,35 @@
-import secrets
-from datetime import datetime, timedelta
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer  # Fixed import
-from jose import jwt, JWTError
-from sqlalchemy.orm import Session
-from api.db import get_session
-from api.models import User
+"""
+jwt.py
+
+This module provides utility functions for creating, verifying, and managing
+JWT (JSON Web Tokens) for user authentication and authorization.
+"""
+
 import logging
 import os
+import secrets
+import sys
+from datetime import datetime, timedelta
+
 from dotenv import load_dotenv
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
+from sqlalchemy.orm import Session
+
+from api.db import get_session
+from api.models import User
+
 
 load_dotenv()
 
-logging.basicConfig(level=logging.INFO)
+# Logging Config
+logging.basicConfig(
+    level=logging.INFO,
+    stream=sys.stdout,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+
 logger = logging.getLogger(__name__)
 
 # JWT Configuration
@@ -28,11 +45,30 @@ blacklisted_tokens = set()
 
 
 def set_token_expiration():
-    """Set the expiration time for access tokens."""
+    """Sets the expiration time for the access token.
+
+    Returns:
+        timedelta: The duration for which the access token is valid,
+        set to a specified number of minutes defined by
+        ACCESS_TOKEN_EXPIRE_MINUTES.
+    """
     return timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
 
 def create_access_token(data: dict, expires_delta: timedelta = None):
+    """Creates an access token by encoding the provided data with an expiration time.
+
+    Args:
+        data (dict): The data to encode in the access token.
+        expires_delta (timedelta, optional): The time duration for which the token is valid.
+            If not provided, a default expiration time will be used.
+
+    Returns:
+        str: The encoded JWT access token.
+
+    Raises:
+        Exception: If there is an error during the encoding process.
+    """
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -44,6 +80,19 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
 
 
 def verify_token(token: str):
+    """Verify the provided JWT token.
+
+    This function checks if the token is blacklisted and decodes it to extract the user's email and user ID. If the token is invalid or has been revoked, an HTTPException is raised.
+
+    Args:
+        token (str): The JWT token to verify.
+
+    Returns:
+        dict: A dictionary containing the user's email and user ID if the token is valid.
+
+    Raises:
+        HTTPException: If the token is blacklisted, invalid, or cannot be decoded.
+    """
     try:
         if token in blacklisted_tokens:
             raise HTTPException(status_code=401, detail="Token has been revoked")
@@ -61,6 +110,20 @@ def verify_token(token: str):
 async def get_current_user(
     token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)
 ):
+    """Retrieve the current user based on the provided authentication token.
+
+    This asynchronous function extracts the user information from the given token. It verifies the token and retrieves the corresponding user from the database session. If the token is invalid or the user cannot be found, an HTTPException is raised.
+
+    Args:
+        token (str, optional): The authentication token used to identify the user. Defaults to the value provided by the `oauth2_scheme` dependency.
+        session (Session, optional): The database session used to query user information. Defaults to the value provided by the `get_session` dependency.
+
+    Raises:
+        HTTPException: If the token is invalid or the user cannot be found.
+
+    Returns:
+        User: The user object corresponding to the authenticated token.
+    """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",

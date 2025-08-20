@@ -1,14 +1,33 @@
+"""
+autogen_service.py
+
+This module contains the implementation of the streaming functionality of the chat bubbles
+
+It fetches past conversations, fetches live output of agents in GraphFlow and streams them to the frontend using SSE
+
+This module uses the SSE streamer implemented in streamer.py
+"""
+
 import logging
+import sys
 from datetime import datetime
 from typing import AsyncGenerator
+
 from fastapi import HTTPException
 
 from autogen_agentchat.messages import StopMessage
+
 from api.db import get_session
 from api.models import Conversation, Message
 from api.streamer import StreamEventManager, StreamEventType
 
-# from agents.agent_workflow import team_flow
+
+# Logging Config
+logging.basicConfig(
+    level=logging.INFO,
+    stream=sys.stdout,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +46,24 @@ async def run_autogen_task_streaming(
     conversation_id: int,
     team_flow,
 ) -> AsyncGenerator[str, None]:
-    """Run the AutoGen task with real-time message monitoring using AutoGen's streaming"""
+    """Run an asynchronous AutoGen task with streaming output.
+
+    This function manages the lifecycle of an AutoGen task, including initializing conversation data, handling user input, and streaming responses from various agents. It emits events to an event manager to track progress and handle errors.
+
+    Args:
+        event_manager (StreamEventManager): The event manager responsible for emitting events during the task.
+        question (str): The user's question or request for the AutoGen task.
+        user_id (int): The ID of the user initiating the task.
+        conversation_id (int): The ID of the conversation associated with the task.
+        team_flow: An object representing the flow of the AutoGen agents.
+
+    Yields:
+        AsyncGenerator[str, None]: A generator that yields strings representing events and updates during the task execution.
+
+    Raises:
+        HTTPException: If the conversation is not found in the database.
+        Exception: For any other errors that occur during the task execution.
+    """
     if team_flow is None:
         error_event = await event_manager.emit_event(
             StreamEventType.ERROR,

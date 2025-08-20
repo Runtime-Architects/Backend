@@ -1,23 +1,49 @@
-import os
-import json
-import time
-import asyncio
-import requests
+"""
+policy_scraper.py
+
+This module implements a web scraper that performs a breadth-first search (BFS)
+starting from a given URL. It visits links, extracts page content, and generates
+PDFs where each page corresponds to its own PDF file.
+
+Parameters:
+- starting_url (str): The URL to begin scraping from.
+- output_dir (str): Directory where the generated PDFs will be saved.
+- max_pages (int, optional): Maximum number of pages to scrape. Default is 50.
+"""
+
+
 import hashlib
+import json
+import os
 import re
+import textwrap
+import time
+from collections import deque
 from datetime import datetime
 from urllib.parse import urljoin, urlparse
+
+import requests
 from bs4 import BeautifulSoup
-from collections import deque
-from reportlab.lib.pagesizes import letter, A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.lib.enums import TA_LEFT, TA_CENTER
-import textwrap
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
 
 def is_valid_url(url):
+    """Checks if a given URL is valid.
+    
+    This function parses the provided URL and checks if it has a valid network location
+    and scheme. Additionally, it ensures that the URL does not end with certain file
+    extensions that are typically associated with documents and images.
+    
+    Args:
+        url (str): The URL to be validated.
+    
+    Returns:
+        bool: True if the URL is valid and does not end with specified extensions,
+              False otherwise.
+    """
     parsed = urlparse(url)
     return (
         bool(parsed.netloc)
@@ -40,6 +66,15 @@ def is_valid_url(url):
 
 
 def get_all_links(base_url, soup):
+    """Retrieve all valid links from a BeautifulSoup object.
+    
+    Args:
+        base_url (str): The base URL to resolve relative links.
+        soup (BeautifulSoup): A BeautifulSoup object containing the HTML to parse.
+    
+    Returns:
+        set: A set of valid URLs found in the provided BeautifulSoup object.
+    """
     links = set()
     for a_tag in soup.find_all("a", href=True):
         href = urljoin(base_url, a_tag["href"])
@@ -49,6 +84,25 @@ def get_all_links(base_url, soup):
 
 
 def extract_metadata_from_soup(soup, url):
+    """Extract metadata from a BeautifulSoup object.
+    
+    This function retrieves various metadata elements from a BeautifulSoup object representing an HTML document. It extracts the title, description, keywords, headings, main content, category, services, and dates mentioned in the document.
+    
+    Args:
+        soup (BeautifulSoup): A BeautifulSoup object containing the parsed HTML of the webpage.
+        url (str): The URL of the webpage, used to determine the category of the content.
+    
+    Returns:
+        dict: A dictionary containing the extracted metadata, which includes:
+            - title (str): The title of the webpage.
+            - description (str): The meta description of the webpage.
+            - keywords (str): The meta keywords of the webpage.
+            - headings (list): A list of dictionaries representing the headings (h1 to h6) found in the document, each containing 'level' and 'text'.
+            - main_content (str): The main content of the webpage.
+            - category (str): The category of the content based on the URL.
+            - services (list): A list of services mentioned in the content.
+            - dates_mentioned (list): A list of dates found in the content, limited to the first five matches.
+    """
     metadata = {}
 
     title_tag = soup.find("title")
@@ -129,7 +183,18 @@ def extract_metadata_from_soup(soup, url):
 
 
 def clean_text_for_pdf(text):
-    """Clean and format text for PDF generation"""
+    """Cleans the input text for PDF formatting.
+    
+    This function removes excessive whitespace, reduces multiple newlines to a single newline, 
+    and eliminates any characters that are not word characters, whitespace, or common punctuation 
+    marks. The resulting text is stripped of leading and trailing whitespace.
+    
+    Args:
+        text (str): The input text to be cleaned.
+    
+    Returns:
+        str: The cleaned text, formatted for PDF output.
+    """
     # Remove excessive whitespace and normalize line breaks
     text = re.sub(r"\s+", " ", text)
     text = re.sub(r"\n+", "\n", text)
@@ -141,7 +206,27 @@ def clean_text_for_pdf(text):
 
 
 def create_pdf_from_content(document, output_dir):
-    """Create a PDF file from the document content"""
+    """Creates a PDF document from the provided content.
+    
+    Args:
+        document (dict): A dictionary containing the content to be included in the PDF. 
+            It must have the following keys:
+            - 'url' (str): The URL associated with the document.
+            - 'title' (str): The title of the document.
+            - 'description' (str): A brief description of the document.
+            - 'category' (str): The category of the document.
+            - 'services' (list of str): A list of services related to the document.
+            - 'keywords' (list of str): A list of keywords associated with the document.
+            - 'headings' (list of str): A list of headings to be included in the document.
+            - 'content' (str): The main content of the document, separated by new lines.
+            - 'wordCount' (int): The word count of the document.
+            - 'lastModified' (str): The last modified date of the document.
+            - 'domain' (str): The domain associated with the document.
+        output_dir (str): The directory where the PDF file will be saved.
+    
+    Returns:
+        str: The file path of the created PDF if successful, or None if an error occurred.
+    """
     try:
         # Create filename from URL
         url_hash = hashlib.md5(document["url"].encode()).hexdigest()[:8]
@@ -275,6 +360,32 @@ def create_pdf_from_content(document, output_dir):
 
 
 def extract_optimized_content(html_content, url):
+    """Extracts optimized content from the provided HTML and generates a structured document.
+    
+    Args:
+        html_content (str): The HTML content to be processed.
+        url (str): The URL associated with the HTML content.
+    
+    Returns:
+        dict: A dictionary containing the extracted and optimized content, including:
+            - id (str): A unique identifier for the document.
+            - url (str): The original URL.
+            - title (str): The title extracted from the metadata.
+            - description (str): The description extracted from the metadata.
+            - content (str): The cleaned text content from the HTML.
+            - searchableText (str): A concatenated string of searchable content.
+            - category (str): The category of the content.
+            - services (list): A list of services mentioned in the metadata.
+            - headings (list): A list of headings extracted from the metadata.
+            - keywords (list): A list of keywords extracted from the metadata.
+            - organization (str): The organization associated with the content.
+            - contentType (str): The type of content (e.g., 'webpage').
+            - pagelanguage (str): The language of the page (default is 'en').
+            - lastModified (str): The last modified timestamp in ISO format.
+            - wordCount (int): The total word count of the cleaned text.
+            - datesMentioned (list): A list of dates mentioned in the metadata.
+            - domain (str): The domain extracted from the URL.
+    """
     soup = BeautifulSoup(html_content, "html.parser")
 
     for tag in soup(
@@ -328,7 +439,24 @@ def extract_optimized_content(html_content, url):
 
 
 def bfs_crawl_and_save_pdf(starting_url, output_dir, max_pages=50):
-    """Crawl websites and save each page as a PDF"""
+    """Crawl a website starting from a given URL, extract content, and save it as PDF files.
+    
+    This function performs a breadth-first search (BFS) crawl from the specified starting URL, extracts content from the crawled pages, and saves the content as PDF files in the specified output directory. It limits the number of pages crawled to a specified maximum.
+    
+    Args:
+        starting_url (str): The URL to start crawling from.
+        output_dir (str): The directory where the PDF files and summary will be saved.
+        max_pages (int, optional): The maximum number of pages to crawl. Defaults to 50.
+    
+    Returns:
+        None
+    
+    Raises:
+        requests.RequestException: If there is an error during the HTTP request.
+    
+    Prints:
+        Progress of the crawling process, including the number of pages processed, paths of saved PDFs, and a summary of the crawl including categories and unique services identified.
+    """
     visited = set()
     queue = deque([starting_url])
     crawled_data = []
@@ -406,7 +534,4 @@ def bfs_crawl_and_save_pdf(starting_url, output_dir, max_pages=50):
 
 # Example usage
 if __name__ == "__main__":
-    # Install required packages first:
-    # pip install reportlab beautifulsoup4 requests
-
     bfs_crawl_and_save_pdf("https://www.seai.ie/", "seai_pdfs", max_pages=200)

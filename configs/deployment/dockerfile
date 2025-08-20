@@ -1,0 +1,71 @@
+# Use Python 3.11 slim image
+FROM python:3.11-slim
+
+# Install nginx, certbot, cron, openssl, and Chrome dependencies
+RUN apt-get update && apt-get install -y \
+    nginx \
+    certbot \
+    python3-certbot-nginx \
+    cron \
+    curl \
+    openssl \
+    wget \
+    gnupg \
+    unzip \
+    xvfb \
+    fonts-liberation \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libatspi2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libgtk-3-0 \
+    libnspr4 \
+    libnss3 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libxss1 \
+    libxtst6 \
+    lsb-release \
+    xdg-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Chrome
+RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/googlechrome-linux-keyring.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list \
+    && apt-get update \
+    && apt-get install -y google-chrome-stable \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy requirements and install
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy source code
+COPY source/ ./source/
+
+# Copy nginx config
+COPY nginx.conf /etc/nginx/nginx.conf
+
+# Copy startup script
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
+
+# Create directories for Let's Encrypt and generate self-signed certificates
+RUN mkdir -p /var/www/letsencrypt && \
+    mkdir -p /etc/ssl/certs /etc/ssl/private && \
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout /etc/ssl/private/selfsigned.key \
+    -out /etc/ssl/certs/selfsigned.crt \
+    -subj "/C=US/ST=State/L=City/O=Organization/CN=localhost"
+
+# Expose ports
+EXPOSE 80 443 8000
+
+# Use startup script with xvfb for headless Chrome
+CMD ["xvfb-run", "-a", "/start.sh"]

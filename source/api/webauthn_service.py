@@ -1,17 +1,48 @@
-from webauthn import generate_registration_options, verify_registration_response
-from webauthn import generate_authentication_options, verify_authentication_response
-from webauthn.helpers.structs import (
-    AuthenticatorSelectionCriteria,
-    UserVerificationRequirement,
-    RegistrationCredential,
-    AuthenticationCredential,
-)
-from webauthn.helpers.cose import COSEAlgorithmIdentifier
+"""
+webauthn_service.py
+
+This module contains the implementation of biometric security using WebAuthN
+"""
+
 import base64
 import json
 
+from webauthn import (
+    generate_authentication_options,
+    generate_registration_options,
+    verify_authentication_response,
+    verify_registration_response,
+)
+from webauthn.helpers.cose import COSEAlgorithmIdentifier
+from webauthn.helpers.structs import (
+    AuthenticationCredential,
+    RegistrationCredential,
+    AuthenticatorSelectionCriteria,
+    UserVerificationRequirement,
+)
+
 
 class WebAuthnService:
+    """WebAuthnService provides methods for generating and verifying passkey registration and authentication options.
+    
+        Attributes:
+            rp_id (str): The relying party identifier, defaults to "localhost".
+            rp_name (str): The name of the relying party, defaults to "Your App".
+            expected_origin (str): The expected origin URL based on the rp_id.
+    
+        Methods:
+            generate_registration_options(user_id: str, username: str, display_name: str):
+                Generate options for passkey registration.
+    
+            verify_registration(credential: RegistrationCredential, expected_challenge: str):
+                Verify passkey registration.
+    
+            generate_authentication_options(user_credentials: list = None):
+                Generate options for passkey authentication.
+    
+            verify_authentication(credential: AuthenticationCredential, expected_challenge: str, credential_public_key: bytes, credential_sign_count: int):
+                Verify passkey authentication.
+    """
     def __init__(self, rp_id: str = "localhost", rp_name: str = "Your App"):
         self.rp_id = rp_id
         self.rp_name = rp_name

@@ -10,7 +10,7 @@ Agents: PlannerAgent, CarbonAgent, PolicyAgent, DataAnalysisAgent, ReportAgent
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-PLANNER_AGENT_SYSMSG= f"""You are an intelligent Planner Agent that orchestrates a team of specialists based on user queries. Your role is to analyze the user's request and determine which agents need to be activated.
+PLANNER_AGENT_SYSMSG = f"""You are an intelligent Planner Agent that orchestrates a team of specialists based on user queries. Your role is to analyze the user's request and determine which agents need to be activated.
 
 ### CONDITIONAL FLOW ANALYSIS:
 Before invoking any agents, analyze the user query and categorize it:
