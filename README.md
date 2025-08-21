@@ -20,12 +20,12 @@ The backend is built using **FastAPI** with a multi-agent architecture powered b
 
 ### Core Components
 
-- **[`main.py`](src/main.py)** - FastAPI application with AutoGen agent orchestration
-- **[`auth_routes.py`](src/auth_routes.py)** - WebAuthn authentication endpoints
-- **[`models.py`](src/models.py)** - SQLModel database models
-- **[`streamer.py`](src/streamer.py)** - Server-Sent Events streaming infrastructure
-- **[`webauthn_service.py`](src/webauthn_service.py)** - WebAuthn service implementation
-- **[`db.py`](src/db.py)** - Database connection and session management
+- **[`main.py`](source/main.py)** - FastAPI application with AutoGen agent orchestration
+- **[`auth_routes.py`](source/api/auth_routes.py)** - WebAuthn authentication endpoints
+- **[`models.py`](source/api/models.py)** - SQLModel database models
+- **[`streamer.py`](source/api/streamer.py)** - Server-Sent Events streaming infrastructure
+- **[`webauthn_service.py`](source/api/webauthn_service.py)** - WebAuthn service implementation
+- **[`db.py`](source/api/db.py)** - Database connection and session management
 
 ## 🤖 Agent Architecture
 
@@ -49,8 +49,8 @@ The system uses **WebAuthn/FIDO2** for secure, passwordless authentication with 
 4. **Session Management**: Tokens can be refreshed and blacklisted on logout
 
 #### Database Models:
-- **[`User`](src/models.py)** - User accounts with email
-- **[`Credential`](src/models.py)** - WebAuthn credentials linked to users
+- **[`User`](source/api/models.py)** - User accounts with email
+- **[`Credential`](source/api/models.py)** - WebAuthn credentials linked to users
 
 ## 🚀 API Endpoints
 
@@ -121,17 +121,7 @@ Authorization: Bearer <token>
 
 ### Business Intelligence Endpoints
 
-#### Standard Request
-```http
-POST /ask
-Content-Type: application/json
-
-{
-  "question": "Generate a monthly business report for our sales performance"
-}
-```
-
-#### Streaming Request (Real-time)
+#### Basic Request (Real-time & Protected)
 ```http
 POST /ask-stream
 Content-Type: application/json
@@ -152,14 +142,6 @@ Returns system status including:
 - Database status
 - Configuration validation
 
-#### Test Endpoints
-```http
-GET /test-stream
-```
-
-```http
-GET /client
-```
 
 ## 📊 Streaming Events
 
@@ -205,7 +187,7 @@ The streaming API provides real-time updates via Server-Sent Events:
 
 3. **Install dependencies**:
    ```bash
-   pip install -r src/requirements.txt
+   pip install -r requirements.txt
    ```
 
 4. **Environment Configuration**:
@@ -242,11 +224,11 @@ The streaming API provides real-time updates via Server-Sent Events:
 
 5. **Run the application**:
    ```bash
-   cd src
+   cd source
    python main.py
    ```
 
-The API will be available at `http://localhost:8000`
+The API will be available by default at `http://localhost:8000`
 
 ## 🧪 Testing
 ```bash
@@ -266,6 +248,8 @@ The WebAuthn implementation requires HTTPS in production. For development, use:
 - **Origin**: `http://localhost:5001`
 - **Supported Algorithms**: ECDSA_SHA_256, RSASSA_PKCS1_v1_5_SHA_256
 
+You will need a Frontend instance to test and use WebAuthn features.
+
 ### Agent Configuration
 - **Max Messages**: 40 per conversation
 - **Temperature**: 0 (deterministic responses)
@@ -276,7 +260,6 @@ The WebAuthn implementation requires HTTPS in production. For development, use:
 
 Once running, visit:
 - **Swagger UI**: `http://localhost:8000/docs`
-- **ReDoc**: `http://localhost:8000/redoc`
 
 ## 🔒 Security Features
 
@@ -304,8 +287,8 @@ We follow strict contribution guidelines including Conventional Commits and bran
 For production deployment:
 
 1. **Environment Variables**:
-   - Set secure `OPENAI_API_KEY`
-   - Configure production database URL
+   - Set secure `AZURE` keys
+   - Configure production database URL (Postgres Instance)
    - Set appropriate CORS origins
 
 2. **Database Migration**:
@@ -320,7 +303,7 @@ For production deployment:
 4. **Monitoring**:
    - Check `/health` endpoint for system status
    - Monitor streaming event logs
-   - Set up proper logging infrastructure
+   - Set up proper logging infrastructure and inspect the Frontend logs for any inconsistencies.
 
 ## 🔧 Troubleshooting
 
@@ -329,10 +312,10 @@ For production deployment:
 1. **WebAuthn Registration Fails**:
    - Check browser compatibility
    - Verify HTTPS configuration
-   - Ensure proper origin settings
+   - Ensure proper origin settings and WebAuthn configuration
 
 2. **Agent Initialization Errors**:
-   - Verify OpenAI API key
+   - Verify Azure API key
    - Check assistant IDs configuration
    - Monitor `/health` endpoint
 
