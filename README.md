@@ -3,13 +3,13 @@
 
 This repository contains the core backend logic for our AI-powered business insights platform. It leverages AutoGen agents to generate comprehensive business reports with real-time streaming capabilities and WebAuthn passwordless authentication.
 
-## 🐍 Requirements
+## Requirements
 
 - Python 3.10+
 - OpenAI API Key
 - SQLite (for local development)
 
-## 📁 Architecture Overview
+## Architecture Overview
 
 The backend is built using **FastAPI** with a multi-agent architecture powered by **AutoGen** and **OpenAI Assistants**. It provides:
 
@@ -27,7 +27,7 @@ The backend is built using **FastAPI** with a multi-agent architecture powered b
 - **[`webauthn_service.py`](source/api/webauthn_service.py)** - WebAuthn service implementation
 - **[`db.py`](source/api/db.py)** - Database connection and session management
 
-## 🤖 Agent Architecture
+## Agent Architecture
 
 The system uses four specialized AutoGen agents:
 
@@ -36,7 +36,7 @@ The system uses four specialized AutoGen agents:
 3. **DataAnalysisAgent** - Analyzes raw data and generates insights
 4. **ReportAgent** - Creates ASCII dashboard reports with visualizations
 
-## 🔐 Authentication System
+## Authentication System
 
 ### WebAuthn Passwordless Authentication
 
@@ -52,7 +52,7 @@ The system uses **WebAuthn/FIDO2** for secure, passwordless authentication with 
 - **[`User`](source/api/models.py)** - User accounts with email
 - **[`Credential`](source/api/models.py)** - WebAuthn credentials linked to users
 
-## 🚀 API Endpoints
+## API Endpoints
 
 ### Authentication Endpoints (`/auth`)
 
@@ -143,7 +143,7 @@ Returns system status including:
 - Configuration validation
 
 
-## 📊 Streaming Events
+## Streaming Events
 
 The streaming API provides real-time updates via Server-Sent Events:
 
@@ -171,7 +171,7 @@ The streaming API provides real-time updates via Server-Sent Events:
 }
 ```
 
-## 🛠️ Setup and Installation
+## Setup and Installation
 
 1. **Clone the repository**:
    ```bash
@@ -230,7 +230,7 @@ The streaming API provides real-time updates via Server-Sent Events:
 
 The API will be available by default at `http://localhost:8000`
 
-## 🧪 Testing
+## Testing
 ```bash
 # Test health endpoint
 curl http://localhost:8000/health
@@ -240,7 +240,7 @@ The WebAuthn implementation requires HTTPS in production. For development, use:
 - **Origin**: `http://localhost:3000`
 - **RP ID**: `localhost`
 
-## 📝 Configuration
+## Configuration
 
 ### WebAuthn Settings
 - **RP ID**: `localhost` (development)
@@ -256,12 +256,12 @@ You will need a Frontend instance to test and use WebAuthn features.
 - **Model**: `gpt-4o-mini`
 - **Tools**: Code interpreter, Carbon footprint estimator
 
-## 📚 API Documentation
+## API Documentation
 
 Once running, visit:
 - **Swagger UI**: `http://localhost:8000/docs`
 
-## 🔒 Security Features
+## Security Features
 
 - **Passwordless Authentication** with WebAuthn/FIDO2
 - **JWT Token Management** with blacklisting
@@ -269,20 +269,20 @@ Once running, visit:
 - **Input Validation** with Pydantic models
 - **Secure Database** with SQLModel ORM
 
-## 📈 Performance
+## Performance
 
 - **Streaming Response Times**: Real-time event delivery
 - **Database**: SQLite for development, easily scalable to PostgreSQL
 - **Connection Pooling**: Automatic session management
 - **Error Handling**: Comprehensive error logging and user feedback
 
-## 🤝 Contributing
+## Contributing
 
 We follow strict contribution guidelines including Conventional Commits and branching conventions.
 
 👉 See the [CONTRIBUTING.md](./CONTRIBUTING.md) file for full details.
 
-## 📦 Production Deployment
+## Production Deployment
 
 For production deployment:
 
@@ -305,7 +305,7 @@ For production deployment:
    - Monitor streaming event logs
    - Set up proper logging infrastructure and inspect the Frontend logs for any inconsistencies.
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
