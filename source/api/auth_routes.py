@@ -1,33 +1,52 @@
+"""
+auth_routes.py
+
+This module consists ofFast API Routes and Pydantic Data Models for Authentication
+"""
+
+import base64
+import json
+import logging
+import sys
+import traceback
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer
+from pydantic import BaseModel
 from sqlmodel import Session, select
 from webauthn import (
-    generate_registration_options,
-    verify_registration_response,
     generate_authentication_options,
+    generate_registration_options,
     verify_authentication_response,
+    verify_registration_response,
 )
-from webauthn.helpers.structs import RegistrationCredential, AuthenticationCredential
 from webauthn.helpers.cose import COSEAlgorithmIdentifier
+from webauthn.helpers.structs import AuthenticationCredential, RegistrationCredential
+
 from api.db import get_session
-from api.models import User, Credential
-from datetime import datetime
-import base64
-from pydantic import BaseModel
-import json
-import traceback
-import logging
 from api.jwt_service import (
+    blacklisted_tokens,
     create_access_token,
     get_current_user,
     set_token_expiration,
-    blacklisted_tokens,
 )
+from api.models import Credential, User
 
 
 # Add this helper function at the top of your file
 def normalize_base64(data):
-    """Normalize base64 string by ensuring proper padding"""
+    """Normalize a Base64 encoded string by removing trailing equal signs and adding necessary padding.
+
+    Args:
+        data (str): The Base64 encoded string to normalize.
+
+    Returns:
+        str: The normalized Base64 encoded string with proper padding.
+
+    Raises:
+        TypeError: If the input data is not a string.
+    """
     if isinstance(data, str):
         # Remove any existing padding
         data = data.rstrip("=")
@@ -39,7 +58,12 @@ def normalize_base64(data):
 
 
 # Add logging configuration
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    stream=sys.stdout,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -61,20 +85,34 @@ challenges = {}
 # Configuration
 import os
 from dotenv import load_dotenv
-dotenv_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+
+dotenv_path = os.path.join(os.path.dirname(__file__), "..", ".env")
 load_dotenv(dotenv_path)
 
 
 RP_ID = os.getenv("WEBAUTHN_RP_ID", "localhost")
 RP_NAME = os.getenv("WEBAUTHN_RP_NAME", "Sustainable Development")
 ORIGIN = os.getenv("WEBAUTHN_ORIGIN", "http://localhost:3000")
- 
 
 
 @router.post("/register/begin")
 async def begin_registration(
     request: RegisterRequest, session: Session = Depends(get_session)
 ):
+    """Begin the registration process for a new user.
+
+    This asynchronous function checks if a user with the provided email already exists in the database. If the user does exist, it raises an HTTP 400 error. If not, it generates registration options, including a challenge for the user to respond to, and returns these options in a structured format.
+
+    Args:
+        request (RegisterRequest): The registration request containing user details.
+        session (Session, optional): The database session dependency. Defaults to Depends(get_session).
+
+    Returns:
+        dict: A dictionary containing the registration options, including the challenge and user information.
+
+    Raises:
+        HTTPException: If the user already exists (400) or if an unexpected error occurs (500).
+    """
     try:
         # Check if user already exists
         existing_user = session.exec(
@@ -143,6 +181,20 @@ async def begin_registration(
 async def complete_registration(
     credential: dict, session: Session = Depends(get_session)
 ):
+    """Completes the registration process for a user by verifying the provided credentials.
+
+    This asynchronous function takes a credential dictionary and a database session, verifies the registration response, and stores the user and credential information in the database. It also handles challenges to ensure the integrity of the registration process.
+
+    Args:
+        credential (dict): A dictionary containing the registration credential data, including the response with clientDataJSON.
+        session (Session, optional): A database session object. Defaults to a session obtained from the `get_session` dependency.
+
+    Returns:
+        dict: A dictionary containing a success message and the user ID of the newly registered user.
+
+    Raises:
+        HTTPException: If there is a challenge mismatch, the registration verification fails, or any other error occurs during the registration process.
+    """
     try:
         logger.info(f"Starting registration completion")
         logger.info(f"Received credential keys: {list(credential.keys())}")
@@ -242,6 +294,20 @@ async def complete_registration(
 async def begin_authentication(
     request: LoginRequest, session: Session = Depends(get_session)
 ):
+    """Begin the authentication process for a user.
+
+    This asynchronous function handles the initial steps of user authentication by verifying the user's email, retrieving their credentials, and generating authentication options.
+
+    Args:
+        request (LoginRequest): The login request containing the user's email.
+        session (Session, optional): The database session dependency. Defaults to Depends(get_session).
+
+    Returns:
+        dict: A dictionary containing the authentication options, including the challenge, timeout, rpId, user verification method, and allowed credentials.
+
+    Raises:
+        HTTPException: If the user is not found, no credentials are associated with the user, or if an unexpected error occurs during the authentication process.
+    """
     try:
         # First, check if user exists and get their credentials
         user = session.exec(select(User).where(User.email == request.email)).first()
@@ -330,6 +396,30 @@ async def begin_authentication(
 async def complete_authentication(
     credential: dict, session: Session = Depends(get_session)
 ):
+    """Completes the authentication process using the provided credentials.
+
+    This asynchronous function verifies the provided authentication credentials against stored data,
+    validates the client challenge, and updates the user's sign count in the database. If successful,
+    it generates and returns an access token for the authenticated user.
+
+    Args:
+        credential (dict): A dictionary containing the authentication credentials, including
+            the response with clientDataJSON, authenticatorData, signature, and userHandle.
+        session (Session, optional): A database session dependency. Defaults to Depends(get_session).
+
+    Returns:
+        dict: A dictionary containing the authentication success message, access token, token type,
+            expiration time, and user information (ID and email).
+
+    Raises:
+        HTTPException: If any errors occur during the authentication process, including:
+            - Challenge mismatch or expired
+            - Invalid credential ID format
+            - Credential not found
+            - User ID mismatch
+            - Authentication signature verification failure
+            - General authentication failure
+    """
     try:
         logger.info(f"Starting authentication completion")
         logger.info(f"Received credential keys: {list(credential.keys())}")
@@ -527,6 +617,19 @@ async def complete_authentication(
 
 @router.post("/logout")
 async def logout(token: str = Depends(security)):
+    """Logs out a user by blacklisting their token.
+
+    This asynchronous function takes a token as a dependency and adds it to a blacklist. If the operation is successful, it returns a success message. In case of an error, it logs the error and raises an HTTPException with a 500 status code.
+
+    Args:
+        token (str, optional): The token to be blacklisted. Defaults to the value provided by the security dependency.
+
+    Returns:
+        dict: A message indicating the logout was successful.
+
+    Raises:
+        HTTPException: If an error occurs during the logout process.
+    """
     try:
         # Add token to blacklist
         blacklisted_tokens.add(token.credentials)
@@ -539,6 +642,20 @@ async def logout(token: str = Depends(security)):
 
 @router.get("/me")
 async def get_me(token: str = Depends(security)):
+    """Retrieve the current user's information.
+
+    This asynchronous function fetches the current user's email and ID based on the provided token. If the token is valid and the user is found, their information is returned. In case of an error during the retrieval process, an HTTPException is raised with a 500 status code.
+
+    Args:
+        token (str, optional): The authentication token used to identify the user.
+            Defaults to the value provided by the Depends function from the security module.
+
+    Returns:
+        dict: A dictionary containing the user's email and ID.
+
+    Raises:
+        HTTPException: If there is an error retrieving user information.
+    """
     try:
         user = get_current_user(token=token)
         return {"email": user.email, "id": user.id}
@@ -551,6 +668,19 @@ async def get_me(token: str = Depends(security)):
 
 @router.get("/refresh-token")
 async def refresh_token(token: str = Depends(security)):
+    """Refreshes the access token for the current user.
+
+    This asynchronous function takes a token as a dependency, validates it, and generates a new access token if the user is authenticated. In case of an error during the process, it logs the error and raises an HTTPException.
+
+    Args:
+        token (str): The current user's token, provided as a dependency.
+
+    Returns:
+        dict: A dictionary containing the new access token and its type.
+
+    Raises:
+        HTTPException: If there is an error while refreshing the token.
+    """
     try:
         user = get_current_user(token=token)
         new_access_token = create_access_token(

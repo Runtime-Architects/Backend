@@ -1,10 +1,27 @@
+"""
+co2_plots.py
+
+This module is consists of utility functions used to plot carbon emissions over different periods and regions
+"""
+
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from agents.tools.co2_analysis_util import get_days, str_to_date, find_region_str
 
 
 def plot_day_intensity(df_, start_date_str, end_date_str, region, workdir):
-    """Visualizes CO2 intensity using 15-minute data for 1-6 days."""
+    """Plots the CO₂ intensity trend over a specified date range, highlighting regions of significant intensity levels.
+
+    Args:
+        df_ (pd.DataFrame): DataFrame containing the CO₂ intensity data with columns 'timestamp', 'value', and 'level'.
+        start_date_str (str): The start date for the plot in string format (e.g., 'YYYY-MM-DD').
+        end_date_str (str): The end date for the plot in string format (e.g., 'YYYY-MM-DD').
+        region (str): The region for which the CO₂ intensity trend is being plotted.
+        workdir (str): The directory where the plot image will be saved.
+
+    Returns:
+        None: The function saves the plot as a PNG file in the specified work directory.
+    """
 
     df = df_.copy()
 
@@ -89,14 +106,28 @@ def plot_day_intensity(df_, start_date_str, end_date_str, region, workdir):
 
     # Save plot
     plt.savefig(
-        f"{workdir}/co2plot_day_{region}_{start_date_str}_{end_date_str}.png",
+        f"{workdir}/co2plot_day_all_{start_date_str}_{end_date_str}.png",
         bbox_inches="tight",
     )
     plt.close()
 
 
 def plot_weekly_intensity(df_, start_date_str, end_date_str, region, workdir):
-    """Visualizes CO2 intensity using hourly data for 7-21 days."""
+    """Plots the weekly CO₂ intensity trend for a specified region over a given date range.
+
+    Args:
+        df_ (pd.DataFrame): DataFrame containing the CO₂ intensity data with columns 'timestamp', 'value', and 'level'.
+        start_date_str (str): The start date of the period to plot, formatted as a string (e.g., 'YYYY-MM-DD').
+        end_date_str (str): The end date of the period to plot, formatted as a string (e.g., 'YYYY-MM-DD').
+        region (str): The name of the region for which the CO₂ intensity trend is being plotted.
+        workdir (str): The directory where the plot image will be saved.
+
+    Returns:
+        None: The function saves the plot as a PNG file in the specified work directory.
+
+    Raises:
+        ValueError: If the input DataFrame does not contain the required columns.
+    """
 
     df = df_.copy()
 
@@ -184,17 +215,24 @@ def plot_weekly_intensity(df_, start_date_str, end_date_str, region, workdir):
 
     # Save plot
     plt.savefig(
-        f"{workdir}/co2plot_week_{region}_{start_date_str}_{end_date_str}.png",
+        f"{workdir}/co2plot_week_all_{start_date_str}_{end_date_str}.png",
         bbox_inches="tight",
     )
     plt.close()
 
 
 def plot_monthly_intensity(df_, start_date_str, end_date_str, region, work_dir):
-    """
-    Plots the trend of CO2 intensity over a month with:
-    - Background bands (green/yellow/red) based on existing classification
-    - Scatter point colors matching the classification
+    """Plots the monthly CO2 intensity trend for a specified region over a given date range.
+
+    Args:
+        df_ (pd.DataFrame): DataFrame containing CO2 intensity data with columns 'timestamp', 'value', and 'level'.
+        start_date_str (str): Start date of the period to plot in 'YYYY-MM-DD' format.
+        end_date_str (str): End date of the period to plot in 'YYYY-MM-DD' format.
+        region (str): The region for which the CO2 intensity is being plotted.
+        work_dir (str): Directory where the plot image will be saved.
+
+    Returns:
+        None: The function saves the plot as a PNG file in the specified directory.
     """
 
     # Prepare data (keep timestamp as a column)
@@ -256,7 +294,7 @@ def plot_monthly_intensity(df_, start_date_str, end_date_str, region, work_dir):
 
     # Save plot
     plt.savefig(
-        f"{work_dir}/co2plot_month_{region}_{start_date_str}_{end_date_str}.png",
+        f"{work_dir}/co2plot_all_{region}_{start_date_str}_{end_date_str}.png",
         bbox_inches="tight",
     )
     plt.close()

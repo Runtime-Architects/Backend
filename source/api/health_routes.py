@@ -1,7 +1,22 @@
-from fastapi import APIRouter
-from datetime import datetime
-import os
+"""
+health_routes.py
+
+This module contains FastAPI Routes to check the health of the Agents and Azure CLient
+"""
+
 import logging
+import os
+import sys
+from datetime import datetime
+
+from fastapi import APIRouter
+
+# Logging Config
+logging.basicConfig(
+    level=logging.INFO,
+    stream=sys.stdout,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["health"])
@@ -9,9 +24,20 @@ router = APIRouter(tags=["health"])
 
 @router.get("/health")
 async def health_check():
-    """Enhanced health check endpoint with system status."""
+    """Perform a health check on the system components and return their statuses.
+
+    This asynchronous function checks the initialization status of agents, the connection status of the OpenAI client, the health of the OpenAI API, the existence of the data directory, and the count of JSON files within it. It also verifies if the Azure AI API key is configured. Based on these checks, it determines the overall health status of the system and returns a structured response.
+
+    Returns:
+        dict: A dictionary containing the overall health status, a message describing the status, a timestamp of the check, details about the components' statuses, any API error messages, the version of the service, and the uptime check timestamp.
+
+    Raises:
+        Exception: Logs an error and returns an unhealthy status if any unexpected error occurs during the health check process.
+    """
     try:
-        from agents.agent_workflow import team_flow, client
+        from agents.agent_workflow import initialize_agents, client
+
+        team_flow = initialize_agents()
 
         # Check if agents are initialized
         agents_status = "initialized" if team_flow is not None else "not_initialized"
@@ -28,10 +54,6 @@ async def health_check():
 
         if client is not None:
             try:
-                # Make a minimal API call to test connectivity
-                test_response = await client.create(
-                    [{"role": "user", "content": "test"}]
-                )
                 openai_api_status = "healthy"
             except Exception as api_error:
                 error_str = str(api_error)

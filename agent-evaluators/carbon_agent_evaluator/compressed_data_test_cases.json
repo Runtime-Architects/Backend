@@ -1,0 +1,372 @@
+{
+  "metadata": {
+    "evaluation_framework": "compressed_data_consistency",
+    "created_date": "2025-08-04T04:41:16.478563",
+    "co2_data_source": "compressed_eirgrid_data",
+    "co2_data_file": "compressed_data.json",
+    "co2_data_date": "2025-08-04",
+    "co2_data_region": "all",
+    "compressed_data_points": 46,
+    "compression_interval": 30,
+    "data_requirements": [
+      "Uses compressed EirGrid data for consistency",
+      "Ground truth matches compressed data values",
+      "Evaluation uses same compressed data source"
+    ]
+  },
+  "evaluation_guidelines": {
+    "scoring_philosophy": "Compare agent outputs against reference outputs based on COMPRESSED EirGrid data",
+    "consistency_requirements": "Agent and evaluator must use same compressed data source",
+    "penalty_system": "Balanced penalties for missing requirements",
+    "ground_truth_priority": "Reference outputs based on compressed CO2 measurements take precedence"
+  },
+  "compressed_co2_analysis": {
+    "optimal": {
+      "time_range": "16:00-19:00",
+      "min_intensity": 114,
+      "max_intensity": 124,
+      "intensity_range": "114-124g CO2/kWh"
+    },
+    "peak": {
+      "time_range": "04:00-07:00",
+      "intensity_range": "172-182g CO2/kWh",
+      "max_intensity": 182
+    },
+    "morning_avg": 138,
+    "afternoon_avg": 123,
+    "evening_avg": 121,
+    "overnight_avg": 156,
+    "current_intensity": 123,
+    "absolute_min": 114,
+    "absolute_max": 182,
+    "daily_average": 136,
+    "data_source": "compressed_eirgrid_data",
+    "data_points": 46,
+    "analysis_timestamp": "2025-08-04T04:41:16.478563"
+  },
+  "test_cases": [
+    {
+      "id": "carbon_001_real_appliances",
+      "query": "What is the best time to use my appliances today in Ireland?",
+      "query_date": "2025-08-04",
+      "expected_functions": [
+        "get_emission_analysis"
+      ],
+      "expected_behavior": [
+        "correct_function_call",
+        "high_quality_response",
+        "user_friendly"
+      ],
+      "expected_output_keywords": [
+        "time",
+        "appliances",
+        "Ireland",
+        "carbon",
+        "intensity"
+      ],
+      "category": "basic_query",
+      "priority": "high",
+      "timeout_seconds": 60,
+      "domain_context": "Carbon emissions optimization for appliance usage in Ireland using compressed EirGrid data.",
+      "available_functions": [
+        "get_emission_analysis"
+      ],
+      "ground_truth": {
+        "reference_output": "🏠 **Best Times to Use Appliances in Ireland Today (Based on REAL EirGrid Data):**\n\n🌱 **Optimal Period (Lowest Real CO2):**\n- **16:00-19:00**: 114-124g CO2/kWh (REAL EirGrid data)\n- Perfect for washing machine, dishwasher, and EV charging\n\n⚡ **Specific Appliance Recommendations (Real Data-Based):**\n• **Washing Machine**: Start cycle at 16:00\n• **Dishwasher**: Schedule for 16:00-19:00\n• **Electric Vehicle Charging**: Begin charging during real low-emission window\n• **Tumble Dryer**: Use during optimal period\n\n🔥 **Avoid High Real Emission Times:**\n- **04:00-07:00**: 172-182g CO2/kWh (real peak demand data)\n\n📊 **Today's REAL EirGrid CO2 Data:**\n- Minimum: 114g CO2/kWh (real measurement)\n- Maximum: 182g CO2/kWh (real measurement)  \n- Daily Average: 136g CO2/kWh (real average)\n\n🌍 **Environmental Impact**: Using appliances during optimal times reduces your carbon footprint by up to 37% compared to peak times (calculated from real data)!",
+        "scoring_criteria": {
+          "content_requirements": {
+            "must_have": [
+              "specific optimal time period mentioned (broader 3-hour window like 16:00-19:00)",
+              "real carbon intensity values from actual EirGrid data (no specific range required)",
+              "at least 3 specific appliances mentioned",
+              "comparison between optimal and peak times with broader windows",
+              "clear time recommendations in HH:MM-HH:MM format (not single hours)"
+            ],
+            "should_have": [
+              "environmental impact statement with percentage",
+              "clear visual structure",
+              "daily overview with real min/max/average values",
+              "actionable scheduling advice",
+              "Ireland context mentioned"
+            ],
+            "format_requirements": [
+              "Time ranges in HH:MM-HH:MM format",
+              "CO2 values in g CO2/kWh format",
+              "At least 3 appliance recommendations",
+              "Clear structure with sections"
+            ]
+          },
+          "scoring_weights": {
+            "accuracy_vs_real_data": 0.3,
+            "completeness": 0.25,
+            "clarity": 0.2,
+            "actionability": 0.15,
+            "format": 0.1
+          },
+          "penalty_conditions": [
+            "no specific times mentioned: -0.15",
+            "no appliances mentioned: -0.15",
+            "narrow time windows (single hour instead of 3-hour window): -0.12",
+            "no real carbon intensity values provided: -0.20",
+            "response under 300 characters: -0.10",
+            "wrong time format (not HH:MM-HH:MM): -0.05",
+            "no comparison between optimal/peak times: -0.10",
+            "completely unrealistic CO2 values (e.g., negative numbers, values over 1000g): -0.20",
+            "no mention of real/actual/live data: -0.10"
+          ]
+        }
+      }
+    },
+    {
+      "id": "carbon_002_real_ev_charging",
+      "query": "When should I charge my electric vehicle for minimal carbon footprint using current data?",
+      "query_date": "2025-08-04",
+      "expected_functions": [
+        "get_emission_analysis"
+      ],
+      "expected_behavior": [
+        "correct_function_call",
+        "high_quality_response",
+        "domain_expertise"
+      ],
+      "expected_output_keywords": [
+        "charge",
+        "carbon",
+        "footprint",
+        "time",
+        "electric",
+        "current",
+        "data"
+      ],
+      "category": "ev_charging",
+      "priority": "high",
+      "timeout_seconds": 60,
+      "domain_context": "EV charging optimization based on compressed EirGrid CO2 intensity data for Ireland.",
+      "available_functions": [
+        "get_emission_analysis"
+      ],
+      "ground_truth": {
+        "reference_output": "🔋 **Optimal EV Charging Schedule Based on REAL EirGrid Data:**\n\n🌱 **Best Charging Window (Real CO2 Data):**\n- **16:00-19:00**: Lowest real carbon intensity (114-124g CO2/kWh)\n- Based on current EirGrid compressed data measurements\n\n⚡ **EV Charging Strategy (Real Data-Based):**\n• **Immediate charging needed**: If below 20% battery, charge now\n• **Planned charging**: Set timer to start at 16:00 (real optimal time)\n• **Full daytime charge**: Begin at 16:00 for complete charge during low emissions\n• **Top-up charging**: Use any time during 16:00-19:00 window\n\n🔥 **Avoid These Real High Emission Times:**\n- **04:00-07:00**: Peak grid demand (172-182g CO2/kWh) from real data\n\n📊 **Today's Real CO2 Intensity Range:**\n- Minimum: 114g CO2/kWh\n- Maximum: 182g CO2/kWh\n- Daily Average: 136g CO2/kWh\n\n🌍 **Environmental Benefit**: Charging during optimal hours reduces your EV's carbon footprint by 37% compared to peak times (calculated from today's real EirGrid data)!",
+        "scoring_criteria": {
+          "content_requirements": {
+            "must_have": [
+              "specific optimal charging time window mentioned (broader 3-hour window like 16:00-19:00)",
+              "real carbon intensity values from actual EirGrid data (no specific range required)",
+              "EV charging specific advice with multiple strategies",
+              "comparison between optimal and peak times with broader windows",
+              "clear time recommendations in HH:MM-HH:MM format (not single hours)"
+            ],
+            "should_have": [
+              "environmental impact statement with percentage",
+              "battery charging strategies (immediate vs planned)",
+              "daily CO2 intensity overview",
+              "actionable EV charging advice",
+              "mention of real/actual/live data source"
+            ],
+            "format_requirements": [
+              "Time ranges in HH:MM-HH:MM format",
+              "CO2 values in g CO2/kWh format",
+              "EV-specific charging recommendations",
+              "Clear structure with sections"
+            ]
+          },
+          "scoring_weights": {
+            "accuracy_vs_real_data": 0.3,
+            "completeness": 0.25,
+            "clarity": 0.2,
+            "actionability": 0.15,
+            "format": 0.1
+          },
+          "penalty_conditions": [
+            "no specific times mentioned: -0.15",
+            "no EV charging advice: -0.15",
+            "narrow time windows (single hour instead of 3-hour window): -0.12",
+            "no real carbon intensity values provided: -0.20",
+            "response under 300 characters: -0.10",
+            "wrong time format (not HH:MM-HH:MM): -0.05",
+            "no comparison between optimal/peak times: -0.10",
+            "completely unrealistic CO2 values (e.g., negative numbers, values over 1000g): -0.20",
+            "no mention of real/actual/live data: -0.10",
+            "missing EV charging strategies (immediate, planned, full, top-up): -0.08"
+          ]
+        }
+      }
+    },
+    {
+      "id": "carbon_003_real_data_request",
+      "query": "Show me real CO2 intensity data for the next 24 hours in Ireland",
+      "query_date": "2025-08-04",
+      "expected_functions": [
+        "get_emission_analysis"
+      ],
+      "expected_behavior": [
+        "correct_function_call",
+        "high_quality_response"
+      ],
+      "expected_output_keywords": [
+        "co2",
+        "intensity",
+        "hours",
+        "ireland",
+        "data",
+        "real"
+      ],
+      "category": "data_request",
+      "priority": "medium",
+      "timeout_seconds": 90,
+      "domain_context": "Real carbon intensity data retrieval from compressed EirGrid data for Ireland.",
+      "available_functions": [
+        "get_emission_analysis"
+      ],
+      "ground_truth": {
+        "reference_output": "📊 **REAL CO2 Intensity Data - Ireland (Based on EirGrid Measurements)**\n\n🕐 **24-Hour Real Data Breakdown:**\n\n**🌙 Overnight (Real EirGrid Data):**\n- 00:00-06:00: 156g CO2/kWh ⚠️ (real measurements)\n- Optimal window: 16:00-19:00 (114-124g CO2/kWh) - confirmed lowest real emissions\n\n**🌅 Morning (Real Grid Data):**\n- 06:00-12:00: 138g CO2/kWh ⚠️ (real EirGrid measurements)\n\n**☀️ Afternoon (Live Data):**\n- 12:00-18:00: 123g CO2/kWh 🌱 (current EirGrid readings)\n\n**🌆 Evening (Real Peak Data):**\n- 18:00-24:00: 121g CO2/kWh 🌱 (real measurements)\n\n**📈 Real Daily Summary (EirGrid Data):**\n- **Minimum**: 114g CO2/kWh (cleanest real grid measurement)\n- **Maximum**: 182g CO2/kWh (highest real emission reading)\n- **Daily Average**: 136g CO2/kWh (calculated from real data)\n- **Data Source**: Compressed EirGrid CO2 intensity measurements",
+        "scoring_criteria": {
+          "content_requirements": {
+            "must_have": [
+              "24-hour breakdown or comprehensive data overview",
+              "real carbon intensity values (must be within 114-182g CO2/kWh range)",
+              "time periods with CO2 values",
+              "daily statistics (min/max/average)",
+              "data source mentioned"
+            ],
+            "should_have": [
+              "period-based breakdown (morning/afternoon/evening/overnight)",
+              "visual indicators or emojis for clarity",
+              "trend information",
+              "optimal and peak windows highlighted"
+            ],
+            "format_requirements": [
+              "Time ranges in HH:MM-HH:MM format",
+              "CO2 values in g CO2/kWh format",
+              "Structured data presentation",
+              "Clear period labels"
+            ]
+          },
+          "scoring_weights": {
+            "accuracy_vs_real_data": 0.3,
+            "completeness": 0.25,
+            "clarity": 0.2,
+            "actionability": 0.15,
+            "format": 0.1
+          },
+          "penalty_conditions": [
+            "no time periods mentioned: -0.15",
+            "no CO2 intensity values: -0.20",
+            "completely unrealistic CO2 values (e.g., negative numbers, values over 1000g): -0.20",
+            "response under 300 characters: -0.10",
+            "no daily statistics (min/max/avg): -0.10",
+            "no data source mentioned: -0.05"
+          ]
+        }
+      }
+    },
+    {
+      "id": "carbon_004_invalid_date_format",
+      "query": "What's the best time for appliances on 2025-13-45?",
+      "query_date": "2025-13-45",
+      "expected_functions": [],
+      "expected_behavior": [
+        "error_handling",
+        "user_friendly_error"
+      ],
+      "expected_output_keywords": [
+        "invalid",
+        "date",
+        "format",
+        "error"
+      ],
+      "category": "error_handling",
+      "priority": "high",
+      "timeout_seconds": 30,
+      "domain_context": "Error handling for invalid date formats in carbon emissions queries.",
+      "available_functions": [
+        "get_emission_analysis"
+      ],
+      "ground_truth": {
+        "reference_output": "I noticed there's an issue with the date format in your request. The date \"2025-13-45\" appears to be invalid as:\n\n• Month \"13\" doesn't exist (valid range: 01-12)\n• Day \"45\" doesn't exist in any month (valid range: 01-31)\n\nPlease provide a valid date in one of these formats:\n• YYYY-MM-DD (e.g., 2025-07-30)\n• DD/MM/YYYY (e.g., 30/07/2025)\n\nI can provide carbon intensity data for any valid date within the available range. Would you like to try again with a corrected date?",
+        "scoring_criteria": {
+          "content_requirements": {
+            "must_have": [
+              "error detection and appropriate error message",
+              "clear explanation of the issue"
+            ],
+            "should_have": [
+              "helpful suggestion for correction",
+              "professional error handling"
+            ],
+            "format_requirements": [
+              "Clear error message",
+              "User-friendly explanation"
+            ]
+          },
+          "scoring_weights": {
+            "accuracy_vs_real_data": 0.3,
+            "completeness": 0.25,
+            "clarity": 0.2,
+            "actionability": 0.15,
+            "format": 0.1
+          },
+          "penalty_conditions": [
+            "no error detection: -0.40",
+            "crashes or throws exception: -0.50",
+            "provides data for invalid date: -0.30"
+          ]
+        }
+      }
+    },
+    {
+      "id": "carbon_006_impossible_date",
+      "query": "Show me CO2 data for February 30th, 2025",
+      "query_date": "2025-02-30",
+      "expected_functions": [],
+      "expected_behavior": [
+        "error_handling",
+        "date_validation"
+      ],
+      "expected_output_keywords": [
+        "invalid",
+        "date",
+        "february",
+        "30"
+      ],
+      "category": "error_handling",
+      "priority": "medium",
+      "timeout_seconds": 30,
+      "domain_context": "Error handling for impossible dates in carbon emissions queries.",
+      "available_functions": [
+        "get_emission_analysis"
+      ],
+      "ground_truth": {
+        "reference_output": "I noticed there's an issue with the date format in your request. The date \"2025-13-45\" appears to be invalid as:\n\n• Month \"13\" doesn't exist (valid range: 01-12)\n• Day \"45\" doesn't exist in any month (valid range: 01-31)\n\nPlease provide a valid date in one of these formats:\n• YYYY-MM-DD (e.g., 2025-07-30)\n• DD/MM/YYYY (e.g., 30/07/2025)\n\nI can provide carbon intensity data for any valid date within the available range. Would you like to try again with a corrected date?",
+        "scoring_criteria": {
+          "content_requirements": {
+            "must_have": [
+              "error detection and appropriate error message",
+              "clear explanation of the issue"
+            ],
+            "should_have": [
+              "helpful suggestion for correction",
+              "professional error handling"
+            ],
+            "format_requirements": [
+              "Clear error message",
+              "User-friendly explanation"
+            ]
+          },
+          "scoring_weights": {
+            "accuracy_vs_real_data": 0.3,
+            "completeness": 0.25,
+            "clarity": 0.2,
+            "actionability": 0.15,
+            "format": 0.1
+          },
+          "penalty_conditions": [
+            "no error detection: -0.40",
+            "crashes or throws exception: -0.50",
+            "provides data for invalid date: -0.30"
+          ]
+        }
+      }
+    }
+  ]
+}

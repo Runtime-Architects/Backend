@@ -18,4 +18,4 @@ COPY source/ ./source/
 EXPOSE 8000 6379
 
 # Start Redis in background and run the Python app
-CMD redis-server --daemonize yes && python source/main.py
+CMD python source/main.py
