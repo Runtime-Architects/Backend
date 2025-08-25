@@ -1,7 +1,14 @@
-# Backend Repository
+# Sustainable City AI Chat – Backend Repository
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/f58da717b7b94463aa05b2e01fb437ff)](https://app.codacy.com/gh/Runtime-Architects/Backend/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 
-This repository contains the core backend logic for our AI-powered business insights platform. It leverages AutoGen agents to generate comprehensive business reports with real-time streaming capabilities and WebAuthn passwordless authentication.
+This repository contains the **backend logic** for the Sustainable City AI Chat Application. It leverages **Microsoft AutoGen** to create and manage AI agents that provide **real-time, streaming responses** to user queries about sustainability. The backend also supports **WebAuthn passwordless authentication** for secure and seamless login.
+
+## Key Features
+- **Agent-based conversational AI** for dynamic sustainability insights  
+- **Real-time streaming responses** for smooth user interaction  
+- **Passwordless authentication** using WebAuthn  
+- **Scalable backend architecture**  
+
 
 ## Requirements
 
@@ -11,7 +18,9 @@ This repository contains the core backend logic for our AI-powered business insi
 
 ## Architecture Overview
 
-The backend is built using **FastAPI** with a multi-agent architecture powered by **AutoGen** and **OpenAI Assistants**. It provides:
+![App Demo](austainablecityarchitecture.gif)
+
+The backend is built using **FastAPI** with a multi-agent architecture powered by **AutoGen** and **AzureOpenAI Assistants**. It provides:
 
 - **Passwordless Authentication** using WebAuthn/FIDO2
 - **Real-time Streaming** of agent processing via Server-Sent Events
@@ -29,12 +38,13 @@ The backend is built using **FastAPI** with a multi-agent architecture powered b
 
 ## Agent Architecture
 
-The system uses four specialized AutoGen agents:
+The system uses four specialised AutoGen agents:
 
 1. **PlanningAgent** - Orchestrates the workflow and breaks down complex tasks
 2. **CarbonAgent** - Generates synthetic data tables and carbon footprint estimates
-3. **DataAnalysisAgent** - Analyzes raw data and generates insights
-4. **ReportAgent** - Creates ASCII dashboard reports with visualizations
+3. **PolicyAgent** - Answers user queries on SEAI grants, programmes, and policies accurately
+4. **DataAnalysisAgent** - Analyses raw data and generates insights
+5. **ReportAgent** - Creates ASCII dashboard reports with visualisations
 
 ## Authentication System
 
@@ -43,7 +53,7 @@ The system uses four specialized AutoGen agents:
 The system uses **WebAuthn/FIDO2** for secure, passwordless authentication with biometric support.
 
 #### Authentication Flow:
-1. **Registration**: Users register with email and create a passkey
+1. **Registration**: Users register with an email and create a passkey
 2. **Login**: Users authenticate using their passkey (biometrics/PIN)
 3. **JWT Tokens**: Successful authentication returns a JWT access token
 4. **Session Management**: Tokens can be refreshed and blacklisted on logout
@@ -119,7 +129,7 @@ GET /auth/refresh-token
 Authorization: Bearer <token>
 ```
 
-### Business Intelligence Endpoints
+### Sustainable City AI Backend Endpoints
 
 #### Basic Request (Real-time & Protected)
 ```http
@@ -136,9 +146,9 @@ Content-Type: application/json
 GET /health
 ```
 
-Returns system status including:
-- Agent initialization status
-- OpenAI API connectivity
+Returns system status, including:
+- Agent initialisation status
+- AzureOpenAI API connectivity
 - Database status
 - Configuration validation
 
@@ -179,56 +189,143 @@ The streaming API provides real-time updates via Server-Sent Events:
    cd Backend
    ```
 
-2. **Create virtual environment**:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
+2. **Set up environment configurations**:
+   
+   Create `.env` files in both configuration directories with your actual values:
 
-3. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Environment Configuration**:
-   Create a `.env` file in the root directory:
+   **For Local Development** - Create `configs/local/.env`:
    ```env
    # Azure OpenAI Configuration
-    AZURE_AI_DEPLOYMENT=gpt-4o
-    AZURE_AI_MODEL=gpt-4o
-    AZURE_AI_API_VERSION=2024-12-01-preview
-    AZURE_AI_ENDPOINT=azure-endpoint
-    AZURE_AI_API_KEY=azure-key
-    # Database Configuration
-    DATABASE_URL=cosmos-db-instante
-
-    # Application Configuration
-    APP_SECRET_KEY=your-secret-key-for-jwt-tokens-change-this-in-production
-    APP_DEBUG=True
-    APP_HOST=0.0.0.0
-    APP_PORT=8000
-
-    # WebAuthn Configuration
-    WEBAUTHN_RP_ID=localhost
-    WEBAUTHN_RP_NAME=Sustainable Development
-    WEBAUTHN_ORIGIN=http://localhost:5001
-
-    # CORS Configuration
-    CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
-
-    # Security Configuration
-    JWT_SECRET_KEY=your-jwt-secret-key-change-this-in-production
-    JWT_ALGORITHM=HS256
-    JWT_EXPIRATION_HOURS=24
+   AZURE_AI_DEPLOYMENT=YOUR_DEPLOYMENT
+   AZURE_AI_MODEL=YOUR_MODEL
+   AZURE_AI_API_VERSION=YOUR_API_VERSION
+   AZURE_AI_ENDPOINT=YOUR_ENDPOINT
+   AZURE_AI_API_KEY=YOUR_KEY
+   
+   # Policy Search Configuration
+   POLICY_SEARCH_INDEX_NAME=YOUR_INDEX_NAME
+   POLICY_SEARCH_API_KEY=YOUR_KEY
+   POLICY_SEARCH_API_VERSION=YOUR_API_VERSION
+   POLICY_SEARCH_ENDPOINT=YOUR_ENDPOINT
+   
+   # Database Configuration
+   DATABASE_URL=YOUR_DATABASE_URL
+   
+   # Application Configuration
+   APP_SECRET_KEY=YOUR_SECRET_KEY
+   APP_DEBUG=true
+   APP_HOST=YOUR_HOST
+   APP_PORT=YOUR_PORT
+   
+   # WebAuthn Configuration
+   WEBAUTHN_RP_ID=YOUR_RP_ID
+   WEBAUTHN_RP_NAME=YOUR_RP_NAME
+   WEBAUTHN_ORIGIN=YOUR_ORIGIN
+   
+   # CORS Configuration
+   CORS_ORIGINS=YOUR_ORIGINS
+   
+   # Security Configuration
+   JWT_SECRET_KEY=YOUR_JWT_SECRET_KEY
+   JWT_ALGORITHM=YOUR_ALGORITHM
+   JWT_EXPIRATION_HOURS=YOUR_EXPIRATION_HOURS
    ```
 
-5. **Run the application**:
+   **For Production Deployment** - Create `configs/deployment/.env` with production values.
+
+3. **Configure production SSL (Production only)**:
+   
+   If deploying to production, update the email address in `configs/deployment/start.sh`:
    ```bash
-   cd source
-   python main.py
+   # Find this line and update the email:
+   --email your-email@example.com \
    ```
+   Replace `your-email@example.com` with your actual email address for Let's Encrypt certificate notifications.
 
-The API will be available by default at `http://localhost:8000`
+### Step 3: Deploy Configuration
+
+Use the deployment scripts to set up your environment:
+
+**Windows:**
+```powershell
+# Deploy local development configuration
+.\deploy-config.bat local
+
+# Deploy production configuration
+.\deploy-config.bat deployment
+```
+
+**Linux/macOS:**
+```bash
+# Make script executable
+chmod +x deploy-config.sh
+
+# Deploy local development configuration
+./deploy-config.sh local
+
+# Deploy production configuration
+./deploy-config.sh deployment
+```
+
+### Step 4: Run the Application
+
+After deploying the local configuration, you have two options:
+
+**Option A: Docker (Recommended)**
+```bash
+docker build -t sustainable-city-backend .
+docker run -p 8000:8000 -p 6379:6379 sustainable-city-backend
+```
+
+**Option B: Local Python**
+```bash
+# Windows
+python -m venv env
+env\Scripts\activate
+pip install -r requirements.txt
+python source\main.py
+
+# Linux/macOS
+python3 -m venv env
+source env/bin/activate
+pip install -r requirements.txt
+python3 source/main.py
+```
+
+The API will be available at `http://localhost:8000`
+
+### What the Deployment Script Does
+
+The deployment script will automatically:
+- Copy the appropriate `.env` file to `source/`
+- Copy other configuration files to the root directory
+- For **local**: Remove deployment-specific files (nginx.conf, SSL certificates) and show run commands
+- For **deployment**: Set up nginx, SSL certificates, and startup scripts
+
+### Environment Structure
+```
+Backend/
+├── configs/
+│   ├── deployment/
+│   │   ├── .env
+│   │   ├── dockerfile
+│   │   ├── nginx.conf
+│   │   ├── selfsigned.crt
+│   │   ├── selfsigned.key
+│   │   └── start.sh
+│   └── local/
+│       ├── .env
+│       └── dockerfile
+├── deploy-config.bat    # Windows deployment script
+├── deploy-config.sh     # Linux/macOS deployment script
+├── requirements.txt
+└── source/             # Application source code
+    ├── main.py
+    ├── agents/
+    ├── api/
+    ├── eirgridscraper/
+    └── policy-scraper/
+```
 
 ## Testing
 ```bash
@@ -276,12 +373,6 @@ Once running, visit:
 - **Connection Pooling**: Automatic session management
 - **Error Handling**: Comprehensive error logging and user feedback
 
-## Contributing
-
-We follow strict contribution guidelines including Conventional Commits and branching conventions.
-
-👉 See the [CONTRIBUTING.md](./CONTRIBUTING.md) file for full details.
-
 ## Production Deployment
 
 For production deployment:
@@ -312,10 +403,10 @@ For production deployment:
 1. **WebAuthn Registration Fails**:
    - Check browser compatibility
    - Verify HTTPS configuration
-   - Ensure proper origin settings and WebAuthn configuration
+   - Ensure proper origin settings
 
 2. **Agent Initialization Errors**:
-   - Verify Azure API key
+   - Verify OpenAI API key
    - Check assistant IDs configuration
    - Monitor `/health` endpoint
 
@@ -323,3 +414,14 @@ For production deployment:
    - Check CORS configuration
    - Verify event stream client implementation
    - Monitor network connectivity
+
+4. **Configuration Deployment Issues**:
+   - Ensure `configs/` directory structure is correct
+   - Check file permissions on deployment scripts
+   - Verify the target environment (deployment/local) exists
+
+## 🤝 Contributing
+
+We follow strict contribution guidelines, including Conventional Commits and branching conventions.
+
+👉 See the [CONTRIBUTING.md](./CONTRIBUTING.md) file for full details.
